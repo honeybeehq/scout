@@ -163,13 +163,14 @@ private struct DestinationMenu: View {
                 Image(systemName: "arrow.turn.down.right")
                 Text(card.destination?.label ?? "Choose where to send")
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
             .font(.system(size: 11.5, weight: .medium))
             .foregroundStyle(card.destination == nil ? Palette.amber : Palette.textSecondary)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
-        .fixedSize()
+        .frame(maxWidth: 230, alignment: .leading)
         .disabled(card.state == .sending || card.state.isFinished)
     }
 }
@@ -204,11 +205,12 @@ private struct DeliveryControl: View {
                 ProgressView().controlSize(.mini)
                 Text("Sending").font(Typography.caption).foregroundStyle(Palette.textSecondary)
             }
-        case .sent(let where_):
-            Label("Sent to \(where_)", systemImage: "checkmark.circle.fill")
+        case .sent(let destination):
+            Label("Sent", systemImage: "checkmark.circle.fill")
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(Palette.mint)
-                .lineLimit(1)
+                .fixedSize()
+                .help("Sent to \(destination)")
         case .withdrawn:
             EmptyView()
         case .failed(let message):
