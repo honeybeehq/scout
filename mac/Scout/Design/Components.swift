@@ -18,7 +18,7 @@ struct FlareButtonStyle: ButtonStyle {
                     .shadow(color: isEnabled ? Palette.flare.opacity(configuration.isPressed ? 0.25 : 0.45) : .clear, radius: 18, y: 6)
             }
             .opacity(isEnabled ? 1 : 0.6)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(Motion.snappy, value: configuration.isPressed)
             .contentShape(.capsule)
     }
@@ -154,6 +154,6 @@ struct Checkmark: View {
             .frame(width: size, height: size)
             .background(Palette.mint, in: .circle)
             .shadow(color: Palette.mint.opacity(0.5), radius: 8)
-            .transition(.scale(scale: 0.4).combined(with: .opacity))
+            .transition(.iconSwap)
     }
 }

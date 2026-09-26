@@ -69,7 +69,7 @@ private struct HiveCard: View {
                 Spacer(minLength: 0)
             }
         }
-        .padding(18)
+        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 22))
     }
@@ -128,7 +128,7 @@ private struct SessionRow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 40)
-        .background(Color.white.opacity(0.04), in: .rect(cornerRadius: 10))
+        .background(Color.white.opacity(0.04), in: .rect(cornerRadius: 8))
     }
 }
 
@@ -211,8 +211,9 @@ private struct RoutePicker: View {
             .disabled(!hiveAvailable)
             .opacity(hiveAvailable ? 1 : 0.5)
         }
-        .padding(.horizontal, 18)
+        .padding(.leading, 28)
+        .padding(.trailing, 16)
         .frame(height: 70)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 20))
+        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .capsule)
     }
 }

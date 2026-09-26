@@ -122,15 +122,18 @@ struct StepLayout<Content: View, Footer: View>: View {
                     .frame(maxWidth: 560, alignment: .leading)
             }
             .padding(.top, 30)
+            .staggeredEntrance(0)
 
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.vertical, 22)
+                .staggeredEntrance(1)
 
             HStack(spacing: 12) {
                 footer
             }
             .frame(height: 50)
+            .staggeredEntrance(2)
         }
         .padding(.horizontal, 56)
         .padding(.bottom, 34)

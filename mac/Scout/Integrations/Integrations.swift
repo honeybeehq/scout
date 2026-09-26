@@ -58,7 +58,7 @@ final class Integrations {
             return
         }
         do {
-            let sessions = try await hiveClient.activeSessions(limit: 200)
+            let sessions = try await hiveClient.activeSessions(limit: .max)
             recentSessions = Array(sessions.prefix(4))
             hive = .connected(activeSessions: sessions.count)
         } catch {

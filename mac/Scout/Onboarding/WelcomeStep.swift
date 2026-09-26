@@ -28,8 +28,7 @@ struct WelcomeStep: View {
                     LinearGradient(colors: [.white, .white.opacity(0.72)], startPoint: .top, endPoint: .bottom)
                 )
                 .padding(.top, 6)
-                .opacity(revealed ? 1 : 0)
-                .offset(y: revealed ? 0 : 12)
+                .staggeredEntrance(1)
 
             Text("Talk through your app. Point at what's off.\nScout turns it into tasks your agents can fix.")
                 .font(.system(size: 17, weight: .regular))
@@ -37,8 +36,7 @@ struct WelcomeStep: View {
                 .lineSpacing(4)
                 .foregroundStyle(Palette.textSecondary)
                 .padding(.top, 14)
-                .opacity(revealed ? 1 : 0)
-                .offset(y: revealed ? 0 : 12)
+                .staggeredEntrance(2)
 
             Spacer(minLength: 30)
 
@@ -53,8 +51,7 @@ struct WelcomeStep: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textTertiary)
             }
-            .opacity(revealed ? 1 : 0)
-            .offset(y: revealed ? 0 : 16)
+            .staggeredEntrance(3)
             .padding(.bottom, 56)
         }
         .frame(maxWidth: .infinity)

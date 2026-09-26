@@ -70,8 +70,12 @@ private struct PermissionRow: View {
 
             Spacer(minLength: 8)
 
-            trailing
-                .animation(Motion.bouncy, value: state)
+            ZStack {
+                trailing
+                    .id(state)
+                    .transition(.iconSwap)
+            }
+            .animation(Motion.iconSwap, value: state)
         }
         .padding(.horizontal, 18)
         .frame(height: 78)

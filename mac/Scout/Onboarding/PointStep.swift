@@ -279,12 +279,12 @@ private struct PinTray: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 12))
+                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 8))
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
         .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 20))
     }
@@ -313,9 +313,10 @@ private struct ShortcutRow: View {
             Button(recording ? "Cancel" : "Change") { recording ? stopRecording() : startRecording() }
                 .buttonStyle(GlassPillButtonStyle())
         }
-        .padding(.horizontal, 18)
+        .padding(.leading, 26)
+        .padding(.trailing, 16)
         .frame(height: 64)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 20))
+        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .capsule)
         .onDisappear(perform: stopRecording)
     }
 
