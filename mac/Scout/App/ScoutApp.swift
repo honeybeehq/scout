@@ -26,18 +26,28 @@ struct ScoutApp: App {
             MenuBarLabel(model: model)
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView()
+                .environment(model)
+        }
     }
 }
 
 private struct MenuBarLabel: View {
     let model: AppModel
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Image(nsImage: MenuBarIcon.image(scouting: model.isScouting))
             .onAppear {
                 model.openOnboarding = {
                     openWindow(id: ScoutApp.onboardingWindowID)
+                    NSApp.activate()
+                }
+                model.openSettingsWindow = {
+                    openSettings()
                     NSApp.activate()
                 }
             }

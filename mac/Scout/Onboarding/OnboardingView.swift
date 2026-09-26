@@ -43,7 +43,7 @@ struct OnboardingView: View {
             model.permissions.noteAppBecameActive()
         }
         .task {
-            if let directory = SnapshotMode.directory {
+            if let directory = SnapshotMode.directory, SettingsView.requestedPane == nil {
                 await SnapshotMode.run(model: model, into: directory)
             }
         }

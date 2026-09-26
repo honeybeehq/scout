@@ -57,18 +57,20 @@ final class SnippetCard: Identifiable {
 final class Dispatcher {
     private(set) var cards: [SnippetCard] = []
     private(set) var sessions: [HiveSession] = []
-    var autoSendDelay: TimeInterval = 5
-    var defaultAgent = "claude"
+    var autoSendDelay: TimeInterval { preferences.autoSendDelay }
+    var defaultAgent: String { preferences.defaultAgent }
     var dryRun = false
     var attachmentProvider: ((SnippetCard) async -> [ComposedTask.Attachment])?
 
     private let integrations: Integrations
     private let bridge: BridgeServer
+    private let preferences: Preferences
     private let resolver = ProjectResolver()
 
-    init(integrations: Integrations, bridge: BridgeServer) {
+    init(integrations: Integrations, bridge: BridgeServer, preferences: Preferences) {
         self.integrations = integrations
         self.bridge = bridge
+        self.preferences = preferences
     }
 
     var pendingCount: Int {
@@ -97,8 +99,10 @@ final class Dispatcher {
                 card.state = .needsDestination
             } else if sendImmediately {
                 await send(card)
-            } else {
+            } else if preferences.autoSend {
                 await countdown(card)
+            } else {
+                card.state = .held
             }
         }
     }

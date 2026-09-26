@@ -10,13 +10,13 @@ Each milestone ends with something the user can run and judge.
 - Six-step onboarding: live permission states, the System Settings guide, relaunch-and-resume, on-device voice check, pointing practice, hive/Apiary detection, routing choice, open at login.
 - hive socket client (`list`, `send`, `spawn`).
 
-## M1: Scouting slice
+## M1: Scouting slice ✅
 
-Talk in any app, get split tasks, send them to hive.
+Talk in any app, get split tasks, send them to hive. Verified end to end with `--simulate-session` (a synthesized narration becomes the three intended tasks, with cut reasons).
 
 - `Session`: clock, append-only `signals.jsonl`, segmenter bridge, snippet store.
-- Voice stream: `SpeechTranscriber` (time-indexed) plus `SpeechDetector` for voice activity. Utterances become signals.
-- Context stream: frontmost app, focused window title (AX), browser URL (AX, with Automation as a fallback).
+- Voice stream: time-indexed `SpeechTranscriber` with word timings; the last words are flushed on stop. (`SpeechDetector` voice activity is still open; it would let the segmenter drop its 4 s silence grace.)
+- Context stream: frontmost app, focused window title (AX), browser URL from the page's accessibility tree (`AXURL`, with Chromium and Electron trees switched on through `AXManualAccessibility`). An Automation fallback is still open.
 - Hover focus: AX element under the pointer, with dwell detection.
 - The pill and the snippet stack. Task markdown. Delivery through the router (hive `send`/`spawn`, clipboard fallback) with idempotency keys.
 - Voice commands: "new task", "scratch that", "send it".
@@ -29,15 +29,16 @@ Talk in any app, get split tasks, send them to hive.
 - Pin screenshots with the element outlined.
 - Exclude Scout's own windows and password managers from capture.
 
-## M3: Aim and pin
+## M3: Aim and pin (mostly done)
 
-- The `⌥` aim overlay, AX element resolution with ancestry, region pins by dragging.
-- iOS Simulator elements through the macOS accessibility bridge.
-- Pins as hard evidence for splitting (a new pin on a different target raises the cut score).
+Done: `⌥` aim overlay, click-to-pin through a session event tap, accessibility element resolution with ancestry, SDK pin enrichment. Open:
 
-## M4: Web SDK and bridge v1
+- Region pins by dragging.
+- iOS Simulator elements through the macOS accessibility bridge (verify and tune).
 
-- Bridge server (WebSocket, origin checks, tokens, first-contact approval).
+## M4: Web SDK and bridge v1 (in progress)
+
+- Bridge server ✅ (loopback WebSocket, Origin checks, `bridge.json` token, session/aim/pin, hover dwell, runtime signals, project root from hello). First-contact approval UI is still open.
 - `@scout/web`, `@scout/react`, `@scout/svelte`, plus `@scout/vite` and `@scout/next` adapters.
 - Error, console and network signals attached to snippets.
 - Project resolution: SDK hello → nectar → dev-server port → cwd → git root → pro index → user overrides.
@@ -45,7 +46,7 @@ Talk in any app, get split tasks, send them to hive.
 ## M5: Smarter splitting
 
 - Sentence-embedding similarity (`NLEmbedding`) behind the segmenter's `SemanticSimilarity` protocol.
-- On-device FoundationModels pass: snippet titles, merge and split refinement within a short window after each close.
+- On-device FoundationModels: snippet titles ✅ (used when Apple Intelligence is on), merge and split refinement within a short window after each close.
 - Split corrections logged to `corrections.jsonl` and turned into fixtures. Weights tuned against them.
 
 ## M6: Native SDKs

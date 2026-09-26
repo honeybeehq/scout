@@ -11,8 +11,10 @@ final class AppModel {
     let dispatcher: Dispatcher
     let hud = HUDController()
     let bridge = BridgeServer()
+    let preferences = Preferences()
     private(set) var session: ScoutingSession?
     var openOnboarding: (() -> Void)?
+    var openSettingsWindow: (() -> Void)?
 
     private(set) var shortcut: KeyShortcut
     private(set) var shortcutRegistered = false
@@ -25,7 +27,7 @@ final class AppModel {
     init() {
         let integrations = Integrations()
         self.integrations = integrations
-        dispatcher = Dispatcher(integrations: integrations, bridge: bridge)
+        dispatcher = Dispatcher(integrations: integrations, bridge: bridge, preferences: preferences)
         if let data = UserDefaults.standard.data(forKey: Self.shortcutKey),
            let saved = try? JSONDecoder().decode(KeyShortcut.self, from: data) {
             shortcut = saved
@@ -37,6 +39,9 @@ final class AppModel {
         shortcutRegistered = hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
         bridge.start()
+        if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
+            Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
+        }
         if let audio = SimulationMode.audioFile {
             Task { await SimulationMode.run(model: self, audio: audio) }
         }

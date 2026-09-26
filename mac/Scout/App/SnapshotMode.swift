@@ -8,6 +8,19 @@ enum SnapshotMode {
         return URL(fileURLWithPath: String(argument.dropFirst(prefix.count)), isDirectory: true)
     }
 
+    static func captureSettings(model: AppModel, into directory: URL, pane: SettingsView.Pane) async {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? await Task.sleep(for: .seconds(1))
+        model.openSettingsWindow?()
+        try? await Task.sleep(for: .seconds(1.5))
+        if let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width < 700 && $0.frame.height > 300 }),
+           let image = windowImage(CGWindowID(window.windowNumber)) {
+            try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
+                .write(to: directory.appendingPathComponent("settings-\(pane.rawValue).png"))
+        }
+        NSApp.terminate(nil)
+    }
+
     static func run(model: AppModel, into directory: URL) async {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? await Task.sleep(for: .seconds(1.5))

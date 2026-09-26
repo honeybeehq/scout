@@ -52,18 +52,19 @@ Rules:
 
 | Folder | Responsibility | Status |
 |---|---|---|
-| `App/` | `ScoutApp` scenes, `AppModel` root state, snapshot mode for visual checks | M0 |
+| `App/` | `ScoutApp` scenes, `AppModel` root state, preferences, settings, snapshot and simulation modes | M0–M1 |
 | `Design/` | Palette, type, motion, mark, aurora backdrop, shared components | M0 |
 | `Onboarding/` | Six-step onboarding and its persisted progress | M0 |
 | `Permissions/` | Live permission states, requests, the System Settings guide, relaunch | M0 |
-| `Voice/` | Microphone capture and live on-device transcription | M0 (onboarding check) |
-| `Integrations/` | hive socket client, Apiary detection, routing preference | M0 (detect), M1 (deliver) |
+| `Voice/` | Microphone (or audio file) capture and live on-device transcription with word timings | M1 |
+| `Integrations/` | hive socket client, Apiary detection, routing preference | M1 |
 | `Shortcuts/` | Carbon global hotkeys (need no permission) | M0 |
 | `MenuBar/` | Menu bar icon and panel | M0 |
-| `Session/` | Scouting session: clock, signal log, segmenter bridge, snippet store | M1 |
-| `Context/` | Frontmost app, window title, AX hit-testing, browser URL, project resolution | M1 |
-| `HUD/` | Scouting pill, snippet stack, aim overlay | M1–M3 |
-| `Capture/` | ScreenCaptureKit segmented recorder, frame taps, pin screenshots | M2 |
+| `Session/` | Scouting session: clock, signal log, segmenter, voice commands | M1 |
+| `Context/` | Frontmost app, window title, browser URL (AX `AXWebArea`/`AXURL`), pointer dwell, `TargetResolver` | M1 |
+| `Delivery/` | Project resolution, task composition, titles, routing and sending (`Dispatcher`) | M1 |
+| `HUD/` | Scouting pill, snippet stack, aim overlay and pin event tap | M1–M3 |
+| `Capture/` | ScreenCaptureKit segmented recorder, clip cutting, visual change, frame snapshots | M2 |
 | `Bridge/` | SDK bridge server (see sdk-protocol.md) | M4 |
 
 Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and strict concurrency. UI and coordination code is on the main actor by default. Realtime code opts out explicitly with `nonisolated` types (`MicrophoneCapture`, `HiveClient`, the future capture writers).
@@ -104,4 +105,5 @@ Signing matters for TCC. Development builds are signed with the Apple Developmen
 
 - `swift build && swift run scout-segment --check Fixtures/sessions` checks the breakpoint engine against its fixtures.
 - `script/build_and_run.sh` builds, signs, stages and launches the app. Flags: `--build-only`, and app arguments such as `--reset-onboarding` and `--onboarding-step=<name>`.
-- `open -n ~/Applications/Scout.app --args --reset-onboarding --snapshot-dir=<dir>` walks every onboarding step and writes a PNG of each, then quits. Pass the directory with `=`: a separate path argument is treated as a document to open, and SwiftUI then skips the default window.
+- `open -n ~/Applications/Scout.app --args --reset-onboarding --snapshot-dir=<dir>` walks every onboarding step and writes a PNG of each, then quits. Add `--settings-pane=general|agents|sdks` to capture a Settings pane instead. Pass values with `=`: a separate path argument is treated as a document to open, and SwiftUI then skips the default window.
+- `open -n ~/Applications/Scout.app --args --simulate-session=<audio file> --dry-run-delivery --simulate-output=<dir>` runs a real scouting session with the audio file in place of the microphone (context, pointer and aim still run live), snapshots the pill and stack, and writes `report.json` with every task, its cut reasons and its destination. `--dry-run-delivery` writes `message.txt` into each snippet folder instead of sending. Make narration with pauses using `say -o narration.aiff "First note. [[slnc 2500]] Next thing, …"`.

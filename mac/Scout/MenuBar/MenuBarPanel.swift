@@ -61,6 +61,10 @@ struct MenuBarPanel: View {
                     NSApp.activate()
                 }
                 .buttonStyle(QuietButtonStyle())
+                SettingsLink {
+                    Text("Settings")
+                }
+                .buttonStyle(QuietButtonStyle())
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(QuietButtonStyle())
