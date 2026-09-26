@@ -1,0 +1,23 @@
+# Designer pins elements on a landing page and says one short note per pin (1.6-2.2 s gaps).
+# Each pin on a new element is its own task; the follow-up about the CTA hover state stays with the CTA.
+# expect: 6
+# expect-breaks: 3.8, 7.65, 12.05, 18.5, 23.4
+
+{"type":"context","at":0.0,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"windowTitle":"Acme – Ship faster","location":"http://localhost:3000/","project":{"rootPath":"/Users/dev/code/acme-web","name":"acme-web","gitBranch":"main"}}}
+{"type":"mark","id":"m1","at":0.9,"point":{"x":64,"y":32},"target":{"id":"web:header .logo","provider":"web","role":"img","label":"Acme","ancestry":["web:header"],"component":"Logo","selector":"header .logo"}}
+{"type":"utterance","id":"u1","range":{"start":1.2,"end":3.0},"text":"Logo looks blurry on retina.","words":[{"text":"Logo","range":{"start":1.2,"end":1.52},"confidence":0.93},{"text":"looks","range":{"start":1.56,"end":1.88},"confidence":0.93},{"text":"blurry","range":{"start":1.92,"end":2.24},"confidence":0.93},{"text":"on","range":{"start":2.28,"end":2.6},"confidence":0.93},{"text":"retina.","range":{"start":2.64,"end":2.96},"confidence":0.93}]}
+{"type":"mark","id":"m2","at":4.4,"point":{"x":812,"y":30},"target":{"id":"web:nav a[href='/pricing']","provider":"web","role":"link","label":"Pricing","ancestry":["web:header","web:header nav"],"component":"NavLink","selector":"nav a[href='/pricing']"}}
+{"type":"utterance","id":"u2","range":{"start":4.6,"end":6.8},"text":"Pricing link is the wrong gray.","words":[{"text":"Pricing","range":{"start":4.6,"end":4.93},"confidence":0.93},{"text":"link","range":{"start":4.97,"end":5.29},"confidence":0.93},{"text":"is","range":{"start":5.33,"end":5.66},"confidence":0.93},{"text":"the","range":{"start":5.7,"end":6.03},"confidence":0.93},{"text":"wrong","range":{"start":6.07,"end":6.39},"confidence":0.93},{"text":"gray.","range":{"start":6.43,"end":6.76},"confidence":0.93}]}
+{"type":"mark","id":"m3","at":8.3,"point":{"x":480,"y":260},"target":{"id":"web:.hero h1","provider":"web","role":"heading","label":"Ship faster with Acme","ancestry":["web:main","web:.hero"],"component":"HeroTitle","selector":".hero h1"}}
+{"type":"utterance","id":"u3","range":{"start":8.5,"end":11.2},"text":"Headline should break after the word faster.","words":[]}
+{"type":"mark","id":"m4","at":12.6,"point":{"x":470,"y":380},"target":{"id":"web:.hero .cta","provider":"web","role":"button","label":"Start free trial","ancestry":["web:main","web:.hero"],"component":"Button","selector":".hero .cta","source":{"file":"src/marketing/Hero.tsx","line":31}}}
+{"type":"utterance","id":"u4","range":{"start":12.9,"end":15.1},"text":"CTA needs more padding, like 16 by 24.","words":[]}
+{"type":"focus","range":{"start":12.4,"end":17.0},"target":{"id":"web:.hero .cta","provider":"web","role":"button","label":"Start free trial","ancestry":["web:main","web:.hero"],"component":"Button","selector":".hero .cta","source":{"file":"src/marketing/Hero.tsx","line":31}}}
+{"type":"utterance","id":"u5","range":{"start":15.6,"end":17.4},"text":"And a hover state.","words":[]}
+{"type":"visualChange","at":18.2,"magnitude":0.5}
+{"type":"mark","id":"m5","at":19.4,"point":{"x":300,"y":610},"target":{"id":"web:.testimonials .avatar","provider":"web","role":"img","label":"Avatar","ancestry":["web:main","web:.testimonials"],"component":"TestimonialCard","selector":".testimonials .avatar"}}
+{"type":"utterance","id":"u6","range":{"start":19.6,"end":22.4},"text":"Testimonial avatars are squished, keep the aspect ratio.","words":[]}
+{"type":"visualChange","at":23.3,"magnitude":0.6}
+{"type":"mark","id":"m6","at":24.2,"point":{"x":120,"y":880},"target":{"id":"web:footer .copyright","provider":"web","role":"text","label":"© 2024 Acme","ancestry":["web:footer"],"component":"Footer","selector":"footer .copyright"}}
+{"type":"utterance","id":"u7","range":{"start":24.4,"end":26.6},"text":"Footer copyright year is still 2024.","words":[]}
+{"type":"clock","at":34.0}

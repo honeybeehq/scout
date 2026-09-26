@@ -1,0 +1,35 @@
+# One web app, five tasks. Cue phrases (next, also, okay so) and route changes separate them;
+# follow-ups (It..., Same for..., And there's...) stay with their task.
+# expect: 5
+# expect-breaks: 15.3, 25.4, 42.0, 52.3
+
+{"type":"context","at":0.0,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"windowTitle":"Dashboard · Acme","location":"http://localhost:3000/dashboard","project":{"rootPath":"/Users/dev/code/acme-web","name":"acme-web","gitBranch":"main"}}}
+{"type":"focus","range":{"start":1.4,"end":5.6},"target":{"id":"web:#revenue-chart","provider":"web","role":"figure","label":"Revenue","ancestry":["web:main","web:.dashboard-grid"],"component":"RevenueChart","selector":"#revenue-chart","source":{"file":"src/components/RevenueChart.tsx","line":42}}}
+{"type":"utterance","id":"u1","range":{"start":1.0,"end":5.8},"text":"Okay, on the dashboard the revenue chart is cut off on the right side.","words":[]}
+{"type":"focus","range":{"start":6.0,"end":10.6},"target":{"id":"web:#revenue-chart","provider":"web","role":"figure","label":"Revenue","ancestry":["web:main","web:.dashboard-grid"],"component":"RevenueChart","selector":"#revenue-chart","source":{"file":"src/components/RevenueChart.tsx","line":42}}}
+{"type":"utterance","id":"u2","range":{"start":6.4,"end":10.9},"text":"You can see the last two months just disappear behind the card edge.","words":[]}
+{"type":"mark","id":"m1","at":12.0,"point":{"x":912,"y":344},"target":{"id":"web:#revenue-chart","provider":"web","role":"figure","label":"Revenue","ancestry":["web:main","web:.dashboard-grid"],"component":"RevenueChart","selector":"#revenue-chart","source":{"file":"src/components/RevenueChart.tsx","line":42}}}
+{"type":"focus","range":{"start":11.0,"end":14.0},"target":{"id":"web:#revenue-chart","provider":"web","role":"figure","label":"Revenue","ancestry":["web:main","web:.dashboard-grid"],"component":"RevenueChart","selector":"#revenue-chart","source":{"file":"src/components/RevenueChart.tsx","line":42}}}
+{"type":"utterance","id":"u3","range":{"start":11.3,"end":14.2},"text":"I think the container needs overflow visible, or the chart should resize with the card.","words":[]}
+{"type":"utterance","id":"u4","range":{"start":16.4,"end":20.1},"text":"Next, the date picker in the top bar doesn't close when you click outside of it.","words":[]}
+{"type":"focus","range":{"start":15.6,"end":20.2},"target":{"id":"web:[data-testid=date-range]","provider":"web","role":"button","label":"Last 30 days","ancestry":["web:header.topbar"],"component":"DateRangePicker","selector":"[data-testid=date-range]"}}
+{"type":"utterance","id":"u5","range":{"start":20.8,"end":24.0},"text":"It stays open until you pick a date, which gets annoying.","words":[]}
+{"type":"context","at":25.6,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"windowTitle":"Billing · Acme","location":"http://localhost:3000/settings/billing","project":{"rootPath":"/Users/dev/code/acme-web","name":"acme-web","gitBranch":"main"}}}
+{"type":"visualChange","at":25.7,"magnitude":0.85}
+{"type":"focus","range":{"start":26.9,"end":31.4},"target":{"id":"web:#billing-save","provider":"web","role":"button","label":"Save","ancestry":["web:main","web:form#billing"],"component":"BillingForm","selector":"#billing-save","source":{"file":"src/settings/BillingForm.tsx","line":118}}}
+{"type":"utterance","id":"u6","range":{"start":26.8,"end":31.5},"text":"On the billing page, the save button stays disabled even after I change the card.","words":[]}
+{"type":"utterance","id":"u7","range":{"start":32.1,"end":35.0},"text":"And there's no error message either.","words":[]}
+{"type":"focus","range":{"start":31.8,"end":39.6},"target":{"id":"web:#billing-save","provider":"web","role":"button","label":"Save","ancestry":["web:main","web:form#billing"],"component":"BillingForm","selector":"#billing-save","source":{"file":"src/settings/BillingForm.tsx","line":118}}}
+{"type":"utterance","id":"u8","range":{"start":35.6,"end":40.2},"text":"The button should enable as soon as the form is dirty.","words":[]}
+{"type":"visualChange","at":41.2,"magnitude":0.3}
+{"type":"mark","id":"m2","at":45.0,"point":{"x":640,"y":520},"target":{"id":"web:#invoices","provider":"web","role":"table","label":"Invoices","ancestry":["web:main"],"component":"InvoiceTable","selector":"#invoices"}}
+{"type":"focus","range":{"start":42.8,"end":47.6},"target":{"id":"web:#invoices","provider":"web","role":"table","label":"Invoices","ancestry":["web:main"],"component":"InvoiceTable","selector":"#invoices"}}
+{"type":"utterance","id":"u9","range":{"start":43.7,"end":48.3},"text":"Also, the invoice table on this page has the amounts left aligned, they should be right aligned.","words":[]}
+{"type":"utterance","id":"u10","range":{"start":48.9,"end":51.0},"text":"Same for the tax column.","words":[]}
+{"type":"context","at":52.4,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"windowTitle":"Projects · Acme","location":"http://localhost:3000/projects","project":{"rootPath":"/Users/dev/code/acme-web","name":"acme-web","gitBranch":"main"}}}
+{"type":"visualChange","at":52.5,"magnitude":0.9}
+{"type":"focus","range":{"start":54.0,"end":57.6},"target":{"id":"web:.projects .empty-state","provider":"web","role":"img","label":"No projects yet","ancestry":["web:main","web:.projects"],"component":"EmptyState","selector":".projects .empty-state"}}
+{"type":"utterance","id":"u11","range":{"start":53.5,"end":58.0},"text":"Okay so, over on projects, the empty state illustration is way too big on a laptop screen.","words":[]}
+{"type":"utterance","id":"u12","range":{"start":58.6,"end":61.0},"text":"It pushes the create button below the fold.","words":[]}
+{"type":"utterance","id":"u13","range":{"start":62.6,"end":64.0},"text":"That's it for now.","words":[]}
+{"type":"clock","at":70.0}

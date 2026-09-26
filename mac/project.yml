@@ -1,0 +1,55 @@
+name: Scout
+options:
+  bundleIdPrefix: com.trmdy
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  ScoutKit:
+    path: ..
+targets:
+  Scout:
+    type: application
+    platform: macOS
+    sources:
+      - path: Scout
+    dependencies:
+      - package: ScoutKit
+        product: ScoutCore
+      - package: ScoutKit
+        product: ScoutSegmenter
+    info:
+      path: Scout/Info.plist
+      properties:
+        CFBundleDisplayName: Scout
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.developer-tools
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSUIElement: true
+        NSMicrophoneUsageDescription: Scout listens while you talk through your app, so it can turn what you say into tasks.
+        NSAppleEventsUsageDescription: Scout reads the address of the page you are looking at, so feedback lands in the right project.
+        NSSpeechRecognitionUsageDescription: Scout transcribes your voice on this Mac.
+    entitlements:
+      path: Scout/Scout.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+        com.apple.security.automation.apple-events: true
+    settings:
+      base:
+        PRODUCT_NAME: Scout
+        PRODUCT_BUNDLE_IDENTIFIER: com.trmdy.scout
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_DEBUG_DYLIB: NO
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: Apple Development
+        DEVELOPMENT_TEAM: 4QK8JBAU4V
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        COMBINE_HIDPI_IMAGES: YES
+        DEAD_CODE_STRIPPING: YES

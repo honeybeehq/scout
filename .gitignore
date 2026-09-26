@@ -1,0 +1,11 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+dist/
+release/
+*.xcuserstate
+xcuserdata/
+mac/Scout.xcodeproj/
+.swiftpm/
+node_modules/

@@ -1,0 +1,11 @@
+# expect: 2
+# expect-breaks: 9.5
+# A closing remark on its own ("That's it.", "Okay, that's all.") never becomes a task of its own, even when it arrives after a long pause.
+{"type":"context","at":0.0,"context":{"app":{"bundleID":"com.apple.Safari","name":"Safari"},"location":"http://localhost:3000/checkout"}}
+{"type":"utterance","id":"u1","range":{"start":0.4,"end":6.1},"text":"The pay now button is way too small and it's grey, so it looks disabled.","words":[]}
+{"type":"utterance","id":"u2","range":{"start":6.5,"end":8.4},"text":"Make it the primary color.","words":[]}
+{"type":"utterance","id":"u3","range":{"start":10.6,"end":16.2},"text":"Next thing, the order summary card needs more padding on the right side.","words":[]}
+{"type":"utterance","id":"u4","range":{"start":17.4,"end":18.1},"text":"That's it.","words":[]}
+{"type":"clock","at":27.0}
+{"type":"utterance","id":"u5","range":{"start":29.0,"end":30.2},"text":"Okay, that's all.","words":[]}
+{"type":"clock","at":40.0}

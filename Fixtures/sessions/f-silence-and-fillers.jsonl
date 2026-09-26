@@ -1,0 +1,32 @@
+# Fillers and false starts ("Um", "Uh, wait.", "Hmm.", "Uh, so.") never open or split a snippet.
+# A ~20 s silence while the user navigates closes the first snippet by timeout.
+# expect: 3
+# expect-breaks: 20.5, 46.1
+
+{"type":"context","at":0.0,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"windowTitle":"Untitled draft — Quill","location":"http://localhost:8080/editor/draft-42"}}
+{"type":"utterance","id":"u1","range":{"start":0.8,"end":5.9},"text":"The toolbar buttons don't show tooltips, so I have no idea what half of them do.","words":[]}
+{"type":"focus","range":{"start":0.5,"end":6.0},"target":{"id":"web:.toolbar","provider":"web","role":"toolbar","label":"Formatting","ancestry":["web:main"],"component":"EditorToolbar","selector":".toolbar"}}
+{"type":"focus","range":{"start":6.2,"end":9.6},"target":{"id":"web:.toolbar","provider":"web","role":"toolbar","label":"Formatting","ancestry":["web:main"],"component":"EditorToolbar","selector":".toolbar"}}
+{"type":"utterance","id":"u2","range":{"start":6.5,"end":9.8},"text":"Um, especially the ones that are just icons.","words":[]}
+{"type":"utterance","id":"u3","range":{"start":10.6,"end":11.1},"text":"Uh, wait.","words":[]}
+{"type":"focus","range":{"start":11.3,"end":16.0},"target":{"id":"web:.toolbar [aria-label=Bold]","provider":"web","role":"button","label":"Bold","ancestry":["web:main","web:.toolbar"],"component":"ToolbarButton","selector":".toolbar [aria-label=Bold]"}}
+{"type":"utterance","id":"u4","range":{"start":12.4,"end":16.5},"text":"Actually the bold button does have one, but it shows the wrong shortcut.","words":[]}
+{"type":"clock","at":20.0}
+{"type":"clock","at":25.0}
+{"type":"visualChange","at":26.1,"magnitude":0.4}
+{"type":"context","at":29.6,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"windowTitle":"Settings — Quill","location":"http://localhost:8080/settings"}}
+{"type":"visualChange","at":29.7,"magnitude":0.9}
+{"type":"clock","at":30.0}
+{"type":"utterance","id":"u5","range":{"start":30.2,"end":30.6},"text":"Hmm.","words":[]}
+{"type":"clock","at":35.0}
+{"type":"focus","range":{"start":34.8,"end":40.4},"target":{"id":"web:.settings .spinner","provider":"web","role":"progressbar","label":"Loading","ancestry":["web:main","web:.settings"],"component":"Spinner","selector":".settings .spinner"}}
+{"type":"utterance","id":"u6","range":{"start":36.0,"end":40.5},"text":"Okay, the— uh, the settings page loads really slowly, like three seconds of spinner.","words":[]}
+{"type":"utterance","id":"u7","range":{"start":41.2,"end":44.0},"text":"It's worse with the network throttled.","words":[]}
+{"type":"utterance","id":"u8","range":{"start":44.8,"end":45.3},"text":"Um.","words":[]}
+{"type":"utterance","id":"u9","range":{"start":46.4,"end":47.1},"text":"Uh, so.","words":[]}
+{"type":"focus","range":{"start":45.6,"end":52.0},"target":{"id":"web:#theme-toggle","provider":"web","role":"switch","label":"Dark mode","ancestry":["web:main","web:.settings"],"component":"ThemeToggle","selector":"#theme-toggle","source":{"file":"src/settings/ThemeToggle.tsx","line":12}}}
+{"type":"utterance","id":"u10","range":{"start":48.2,"end":52.8},"text":"The theme toggle on this page doesn't persist after a reload.","words":[]}
+{"type":"utterance","id":"u11","range":{"start":53.4,"end":56.0},"text":"It flips back to light mode.","words":[]}
+{"type":"clock","at":60.0}
+{"type":"clock","at":65.0}
+{"type":"clock","at":70.0}
