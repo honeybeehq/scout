@@ -73,21 +73,22 @@ enum TaskComposer {
         let directory = sessionDirectory.appendingPathComponent("snippets/\(snippet.id)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        var lines = ["## \(title)", "", quote(snippet.transcript)]
+        var details: [String] = []
         if let context = snippet.primaryContext {
-            lines += ["", "**Where:** " + describe(context, project: project)]
+            details.append("**Where:** " + describe(context, project: project))
         }
         let targets = snippet.targets.prefix(3)
         if !targets.isEmpty {
-            lines += ["**Pointed at:** " + targets.map(describe).joined(separator: "; ")]
+            details.append("**Pointed at:** " + targets.map(describe).joined(separator: "; "))
         }
         if !runtimeNotes.isEmpty {
-            lines += ["**Runtime:**"] + runtimeNotes.prefix(5).map { "- `\($0)`" }
+            details.append((["**Runtime:**"] + runtimeNotes.prefix(5).map { "- `\($0)`" }).joined(separator: "\n"))
         }
         if snippet.range.duration > 0 {
-            lines += ["**When:** \(format(snippet.range.start))–\(format(snippet.range.end)) into the session"]
+            details.append("**When:** \(format(snippet.range.start))–\(format(snippet.range.end)) into the session")
         }
-        let markdown = lines.joined(separator: "\n")
+        let lines = ["## \(title)", "", quote(snippet.transcript), ""] + details.map { $0 + "\n" }
+        let markdown = lines.joined(separator: "\n").trimmingCharacters(in: .newlines)
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]

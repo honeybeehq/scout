@@ -10,6 +10,7 @@ nonisolated final class ContextTracker: @unchecked Sendable {
     private var current: AppContext?
     private var pending: (context: AppContext, since: SessionTime)?
     private var webAreas: [pid_t: AXElement] = [:]
+    private var searchedWindows: Set<String> = []
     private var enabledManualAccessibility: Set<pid_t> = []
 
     static let ignoredBundleIDs: Set<String> = ["com.apple.loginwindow", "com.apple.ScreenSaver.Engine", "com.apple.dock", "com.apple.controlcenter", "com.apple.notificationcenterui"]
@@ -43,7 +44,8 @@ nonisolated final class ContextTracker: @unchecked Sendable {
         let application = AXElement.application(pid)
         enableWebAccessibilityIfNeeded(for: app, element: application)
         let window = application.child(kAXFocusedWindowAttribute)
-        let context = AppContext(app: identity, windowTitle: window?.title, location: window.flatMap { location(in: $0, pid: pid) })
+        let title = window?.title
+        let context = AppContext(app: identity, windowTitle: title, location: window.flatMap { location(in: $0, pid: pid, title: title) })
         settle(context)
     }
 
@@ -64,10 +66,14 @@ nonisolated final class ContextTracker: @unchecked Sendable {
         }
     }
 
-    private func location(in window: AXElement, pid: pid_t) -> String? {
+    private func location(in window: AXElement, pid: pid_t, title: String?) -> String? {
         if let cached = webAreas[pid], let url: URL = cached.attribute("AXURL"), cached.processID == pid {
             return Self.displayLocation(url)
         }
+        let searchKey = "\(pid)|\(title ?? "")"
+        guard !searchedWindows.contains(searchKey) else { return nil }
+        searchedWindows.insert(searchKey)
+        if searchedWindows.count > 512 { searchedWindows.removeAll() }
         guard let webArea = window.firstDescendant(maxDepth: 14, where: { $0.role == "AXWebArea" }) else { return nil }
         webAreas[pid] = webArea
         guard let url: URL = webArea.attribute("AXURL") else { return nil }

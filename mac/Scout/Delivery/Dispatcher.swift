@@ -42,6 +42,7 @@ final class SnippetCard: Identifiable {
     var state: State = .preparing
     var attachments: [ComposedTask.Attachment] = []
     var runtimeNotes: [String] = []
+    var recorder: SegmentedScreenRecorder?
 
     var id: String { "\(sessionID)/\(snippet.id)" }
 
@@ -60,7 +61,6 @@ final class Dispatcher {
     var autoSendDelay: TimeInterval { preferences.autoSendDelay }
     var defaultAgent: String { preferences.defaultAgent }
     var dryRun = false
-    var attachmentProvider: ((SnippetCard) async -> [ComposedTask.Attachment])?
 
     private let integrations: Integrations
     private let bridge: BridgeServer
@@ -80,6 +80,7 @@ final class Dispatcher {
     func accept(_ snippet: Snippet, from session: ScoutingSession, sendImmediately: Bool) {
         let card = SnippetCard(snippet: snippet, sessionID: session.id, sessionDirectory: session.directory)
         card.runtimeNotes = session.runtimeEvents(around: snippet.range).map(Self.describe)
+        card.recorder = session.recorder
         cards.append(card)
         Task {
             if let title = await TitleWriter.title(for: snippet), !card.state.isFinished, card.state != .sending {
@@ -114,8 +115,9 @@ final class Dispatcher {
         }
         card.state = .sending
         do {
-            if let attachmentProvider {
-                card.attachments = await attachmentProvider(card)
+            if let recorder = card.recorder, card.attachments.isEmpty {
+                let directory = card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)", isDirectory: true)
+                card.attachments = await SnippetMedia.attachments(for: card.snippet, recorder: recorder, into: directory)
             }
             let task = try TaskComposer.compose(card.snippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
             let key = "scout:\(card.sessionID):\(card.snippet.id)"

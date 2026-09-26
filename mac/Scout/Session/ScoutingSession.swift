@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Observation
 import ScoutCore
@@ -24,6 +25,8 @@ final class ScoutingSession {
     private(set) var hoverTarget: Target?
     private(set) var context: AppContext?
     private(set) var elapsed: TimeInterval = 0
+    private(set) var recorder: SegmentedScreenRecorder?
+    private(set) var captureProblem: String?
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
     private(set) var runtimeEvents: [RuntimeEvent] = []
@@ -50,8 +53,11 @@ final class ScoutingSession {
         return formatter
     }()
 
-    init(bridge: BridgeServer) {
+    private let recordsScreen: Bool
+
+    init(bridge: BridgeServer, recordsScreen: Bool) {
         self.bridge = bridge
+        self.recordsScreen = recordsScreen
         let started = Date()
         let id = "session-" + Self.idFormatter.string(from: started)
         self.id = id
@@ -105,7 +111,9 @@ final class ScoutingSession {
             }
         }
 
+        async let screen: Void = startRecorder()
         await transcriber.start()
+        await screen
         if case .failed(let message) = transcriber.phase {
             phase = .failed(message)
         } else {
@@ -124,6 +132,7 @@ final class ScoutingSession {
         contextTracker?.stop()
         pointerTracker?.stop()
         await transcriber.stop()
+        await recorder?.stop()
         let end = clock.now
         handle(segmenter.finish(at: end))
         log.close()
@@ -136,6 +145,28 @@ final class ScoutingSession {
 
     func discardCurrent() {
         ingest(.command(CommandSignal(at: clock.now, command: .discardCurrent)))
+    }
+
+    private func startRecorder() async {
+        guard recordsScreen else { return }
+        guard CGPreflightScreenCaptureAccess() else {
+            captureProblem = "Screen Recording is off, so tasks won't include clips."
+            return
+        }
+        let recorder = SegmentedScreenRecorder(directory: directory)
+        recorder.onFrameDifference = { [weak self] at, magnitude in
+            guard magnitude >= 0.05 else { return }
+            Task { @MainActor in self?.ingest(.visualChange(VisualChange(at: at, magnitude: magnitude))) }
+        }
+        recorder.onError = { [weak self] error in
+            Task { @MainActor in self?.captureProblem = error.localizedDescription }
+        }
+        do {
+            try await recorder.start(sessionStart: clock.originDate)
+            self.recorder = recorder
+        } catch {
+            captureProblem = error.localizedDescription
+        }
     }
 
     func runtimeEvents(around range: TimeRange) -> [RuntimeEvent] {

@@ -22,13 +22,11 @@ final class AimController {
     static let activationDelay: Duration = .milliseconds(200)
 
     private let clock: SessionClock
-    private var tap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
+    private var tap: PinEventTap?
     private var pendingActivation: Task<Void, Never>?
     private var hoverLoop: Task<Void, Never>?
     private var optionHeld = false
     private var suppressedUntilRelease = false
-    private var swallowingClick = false
     private var pinCount = 0
     private var panels: [NSPanel] = []
 
@@ -38,59 +36,34 @@ final class AimController {
 
     func start() {
         guard tap == nil else { return }
-        let events: [CGEventType] = [.flagsChanged, .keyDown, .leftMouseDown, .leftMouseDragged, .leftMouseUp]
-        let mask = events.reduce(CGEventMask(0)) { $0 | (1 << $1.rawValue) }
-        let reference = Unmanaged.passUnretained(self).toOpaque()
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: mask, callback: aimTapCallback, userInfo: reference) else {
-            isAvailable = false
-            return
+        let tap = PinEventTap { [weak self] event in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.handle(event) }
+            }
         }
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        self.tap = tap
-        runLoopSource = source
-        isAvailable = true
+        isAvailable = tap.start()
+        self.tap = isAvailable ? tap : nil
     }
 
     func stop() {
         deactivate()
-        if let runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes) }
-        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        tap?.stop()
         tap = nil
-        runLoopSource = nil
         panels.forEach { $0.orderOut(nil) }
         panels = []
     }
 
-    fileprivate func reenableTap() {
-        if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
-    }
-
-    fileprivate func handle(_ type: CGEventType, flags: CGEventFlags, location: CGPoint) -> Bool {
-        switch type {
-        case .flagsChanged:
+    private func handle(_ event: PinEventTap.Event) {
+        switch event {
+        case .modifiers(let flags):
             optionChanged(flags)
-            return false
         case .keyDown:
             if optionHeld {
                 suppressedUntilRelease = true
                 deactivate()
             }
-            return false
-        case .leftMouseDown:
-            guard isAiming else { return false }
-            swallowingClick = true
-            pin(at: location)
-            return true
-        case .leftMouseDragged:
-            return swallowingClick
-        case .leftMouseUp:
-            guard swallowingClick else { return false }
-            swallowingClick = false
-            return true
-        default:
-            return false
+        case .pin(let point):
+            pin(at: point)
         }
     }
 
@@ -120,6 +93,7 @@ final class AimController {
     private func activate() {
         guard !isAiming else { return }
         isAiming = true
+        tap?.setAiming(true)
         onAimChanged?(true)
         showPanels()
         hoverLoop = Task { [weak self] in
@@ -146,6 +120,7 @@ final class AimController {
         pendingActivation = nil
         guard isAiming else { return }
         isAiming = false
+        tap?.setAiming(false)
         onAimChanged?(false)
         hoverLoop?.cancel()
         hoverLoop = nil
@@ -206,19 +181,6 @@ final class AimController {
         panel.setFrame(screen.frame, display: false)
         return panel
     }
-}
-
-private let aimTapCallback: CGEventTapCallBack = { _, type, event, reference in
-    guard let reference else { return Unmanaged.passUnretained(event) }
-    let controller = Unmanaged<AimController>.fromOpaque(reference).takeUnretainedValue()
-    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        MainActor.assumeIsolated { controller.reenableTap() }
-        return Unmanaged.passUnretained(event)
-    }
-    let flags = event.flags
-    let location = event.location
-    let swallow = MainActor.assumeIsolated { controller.handle(type, flags: flags, location: location) }
-    return swallow ? nil : Unmanaged.passUnretained(event)
 }
 
 private struct AimOverlay: View {

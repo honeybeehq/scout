@@ -74,7 +74,7 @@ final class AppModel {
             openOnboarding?()
             return
         }
-        let session = ScoutingSession(bridge: bridge)
+        let session = ScoutingSession(bridge: bridge, recordsScreen: preferences.includeClips)
         session.transcriber.inputFile = inputFile
         session.transcriber.onInputFinished = onInputFinished
         session.onSnippetClosed = { [weak self, weak session] snippet, immediate in

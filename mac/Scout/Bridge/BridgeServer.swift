@@ -40,19 +40,26 @@ final class BridgeServer {
 
     func start() {
         guard listener == nil else { return }
-        for candidate in BridgeProtocol.ports {
-            guard let port = NWEndpoint.Port(rawValue: candidate), let listener = try? NWListener(using: parameters(), on: port) else { continue }
-            listener.newConnectionHandler = { [weak self] connection in
-                MainActor.assumeIsolated { self?.accept(connection) }
-            }
-            listener.stateUpdateHandler = { [weak self] state in
-                MainActor.assumeIsolated { self?.listenerChanged(state, port: candidate) }
-            }
-            listener.start(queue: .main)
-            self.listener = listener
+        listen(on: BridgeProtocol.ports.lowerBound)
+    }
+
+    private func listen(on candidate: UInt16) {
+        guard BridgeProtocol.ports.contains(candidate) else {
+            failure = "No free port between \(BridgeProtocol.ports.lowerBound) and \(BridgeProtocol.ports.upperBound)."
             return
         }
-        failure = "No free port between \(BridgeProtocol.ports.lowerBound) and \(BridgeProtocol.ports.upperBound)."
+        guard let port = NWEndpoint.Port(rawValue: candidate), let listener = try? NWListener(using: parameters(), on: port) else {
+            listen(on: candidate + 1)
+            return
+        }
+        listener.newConnectionHandler = { [weak self] connection in
+            MainActor.assumeIsolated { self?.accept(connection) }
+        }
+        listener.stateUpdateHandler = { [weak self] state in
+            MainActor.assumeIsolated { self?.listenerChanged(state, port: candidate) }
+        }
+        listener.start(queue: .main)
+        self.listener = listener
     }
 
     func stop() {
@@ -136,9 +143,13 @@ final class BridgeServer {
             failure = nil
             writeConfiguration()
         case .failed(let error):
-            failure = error.localizedDescription
             listener?.cancel()
             listener = nil
+            if case .posix(let code) = error, code == .EADDRINUSE {
+                listen(on: candidate + 1)
+            } else {
+                failure = error.localizedDescription
+            }
         default:
             break
         }

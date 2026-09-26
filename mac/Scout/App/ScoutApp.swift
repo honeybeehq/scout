@@ -6,6 +6,7 @@ struct ScoutApp: App {
 
     @State private var model = AppModel()
 
+    init() { CaptureSelfTest.startIfRequested() }
 
     var body: some Scene {
         Window("Welcome to Scout", id: Self.onboardingWindowID) {
