@@ -32,7 +32,19 @@ enum TaskComposer {
         let cleaned = stripLeadingCues(firstSentence)
         guard !cleaned.isEmpty else { return "Feedback" }
         let capitalized = cleaned.prefix(1).uppercased() + cleaned.dropFirst()
-        return capitalized.count > 72 ? String(capitalized.prefix(71)) + "…" : capitalized
+        return shorten(capitalized, limit: 64)
+    }
+
+    static func shorten(_ text: String, limit: Int) -> String {
+        guard text.count > limit else { return text }
+        let head = String(text.prefix(limit))
+        for separator in [", and ", " and ", ", so ", ", but ", ", "] {
+            if let range = head.range(of: separator, options: .backwards), head.distance(from: head.startIndex, to: range.lowerBound) >= 24 {
+                return String(head[..<range.lowerBound])
+            }
+        }
+        let words = head.split(separator: " ").dropLast()
+        return words.joined(separator: " ") + "…"
     }
 
     private static let leadingCues = [
@@ -57,7 +69,7 @@ enum TaskComposer {
         return String(remaining)
     }
 
-    static func compose(_ snippet: Snippet, title: String, project: ProjectReference?, sessionDirectory: URL, extraAttachments: [ComposedTask.Attachment] = []) throws -> ComposedTask {
+    static func compose(_ snippet: Snippet, title: String, project: ProjectReference?, runtimeNotes: [String] = [], sessionDirectory: URL, extraAttachments: [ComposedTask.Attachment] = []) throws -> ComposedTask {
         let directory = sessionDirectory.appendingPathComponent("snippets/\(snippet.id)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
@@ -68,6 +80,9 @@ enum TaskComposer {
         let targets = snippet.targets.prefix(3)
         if !targets.isEmpty {
             lines += ["**Pointed at:** " + targets.map(describe).joined(separator: "; ")]
+        }
+        if !runtimeNotes.isEmpty {
+            lines += ["**Runtime:**"] + runtimeNotes.prefix(5).map { "- `\($0)`" }
         }
         if snippet.range.duration > 0 {
             lines += ["**When:** \(format(snippet.range.start))–\(format(snippet.range.end)) into the session"]

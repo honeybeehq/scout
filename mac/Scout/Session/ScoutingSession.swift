@@ -16,6 +16,7 @@ final class ScoutingSession {
     let clock = SessionClock()
     let directory: URL
     let transcriber: LiveTranscriber
+    let aim: AimController
 
     private(set) var phase: Phase = .starting
     private(set) var openSnippet: Snippet?
@@ -25,6 +26,13 @@ final class ScoutingSession {
     private(set) var elapsed: TimeInterval = 0
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
+    private(set) var runtimeEvents: [RuntimeEvent] = []
+
+    struct RuntimeEvent {
+        var at: SessionTime
+        var source: String
+        var signal: BridgeSignalMessage
+    }
 
     private var segmenter: Segmenter
     private let log: SignalLog
@@ -32,6 +40,8 @@ final class ScoutingSession {
     private var pointerTracker: PointerTracker?
     private var ticker: Task<Void, Never>?
     private var sendNextClosedImmediately = false
+    private let bridge: BridgeServer
+    private var webDwell: (target: Target, since: SessionTime)?
 
     private static let idFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -40,7 +50,8 @@ final class ScoutingSession {
         return formatter
     }()
 
-    init() {
+    init(bridge: BridgeServer) {
+        self.bridge = bridge
         let started = Date()
         let id = "session-" + Self.idFormatter.string(from: started)
         self.id = id
@@ -48,10 +59,25 @@ final class ScoutingSession {
         log = SignalLog(url: directory.appendingPathComponent("signals.jsonl"))
         segmenter = Segmenter(idPrefix: "snippet-")
         transcriber = LiveTranscriber(clock: clock)
+        aim = AimController(clock: clock)
     }
 
     func start() async {
         transcriber.onUtterance = { [weak self] utterance in self?.hear(utterance) }
+        aim.onPin = { [weak self] mark in self?.ingest(.mark(mark)) }
+        aim.onAimChanged = { [weak self] active in self?.bridge.setAim(active: active) }
+        aim.enrich = { [weak self] mark, date in
+            guard let self, let (client, element) = await self.bridge.requestPin(id: mark.id, at: date) else { return nil }
+            return element.target(clientID: client.id)
+        }
+        aim.start()
+        bridge.onHover = { [weak self] client, element, date in self?.webHover(element.target(clientID: client.id), at: date) }
+        bridge.onSignal = { [weak self] client, signal in
+            guard let self else { return }
+            let at = signal.at.map { self.clock.seconds(at: Date(timeIntervalSince1970: $0 / 1000)) } ?? self.clock.now
+            self.runtimeEvents.append(RuntimeEvent(at: at, source: client.name, signal: signal))
+        }
+        bridge.setSession(active: true)
 
         let contextTracker = ContextTracker(clock: clock) { [weak self] change in
             Task { @MainActor in self?.ingest(.context(change)) }
@@ -59,7 +85,7 @@ final class ScoutingSession {
         let pointerTracker = PointerTracker(
             clock: clock,
             onFocus: { [weak self] focus in
-                Task { @MainActor in self?.ingest(.focus(focus)) }
+                Task { @MainActor in self?.accessibilityFocus(focus) }
             },
             onHover: { [weak self] target in
                 Task { @MainActor in self?.hoverTarget = target }
@@ -90,6 +116,11 @@ final class ScoutingSession {
     func stop() async {
         guard phase == .live || phase == .starting else { return }
         ticker?.cancel()
+        aim.stop()
+        bridge.setSession(active: false)
+        bridge.onHover = nil
+        bridge.onSignal = nil
+        closeWebDwell(at: clock.now)
         contextTracker?.stop()
         pointerTracker?.stop()
         await transcriber.stop()
@@ -105,6 +136,30 @@ final class ScoutingSession {
 
     func discardCurrent() {
         ingest(.command(CommandSignal(at: clock.now, command: .discardCurrent)))
+    }
+
+    func runtimeEvents(around range: TimeRange) -> [RuntimeEvent] {
+        runtimeEvents.filter { $0.at >= range.start - 3 && $0.at <= range.end + 1 }
+    }
+
+    private func accessibilityFocus(_ focus: Focus) {
+        guard bridge.recentlyHovered(within: 1.0) == nil else { return }
+        ingest(.focus(focus))
+    }
+
+    private func webHover(_ target: Target, at date: Date) {
+        let at = clock.seconds(at: date)
+        guard webDwell?.target.id != target.id else { return }
+        closeWebDwell(at: at)
+        webDwell = (target, at)
+    }
+
+    private func closeWebDwell(at end: SessionTime) {
+        guard let dwell = webDwell else { return }
+        webDwell = nil
+        if end - dwell.since >= PointerTracker.dwellThreshold {
+            ingest(.focus(Focus(range: TimeRange(start: dwell.since, end: end), target: dwell.target)))
+        }
     }
 
     private func hear(_ utterance: Utterance) {

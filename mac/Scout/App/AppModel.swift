@@ -10,6 +10,7 @@ final class AppModel {
     let integrations: Integrations
     let dispatcher: Dispatcher
     let hud = HUDController()
+    let bridge = BridgeServer()
     private(set) var session: ScoutingSession?
     var openOnboarding: (() -> Void)?
 
@@ -24,7 +25,7 @@ final class AppModel {
     init() {
         let integrations = Integrations()
         self.integrations = integrations
-        dispatcher = Dispatcher(integrations: integrations)
+        dispatcher = Dispatcher(integrations: integrations, bridge: bridge)
         if let data = UserDefaults.standard.data(forKey: Self.shortcutKey),
            let saved = try? JSONDecoder().decode(KeyShortcut.self, from: data) {
             shortcut = saved
@@ -35,6 +36,7 @@ final class AppModel {
         self.hotkey = hotkey
         shortcutRegistered = hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
+        bridge.start()
         if let audio = SimulationMode.audioFile {
             Task { await SimulationMode.run(model: self, audio: audio) }
         }
@@ -67,7 +69,7 @@ final class AppModel {
             openOnboarding?()
             return
         }
-        let session = ScoutingSession()
+        let session = ScoutingSession(bridge: bridge)
         session.transcriber.inputFile = inputFile
         session.transcriber.onInputFinished = onInputFinished
         session.onSnippetClosed = { [weak self, weak session] snippet, immediate in

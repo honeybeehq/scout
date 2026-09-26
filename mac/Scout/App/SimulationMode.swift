@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import FoundationModels
 
 enum SimulationMode {
     private static func argument(_ name: String) -> String? {
@@ -72,6 +73,9 @@ enum SimulationMode {
             "elapsed": elapsed,
             "session": model.session?.directory.path ?? "",
             "transcript": model.session?.transcriber.finalizedText ?? "",
+            "onDeviceTitles": String(describing: SystemLanguageModel.default.availability),
+            "aimAvailable": model.session?.aim.isAvailable ?? false,
+            "bridgePort": model.bridge.port.map(Int.init) ?? 0,
             "cards": cards,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {

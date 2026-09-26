@@ -1,0 +1,258 @@
+import Foundation
+import Network
+import Observation
+import ScoutCore
+
+@Observable
+final class BridgeServer {
+    struct Client: Identifiable, Equatable {
+        let id: String
+        var hello: BridgeHello?
+        var context: BridgeContextMessage?
+        var lastHoverAt: Date?
+        var hovered: BridgeElement?
+
+        var name: String {
+            hello?.app?.name ?? hello?.app?.url.flatMap { URL(string: $0)?.host() } ?? "App"
+        }
+
+        var origin: String? {
+            (context?.url ?? hello?.app?.url).flatMap(BridgeServer.origin(of:))
+        }
+    }
+
+    private(set) var clients: [Client] = []
+    private(set) var port: UInt16?
+    private(set) var failure: String?
+
+    var onHover: ((Client, BridgeElement, Date) -> Void)?
+    var onContext: ((Client) -> Void)?
+    var onSignal: ((Client, BridgeSignalMessage) -> Void)?
+
+    private var listener: NWListener?
+    private var connections: [String: NWConnection] = [:]
+    private var pendingPins: [String: CheckedContinuation<(Client, BridgeElement)?, Never>] = [:]
+    private var sessionActive = false
+    private var aimActive = false
+    private let token = BridgeServer.loadOrCreateToken()
+
+    static var configurationURL: URL { ScoutPaths.support.appendingPathComponent("bridge.json") }
+
+    func start() {
+        guard listener == nil else { return }
+        for candidate in BridgeProtocol.ports {
+            guard let port = NWEndpoint.Port(rawValue: candidate), let listener = try? NWListener(using: parameters(), on: port) else { continue }
+            listener.newConnectionHandler = { [weak self] connection in
+                MainActor.assumeIsolated { self?.accept(connection) }
+            }
+            listener.stateUpdateHandler = { [weak self] state in
+                MainActor.assumeIsolated { self?.listenerChanged(state, port: candidate) }
+            }
+            listener.start(queue: .main)
+            self.listener = listener
+            return
+        }
+        failure = "No free port between \(BridgeProtocol.ports.lowerBound) and \(BridgeProtocol.ports.upperBound)."
+    }
+
+    func stop() {
+        listener?.cancel()
+        listener = nil
+        connections.values.forEach { $0.cancel() }
+        connections = [:]
+        clients = []
+    }
+
+    func setSession(active: Bool) {
+        sessionActive = active
+        broadcast(["type": "session", "active": active])
+    }
+
+    func setAim(active: Bool) {
+        guard aimActive != active else { return }
+        aimActive = active
+        broadcast(["type": "aim", "active": active])
+    }
+
+    func recentlyHovered(within interval: TimeInterval = 1.2) -> Client? {
+        clients
+            .filter { ($0.lastHoverAt.map { Date().timeIntervalSince($0) < interval }) == true }
+            .max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
+    }
+
+    func requestPin(id: String, at date: Date, timeout: Duration = .milliseconds(220)) async -> (Client, BridgeElement)? {
+        guard let client = recentlyHovered(within: 2) else { return nil }
+        send(["type": "pin", "id": id, "at": date.timeIntervalSince1970 * 1000], to: client.id)
+        return await withCheckedContinuation { continuation in
+            pendingPins[id] = continuation
+            Task { [weak self] in
+                try? await Task.sleep(for: timeout)
+                self?.resolvePin(id, with: nil)
+            }
+        }
+    }
+
+    func project(forLocation location: String?) -> ProjectReference? {
+        guard let location, let origin = Self.origin(of: location) else { return nil }
+        let client = clients.first { $0.origin == origin && $0.hello?.project?.root != nil }
+        guard let root = client?.hello?.project?.root else { return nil }
+        return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: client?.hello?.project?.gitBranch)
+    }
+
+    private func resolvePin(_ id: String, with result: (Client, BridgeElement)?) {
+        pendingPins.removeValue(forKey: id)?.resume(returning: result)
+    }
+
+    private func parameters() -> NWParameters {
+        let parameters = NWParameters.tcp
+        parameters.requiredInterfaceType = .loopback
+        parameters.allowLocalEndpointReuse = true
+        let websocket = NWProtocolWebSocket.Options()
+        websocket.autoReplyPing = true
+        websocket.maximumMessageSize = 1 << 20
+        websocket.setClientRequestHandler(.main) { _, headers in
+            let origin = headers.first { $0.name.lowercased() == "origin" }?.value
+            return NWProtocolWebSocket.Response(status: Self.isAllowedOrigin(origin) ? .accept : .reject, subprotocol: nil)
+        }
+        parameters.defaultProtocolStack.applicationProtocols.insert(websocket, at: 0)
+        return parameters
+    }
+
+    nonisolated static func isAllowedOrigin(_ origin: String?) -> Bool {
+        guard let origin, origin != "null" else { return true }
+        guard let host = URL(string: origin)?.host()?.lowercased() else { return false }
+        return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" || host.hasSuffix(".localhost")
+    }
+
+    nonisolated static func origin(of location: String) -> String? {
+        guard let url = URL(string: location), let scheme = url.scheme, let host = url.host() else { return nil }
+        return "\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? "")
+    }
+
+    private func listenerChanged(_ state: NWListener.State, port candidate: UInt16) {
+        switch state {
+        case .ready:
+            port = candidate
+            failure = nil
+            writeConfiguration()
+        case .failed(let error):
+            failure = error.localizedDescription
+            listener?.cancel()
+            listener = nil
+        default:
+            break
+        }
+    }
+
+    private func accept(_ connection: NWConnection) {
+        let id = UUID().uuidString
+        connections[id] = connection
+        clients.append(Client(id: id))
+        connection.stateUpdateHandler = { [weak self] state in
+            MainActor.assumeIsolated {
+                switch state {
+                case .failed, .cancelled: self?.drop(id)
+                default: break
+                }
+            }
+        }
+        connection.start(queue: .main)
+        receive(on: connection, id: id)
+    }
+
+    private func drop(_ id: String) {
+        connections.removeValue(forKey: id)?.cancel()
+        clients.removeAll { $0.id == id }
+    }
+
+    private func receive(on connection: NWConnection, id: String) {
+        connection.receiveMessage { [weak self] data, _, _, error in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let data, !data.isEmpty { self.handle(data, from: id) }
+                if error == nil, self.connections[id] != nil {
+                    self.receive(on: connection, id: id)
+                } else {
+                    self.drop(id)
+                }
+            }
+        }
+    }
+
+    private func handle(_ data: Data, from id: String) {
+        let decoder = JSONDecoder()
+        guard let envelope = try? decoder.decode(BridgeEnvelope.self, from: data),
+              let index = clients.firstIndex(where: { $0.id == id })
+        else {
+            send(["type": "error", "code": "invalidRequest", "message": "Expected a JSON object with a type."], to: id)
+            return
+        }
+        switch envelope.type {
+        case "hello":
+            guard let hello = try? decoder.decode(BridgeHello.self, from: data) else { return }
+            clients[index].hello = hello
+            send([
+                "type": "welcome",
+                "scout": ["version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"],
+                "session": ["active": sessionActive],
+                "capabilities": ["session", "aim", "pin", "highlight"],
+            ], to: id)
+            if aimActive { send(["type": "aim", "active": true], to: id) }
+        case "context":
+            clients[index].context = try? decoder.decode(BridgeContextMessage.self, from: data)
+            onContext?(clients[index])
+        case "hover":
+            guard let hover = try? decoder.decode(BridgeHoverMessage.self, from: data), let element = hover.element else { return }
+            let date = hover.at.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date()
+            clients[index].lastHoverAt = Date()
+            clients[index].hovered = element
+            onHover?(clients[index], element, date)
+        case "pinned":
+            guard let pinned = try? decoder.decode(BridgePinnedMessage.self, from: data) else { return }
+            resolvePin(pinned.id, with: pinned.element.map { (clients[index], $0) })
+        case "signal":
+            guard let signal = try? decoder.decode(BridgeSignalMessage.self, from: data) else { return }
+            onSignal?(clients[index], signal)
+        default:
+            var error: [String: Any] = ["type": "error", "code": "unsupported", "message": "Unknown message type \(envelope.type)."]
+            if let requestID = envelope.id { error["id"] = requestID }
+            send(error, to: id)
+        }
+    }
+
+    private func broadcast(_ message: [String: Any]) {
+        for client in clients where client.hello != nil {
+            send(message, to: client.id)
+        }
+    }
+
+    private func send(_ message: [String: Any], to id: String) {
+        guard let connection = connections[id] else { return }
+        var payload = message
+        payload["v"] = BridgeProtocol.version
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
+        let context = NWConnection.ContentContext(identifier: "message", metadata: [metadata])
+        connection.send(content: data, contentContext: context, isComplete: true, completion: .idempotent)
+    }
+
+    private func writeConfiguration() {
+        guard let port else { return }
+        let configuration: [String: Any] = ["port": Int(port), "token": token, "pid": Int(ProcessInfo.processInfo.processIdentifier), "protocol": BridgeProtocol.version]
+        guard let data = try? JSONSerialization.data(withJSONObject: configuration, options: [.prettyPrinted, .sortedKeys]) else { return }
+        try? FileManager.default.createDirectory(at: ScoutPaths.support, withIntermediateDirectories: true)
+        try? data.write(to: Self.configurationURL, options: .atomic)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: Self.configurationURL.path)
+    }
+
+    private static func loadOrCreateToken() -> String {
+        if let data = try? Data(contentsOf: configurationURL),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let token = object["token"] as? String, token.count >= 32 {
+            return token
+        }
+        var bytes = [UInt8](repeating: 0, count: 24)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+}

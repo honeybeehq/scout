@@ -41,6 +41,7 @@ final class SnippetCard: Identifiable {
     var destination: Destination?
     var state: State = .preparing
     var attachments: [ComposedTask.Attachment] = []
+    var runtimeNotes: [String] = []
 
     var id: String { "\(sessionID)/\(snippet.id)" }
 
@@ -62,10 +63,12 @@ final class Dispatcher {
     var attachmentProvider: ((SnippetCard) async -> [ComposedTask.Attachment])?
 
     private let integrations: Integrations
+    private let bridge: BridgeServer
     private let resolver = ProjectResolver()
 
-    init(integrations: Integrations) {
+    init(integrations: Integrations, bridge: BridgeServer) {
         self.integrations = integrations
+        self.bridge = bridge
     }
 
     var pendingCount: Int {
@@ -74,9 +77,19 @@ final class Dispatcher {
 
     func accept(_ snippet: Snippet, from session: ScoutingSession, sendImmediately: Bool) {
         let card = SnippetCard(snippet: snippet, sessionID: session.id, sessionDirectory: session.directory)
+        card.runtimeNotes = session.runtimeEvents(around: snippet.range).map(Self.describe)
         cards.append(card)
         Task {
-            card.project = await resolver.resolve(snippet.primaryContext)
+            if let title = await TitleWriter.title(for: snippet), !card.state.isFinished, card.state != .sending {
+                card.title = title
+            }
+        }
+        Task {
+            if let project = bridge.project(forLocation: snippet.primaryContext?.location) {
+                card.project = project
+            } else {
+                card.project = await resolver.resolve(snippet.primaryContext)
+            }
             await refreshSessions()
             card.destination = chooseDestination(for: card.project)
             guard card.state == .preparing else { return }
@@ -100,7 +113,7 @@ final class Dispatcher {
             if let attachmentProvider {
                 card.attachments = await attachmentProvider(card)
             }
-            let task = try TaskComposer.compose(card.snippet, title: card.title, project: card.project, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
+            let task = try TaskComposer.compose(card.snippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
             let key = "scout:\(card.sessionID):\(card.snippet.id)"
             if dryRun {
                 try task.message.write(to: task.directory.appendingPathComponent("message.txt"), atomically: true, encoding: .utf8)
@@ -192,6 +205,17 @@ final class Dispatcher {
             }.first
             if let best { return .session(id: best.id, title: best.displayTitle, agent: best.agent) }
             return .newSession(cwd: project.rootPath, agent: defaultAgent)
+        }
+    }
+
+    private static func describe(_ event: ScoutingSession.RuntimeEvent) -> String {
+        let signal = event.signal
+        switch signal.kind {
+        case "network":
+            return "\(signal.method ?? "GET") \(signal.url ?? "?") failed with \(signal.status.map(String.init) ?? "no response") (\(event.source))"
+        default:
+            let firstFrame = signal.stack?.split(separator: "\n").first { $0.contains("at ") }.map { " — " + $0.trimmingCharacters(in: .whitespaces) } ?? ""
+            return "\(signal.kind): \(signal.message ?? "unknown")\(firstFrame) (\(event.source))"
         }
     }
 

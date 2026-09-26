@@ -79,7 +79,7 @@ struct ScoutingPill: View {
                 .lineLimit(1)
         case .live, .ended:
             let tail = Self.tail(of: transcriber.finalizedText, keeping: 44)
-            if tail.isEmpty && transcriber.volatileText.isEmpty {
+            if session.aim.isAiming || (tail.isEmpty && transcriber.volatileText.isEmpty) {
                 Text(hint(session))
                     .font(.system(size: 13))
                     .foregroundStyle(Palette.textTertiary)
@@ -94,6 +94,7 @@ struct ScoutingPill: View {
     }
 
     private func hint(_ session: ScoutingSession) -> String {
+        if session.aim.isAiming { return "Click to pin · release ⌥ to stop aiming" }
         if let target = session.hoverTarget { return "Pointing at \(target.displayName)" }
         return "Listening. Talk about what you see."
     }

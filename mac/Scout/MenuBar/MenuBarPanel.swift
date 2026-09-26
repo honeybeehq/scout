@@ -35,9 +35,16 @@ struct MenuBarPanel: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Recent").eyebrowStyle(Palette.textTertiary)
-                Text("Tasks you capture show up here.")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(Palette.textTertiary)
+                let recent = model.dispatcher.cards.suffix(5).reversed()
+                if recent.isEmpty {
+                    Text("Tasks you capture show up here.")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Palette.textTertiary)
+                } else {
+                    ForEach(Array(recent)) { card in
+                        RecentTaskRow(card: card)
+                    }
+                }
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -77,6 +84,46 @@ struct MenuBarPanel: View {
             if model.integrations.apiary == .running {
                 StatusBadge(text: "Apiary", tone: .success)
             }
+            let apps = model.bridge.clients.filter { $0.hello != nil }
+            if !apps.isEmpty {
+                StatusBadge(text: apps.count == 1 ? "SDK · \(apps[0].name)" : "SDK · \(apps.count) apps", tone: .success)
+                    .help(apps.map(\.name).joined(separator: ", "))
+            }
+        }
+    }
+}
+
+private struct RecentTaskRow: View {
+    let card: SnippetCard
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 14)
+            Text(card.title)
+                .font(.system(size: 12.5, weight: .medium))
+                .lineLimit(1)
+            Spacer(minLength: 4)
+        }
+    }
+
+    private var icon: String {
+        switch card.state {
+        case .sent: "checkmark.circle.fill"
+        case .failed: "exclamationmark.triangle.fill"
+        case .needsDestination, .held: "pause.circle.fill"
+        default: "arrow.up.circle"
+        }
+    }
+
+    private var tint: Color {
+        switch card.state {
+        case .sent: Palette.mint
+        case .failed: Palette.rose
+        case .needsDestination, .held: Palette.amber
+        default: Palette.textSecondary
         }
     }
 }
