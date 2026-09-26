@@ -21,7 +21,9 @@ Talk in any app, get split tasks, send them to hive. Verified end to end with `-
 - The pill and the snippet stack. Task markdown. Delivery through the router (hive `send`/`spawn`, clipboard fallback) with idempotency keys.
 - Voice commands: "new task", "scratch that", "send it".
 
-## M2: Clips
+## M2: Clips ✅
+
+Done: segmented recording, clip cutting (~30 ms while recording, ~5 ms after stop, no re-encode), visual-change signal, pin screenshots. Open: following the pointer to another display mid-session, password-manager exclusion.
 
 - ScreenCaptureKit stream of the display under the pointer, following it across displays, into 2 s fMP4 segments.
 - Clip cutting per snippet (segment concatenation plus passthrough trim).

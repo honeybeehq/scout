@@ -15,13 +15,13 @@ Scout talks to the hive daemon directly over its socket, not through the CLI. Th
 | Need | Verb | Params | Result |
 |---|---|---|---|
 | Active sessions | `list` | `{lifecycle:"active"}` (always pass it: unfiltered returns every archived bee, many MB) | `{views:[{bee, runtime, view, …}]}` |
-| Send a task | `send` | `{beeId, body, urgency:"next", idempotencyKey}` | `{messageId, commandId, unarchived}` |
+| Send a task | `send` | `{beeId, body, urgency:"next", idempotencyKey}` | `{messageId (number), commandId, unarchived, deduped?}` |
 | New session | `spawn` | `{name, agent, cwd, title, prompt, tags?, idempotencyKey}` | `{beeId, handle, …}` |
 | Live updates | `watch` | – | `delta` / `gap` pushes |
 
 Useful fields on `bee`: `id`, `name`, `handle`, `agent`, `cwd`, `title`, `tags`, `lastOutputAt` (ms), `lifecycle`. Useful fields on `view`: `working`, `waitingForYou`, `runtimeState`. **`bee.env` contains secrets such as `APIARY_AGENT_TOKEN`; Scout must never log, store or display it.**
 
-Implementation: `mac/Scout/Integrations/HiveClient.swift`, a `nonisolated` `Network.framework` Unix-socket client. Measured: `list {lifecycle:"active"}` takes about 60 ms on a store with 2,000+ bees.
+Implementation: `mac/Scout/Integrations/HiveClient.swift`, a `nonisolated` `Network.framework` Unix-socket client. Measured: `list {lifecycle:"active"}` takes about 60 ms on a store with 2,000+ bees. Verified: a `send` from `HiveClient` arrived in a live session, and repeating it with the same idempotency key returned the same `messageId` with `deduped: true` and no second message.
 
 **Attachments.** hive messages are text. Files are referenced by absolute path, one per line, using Apiary's convention so they render in Apiary too:
 

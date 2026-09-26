@@ -72,7 +72,7 @@ nonisolated struct HiveClient: Sendable {
         var params: [String: Any] = ["beeId": sessionID, "body": body, "urgency": "next"]
         if let idempotencyKey { params["idempotencyKey"] = idempotencyKey }
         let result = try await call(verb: "send", params: params)
-        return result["messageId"] as? String
+        return (result["messageId"] as? Int).map(String.init) ?? result["messageId"] as? String
     }
 
     @discardableResult
