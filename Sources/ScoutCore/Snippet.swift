@@ -80,7 +80,8 @@ public struct Snippet: Codable, Hashable, Sendable, Identifiable {
     }
 
     public var primaryContext: AppContext? {
-        contexts.last?.context ?? openingContext
+        let spokenAt = utterances.last?.range.start ?? marks.last?.at ?? range.end
+        return contexts.last { $0.at <= spokenAt }?.context ?? openingContext ?? contexts.first?.context
     }
 
     public var targets: [Target] {

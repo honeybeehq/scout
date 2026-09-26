@@ -26,10 +26,18 @@ final class SnippetCard: Identifiable {
         case sending
         case sent(String)
         case failed(String)
+        case withdrawn
 
         var isFinished: Bool {
             if case .sent = self { return true }
             return false
+        }
+
+        var isClosed: Bool {
+            switch self {
+            case .sent, .withdrawn: true
+            default: false
+            }
         }
     }
 
@@ -39,6 +47,7 @@ final class SnippetCard: Identifiable {
     var title: String
     var project: ProjectReference?
     var destination: Destination?
+    var destinationChosenByUser = false
     var state: State = .preparing
     var attachments: [ComposedTask.Attachment] = []
     var runtimeNotes: [String] = []
@@ -83,24 +92,26 @@ final class Dispatcher {
         card.recorder = session.recorder
         cards.append(card)
         Task {
-            if let title = await TitleWriter.title(for: snippet), !card.state.isFinished, card.state != .sending {
+            if let title = await TitleWriter.title(for: snippet), !card.state.isClosed, card.state != .sending {
                 card.title = title
             }
         }
         Task {
-            if let project = bridge.project(forLocation: snippet.primaryContext?.location) {
+            if let project = bridge.project(forLocation: snippet.primaryContext?.location) ?? snippet.targets.lazy.compactMap(bridge.project(forTarget:)).first {
                 card.project = project
             } else {
                 card.project = await resolver.resolve(snippet.primaryContext)
             }
             await refreshSessions()
-            card.destination = chooseDestination(for: card.project)
+            if !card.destinationChosenByUser {
+                card.destination = chooseDestination(for: card.project)
+            }
             guard card.state == .preparing else { return }
             if card.destination == nil {
                 card.state = .needsDestination
             } else if sendImmediately {
                 await send(card)
-            } else if preferences.autoSend {
+            } else if preferences.autoSend, card.destination != .clipboard {
                 await countdown(card)
             } else {
                 card.state = .held
@@ -109,6 +120,7 @@ final class Dispatcher {
     }
 
     func send(_ card: SnippetCard) async {
+        guard !card.state.isClosed, card.state != .sending else { return }
         guard let destination = card.destination else {
             card.state = .needsDestination
             return
@@ -120,7 +132,7 @@ final class Dispatcher {
                 card.attachments = await SnippetMedia.attachments(for: card.snippet, recorder: recorder, into: directory)
             }
             let task = try TaskComposer.compose(card.snippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
-            let key = "scout:\(card.sessionID):\(card.snippet.id)"
+            let key = "scout:\(card.sessionID):\(card.snippet.id):\(Self.keyComponent(destination))"
             if dryRun {
                 try task.message.write(to: task.directory.appendingPathComponent("message.txt"), atomically: true, encoding: .utf8)
                 card.state = .sent("\(destination.label) (dry run)")
@@ -151,12 +163,20 @@ final class Dispatcher {
 
     func choose(_ destination: Destination, for card: SnippetCard) {
         card.destination = destination
+        card.destinationChosenByUser = true
         if card.state == .needsDestination || card.state == .held {
             card.state = .held
         }
     }
 
     func dismiss(_ card: SnippetCard) {
+        if !card.state.isFinished { card.state = .withdrawn }
+        cards.removeAll { $0 === card }
+    }
+
+    func retract(snippetID: String, sessionID: String) {
+        guard let card = cards.first(where: { $0.snippet.id == snippetID && $0.sessionID == sessionID }), !card.state.isFinished else { return }
+        card.state = .withdrawn
         cards.removeAll { $0 === card }
     }
 
@@ -219,9 +239,19 @@ final class Dispatcher {
         switch signal.kind {
         case "network":
             return "\(signal.method ?? "GET") \(signal.url ?? "?") failed with \(signal.status.map(String.init) ?? "no response") (\(event.source))"
+        case "console":
+            return "console.\(signal.level ?? "log"): \(signal.message ?? "")  (\(event.source))"
         default:
             let firstFrame = signal.stack?.split(separator: "\n").first { $0.contains("at ") }.map { " — " + $0.trimmingCharacters(in: .whitespaces) } ?? ""
             return "\(signal.kind): \(signal.message ?? "unknown")\(firstFrame) (\(event.source))"
+        }
+    }
+
+    private static func keyComponent(_ destination: Destination) -> String {
+        switch destination {
+        case .session(let id, _, _): "session-\(id)"
+        case .newSession(let cwd, let agent): "new-\(agent)-\(cwd)"
+        case .clipboard: "clipboard"
         }
     }
 

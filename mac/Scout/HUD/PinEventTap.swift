@@ -71,7 +71,7 @@ nonisolated final class PinEventTap: @unchecked Sendable {
             onEvent(.keyDown)
             return false
         case .leftMouseDown:
-            guard aiming.load(ordering: .acquiring) else { return false }
+            guard aiming.load(ordering: .acquiring), event.flags.contains(.maskAlternate) else { return false }
             swallowingClick.store(true, ordering: .releasing)
             onEvent(.pin(event.location))
             return true

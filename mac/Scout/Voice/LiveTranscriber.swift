@@ -36,6 +36,7 @@ final class LiveTranscriber {
     private let microphone = MicrophoneCapture()
     private let fileFeeder = AudioFileFeeder()
     private var utteranceCount = 0
+    private var generation = 0
     private var analyzer: SpeechAnalyzer?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
     private var resultsTask: Task<Void, Never>?
@@ -54,6 +55,8 @@ final class LiveTranscriber {
         case .preparing, .listening: return
         case .idle, .failed: break
         }
+        generation += 1
+        let attempt = generation
         phase = .preparing(progress: 0)
         finalizedText = ""
         volatileText = ""
@@ -65,6 +68,7 @@ final class LiveTranscriber {
             let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             try await analyzer.prepareToAnalyze(in: format)
+            guard attempt == generation else { return }
 
             let (stream, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self, bufferingPolicy: .unbounded)
             inputContinuation = continuation
@@ -91,14 +95,20 @@ final class LiveTranscriber {
                 try microphone.start(convertingTo: format, onBuffer: onBuffer, onLevel: onLevel)
             }
             try await analyzer.start(inputSequence: stream)
+            guard attempt == generation else {
+                await teardown()
+                return
+            }
             phase = .listening
         } catch {
+            guard attempt == generation else { return }
             await teardown()
             phase = .failed(error.localizedDescription)
         }
     }
 
     func stop() async {
+        generation += 1
         await flush()
         await teardown()
         phase = .idle

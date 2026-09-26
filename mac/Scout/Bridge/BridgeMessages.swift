@@ -77,19 +77,28 @@ nonisolated struct BridgeContextMessage: Codable, Sendable, Equatable {
     var title: String?
 }
 
+nonisolated struct BridgeViewport: Codable, Sendable, Equatable {
+    var x: Double
+    var y: Double
+    var scale: Double?
+}
+
 nonisolated struct BridgeHoverMessage: Codable, Sendable {
     var at: Double?
     var element: BridgeElement?
+    var viewport: BridgeViewport?
 }
 
 nonisolated struct BridgePinnedMessage: Codable, Sendable {
     var id: String
     var element: BridgeElement?
+    var viewport: BridgeViewport?
 }
 
 nonisolated struct BridgeSignalMessage: Codable, Sendable, Equatable {
     var at: Double?
     var kind: String
+    var level: String?
     var message: String?
     var stack: String?
     var method: String?
@@ -98,14 +107,24 @@ nonisolated struct BridgeSignalMessage: Codable, Sendable, Equatable {
 }
 
 extension BridgeElement {
-    nonisolated func target(clientID: String) -> Target {
+    nonisolated func screenFrame(in viewport: BridgeViewport?) -> Rect? {
+        guard let bounds else { return nil }
+        if bounds.space == "screen" {
+            return Rect(x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height)
+        }
+        guard let viewport else { return nil }
+        let scale = viewport.scale ?? 1
+        return Rect(x: viewport.x + bounds.x * scale, y: viewport.y + bounds.y * scale, width: bounds.width * scale, height: bounds.height * scale)
+    }
+
+    nonisolated func target(clientID: String, viewport: BridgeViewport? = nil) -> Target {
         Target(
             id: "web:\(clientID):\(id)",
             provider: .web,
             role: role.map { $0.prefix(1).uppercased() + $0.dropFirst() },
             label: label ?? text,
             identifier: testId,
-            frame: nil,
+            frame: screenFrame(in: viewport),
             ancestry: (ownerStack ?? []).reversed().dropFirst().map { $0 },
             component: component,
             selector: selector,

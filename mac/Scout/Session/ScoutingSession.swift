@@ -29,6 +29,7 @@ final class ScoutingSession {
     private(set) var captureProblem: String?
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
+    var onSnippetDiscarded: ((String) -> Void)?
     private(set) var runtimeEvents: [RuntimeEvent] = []
 
     struct RuntimeEvent {
@@ -43,6 +44,8 @@ final class ScoutingSession {
     private var pointerTracker: PointerTracker?
     private var ticker: Task<Void, Never>?
     private var sendNextClosedImmediately = false
+    private var startTask: Task<Void, Never>?
+    private var stopRequested = false
     private let bridge: BridgeServer
     private var webDwell: (target: Target, since: SessionTime)?
 
@@ -59,7 +62,7 @@ final class ScoutingSession {
         self.bridge = bridge
         self.recordsScreen = recordsScreen
         let started = Date()
-        let id = "session-" + Self.idFormatter.string(from: started)
+        let id = "session-" + Self.idFormatter.string(from: started) + "-" + UUID().uuidString.prefix(4).lowercased()
         self.id = id
         directory = ScoutPaths.newSessionDirectory(id: id, at: started)
         log = SignalLog(url: directory.appendingPathComponent("signals.jsonl"))
@@ -68,16 +71,30 @@ final class ScoutingSession {
         aim = AimController(clock: clock)
     }
 
-    func start() async {
+    func begin() {
+        guard startTask == nil else { return }
+        startTask = Task { await start() }
+    }
+
+    func end() async {
+        guard !stopRequested else { return }
+        stopRequested = true
+        await startTask?.value
+        await teardown()
+    }
+
+    private func start() async {
         transcriber.onUtterance = { [weak self] utterance in self?.hear(utterance) }
         aim.onPin = { [weak self] mark in self?.ingest(.mark(mark)) }
         aim.onAimChanged = { [weak self] active in self?.bridge.setAim(active: active) }
         aim.enrich = { [weak self] mark, date in
-            guard let self, let (client, element) = await self.bridge.requestPin(id: mark.id, at: date) else { return nil }
-            return element.target(clientID: client.id)
+            guard let self, let reply = await self.bridge.requestPin(id: mark.id, at: date) else { return nil }
+            return reply.element.target(clientID: reply.client.id, viewport: reply.viewport)
         }
         aim.start()
-        bridge.onHover = { [weak self] client, element, date in self?.webHover(element.target(clientID: client.id), at: date) }
+        bridge.onHover = { [weak self] client, element, viewport, date in
+            self?.webHover(element.target(clientID: client.id, viewport: viewport), at: date)
+        }
         bridge.onSignal = { [weak self] client, signal in
             guard let self else { return }
             let at = signal.at.map { self.clock.seconds(at: Date(timeIntervalSince1970: $0 / 1000)) } ?? self.clock.now
@@ -114,6 +131,7 @@ final class ScoutingSession {
         async let screen: Void = startRecorder()
         await transcriber.start()
         await screen
+        guard !stopRequested else { return }
         if case .failed(let message) = transcriber.phase {
             phase = .failed(message)
         } else {
@@ -121,8 +139,7 @@ final class ScoutingSession {
         }
     }
 
-    func stop() async {
-        guard phase == .live || phase == .starting else { return }
+    private func teardown() async {
         ticker?.cancel()
         aim.stop()
         bridge.setSession(active: false)
@@ -154,6 +171,7 @@ final class ScoutingSession {
             return
         }
         let recorder = SegmentedScreenRecorder(directory: directory)
+        self.recorder = recorder
         recorder.onFrameDifference = { [weak self] at, magnitude in
             guard magnitude >= 0.05 else { return }
             Task { @MainActor in self?.ingest(.visualChange(VisualChange(at: at, magnitude: magnitude))) }
@@ -163,8 +181,8 @@ final class ScoutingSession {
         }
         do {
             try await recorder.start(sessionStart: clock.originDate)
-            self.recorder = recorder
         } catch {
+            self.recorder = nil
             captureProblem = error.localizedDescription
         }
     }
@@ -176,6 +194,13 @@ final class ScoutingSession {
     private func accessibilityFocus(_ focus: Focus) {
         guard bridge.recentlyHovered(within: 1.0) == nil else { return }
         ingest(.focus(focus))
+    }
+
+    private func flushDwells(at now: SessionTime) {
+        pointerTracker?.flushDwell()
+        guard let dwell = webDwell else { return }
+        closeWebDwell(at: now)
+        webDwell = (dwell.target, now)
     }
 
     private func webHover(_ target: Target, at date: Date) {
@@ -196,16 +221,12 @@ final class ScoutingSession {
     private func hear(_ utterance: Utterance) {
         switch VoiceCommand.match(utterance.text) {
         case .discard:
-            discardCurrent()
-        case .send(let remainder):
-            if !remainder.isEmpty {
-                var trimmed = utterance
-                trimmed.text = remainder
-                ingest(.utterance(trimmed))
-            }
-            sendNextClosedImmediately = true
+            ingest(.command(CommandSignal(at: utterance.range.end, command: .discardCurrent)))
+        case .send:
+            sendNextClosedImmediately = openSnippet != nil
             ingest(.command(CommandSignal(at: utterance.range.end, command: .split)))
         case nil:
+            flushDwells(at: clock.now)
             ingest(.utterance(utterance))
         }
     }
@@ -228,7 +249,11 @@ final class ScoutingSession {
                 sendNextClosedImmediately = false
                 onSnippetClosed?(snippet, immediate)
             case .discarded(let id):
-                if openSnippet?.id == id { openSnippet = nil }
+                if openSnippet?.id == id {
+                    openSnippet = nil
+                } else {
+                    onSnippetDiscarded?(id)
+                }
             }
         }
     }
@@ -236,18 +261,21 @@ final class ScoutingSession {
 
 enum VoiceCommand: Equatable {
     case discard
-    case send(remainder: String)
+    case send
+
+    private static let leadingFillers: Set<String> = ["okay", "ok", "alright", "right", "so", "and", "um", "uh", "yeah", "actually", "no"]
+    private static let commands: [String: VoiceCommand] = [
+        "scratch that": .discard, "never mind": .discard, "nevermind": .discard, "forget that": .discard,
+        "send it": .send, "send that": .send, "ship it": .send, "send it now": .send,
+    ]
 
     static func match(_ text: String) -> VoiceCommand? {
-        let normalized = text.lowercased().trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
-        for phrase in ["scratch that", "never mind", "nevermind"] where normalized == phrase || normalized.hasSuffix(" " + phrase) {
-            return .discard
+        var words = text.lowercased()
+            .split { !$0.isLetter && $0 != "'" }
+            .map(String.init)
+        while let first = words.first, words.count > 1, leadingFillers.contains(first) {
+            words.removeFirst()
         }
-        for phrase in ["send it", "send that", "ship it"] where normalized == phrase || normalized.hasSuffix(" " + phrase) {
-            guard let range = text.range(of: phrase, options: [.caseInsensitive, .backwards]) else { continue }
-            let remainder = text[..<range.lowerBound].trimmingCharacters(in: .whitespaces.union(.punctuationCharacters))
-            return .send(remainder: remainder)
-        }
-        return nil
+        return commands[words.joined(separator: " ")]
     }
 }

@@ -209,6 +209,8 @@ private struct DeliveryControl: View {
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(Palette.mint)
                 .lineLimit(1)
+        case .withdrawn:
+            EmptyView()
         case .failed(let message):
             Button {
                 Task { await model.dispatcher.send(card) }

@@ -16,6 +16,36 @@ enum SimulationMode {
         URL(fileURLWithPath: argument("simulate-output") ?? "/tmp/scout-simulation", isDirectory: true)
     }
 
+    static var isQuickStop: Bool {
+        ProcessInfo.processInfo.arguments.contains("--simulate-quick-stop")
+    }
+
+    static func runQuickStop(model: AppModel, audio: URL) async {
+        let output = outputDirectory
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        try? await Task.sleep(for: .seconds(1))
+        model.startScouting(inputFile: audio)
+        try? await Task.sleep(for: .milliseconds(250))
+        model.stopScouting()
+        try? await Task.sleep(for: .seconds(3))
+        let framesEarly = model.session?.recorder?.statistics.framesCaptured ?? -1
+        try? await Task.sleep(for: .seconds(3))
+        let framesLate = model.session?.recorder?.statistics.framesCaptured ?? -1
+        let report: [String: Any] = [
+            "sessionPhase": String(describing: model.session?.phase),
+            "transcriberPhase": String(describing: model.session?.transcriber.phase),
+            "transcriberLevel": Double(model.session?.transcriber.level ?? -1),
+            "framesAfter3s": framesEarly,
+            "framesAfter6s": framesLate,
+            "isScouting": model.isScouting,
+            "aimActiveTap": model.session?.aim.isAiming ?? false,
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: output.appendingPathComponent("quick-stop.json"))
+        }
+        NSApp.terminate(nil)
+    }
+
     static var isDryRun: Bool {
         ProcessInfo.processInfo.arguments.contains("--dry-run-delivery")
     }

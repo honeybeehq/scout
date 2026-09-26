@@ -53,8 +53,11 @@ nonisolated struct AXElement: @unchecked Sendable {
         return value.count > 120 ? String(value.prefix(120)) + "…" : value
     }
 
+    private static let editableRoles: Set<String> = ["AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox", "AXSearchField"]
+
     var label: String? {
-        [title, descriptionText, attribute(kAXPlaceholderValueAttribute), stringValue]
+        let value = role.map(Self.editableRoles.contains) == true || subrole == "AXSecureTextField" ? nil : stringValue
+        return [title, descriptionText, attribute(kAXPlaceholderValueAttribute), value]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
     }

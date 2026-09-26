@@ -39,11 +39,16 @@ final class AppModel {
         shortcutRegistered = hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
         bridge.start()
+        Task.detached(priority: .background) { ScoutPaths.prune() }
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
         }
         if let audio = SimulationMode.audioFile {
-            Task { await SimulationMode.run(model: self, audio: audio) }
+            if SimulationMode.isQuickStop {
+                Task { await SimulationMode.runQuickStop(model: self, audio: audio) }
+            } else {
+                Task { await SimulationMode.run(model: self, audio: audio) }
+            }
         }
     }
 
@@ -81,17 +86,22 @@ final class AppModel {
             guard let self, let session else { return }
             dispatcher.accept(snippet, from: session, sendImmediately: immediate)
         }
+        session.onSnippetDiscarded = { [weak self, weak session] snippetID in
+            guard let self, let session else { return }
+            dispatcher.retract(snippetID: snippetID, sessionID: session.id)
+        }
         self.session = session
         isScouting = true
         hud.show(model: self)
-        Task { await session.start() }
+        session.begin()
     }
 
     func stopScouting() {
         guard isScouting, let session else { return }
         isScouting = false
         Task {
-            await session.stop()
+            await session.end()
+            guard self.session === session, !isScouting else { return }
             hud.hidePill()
             stackChanged()
         }

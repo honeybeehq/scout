@@ -11,7 +11,9 @@ enum SnippetMedia {
             attachments.append(.init(kind: .video, url: clip.url))
         }
         for (index, mark) in snippet.marks.enumerated() {
-            guard let frame = await recorder.snapshot(at: mark.at), let display = recorder.display else { continue }
+            guard let display = recorder.display, display.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)),
+                  let frame = await recorder.snapshot(at: mark.at)
+            else { continue }
             let image = outlined(frame, mark: mark, display: display) ?? frame
             let url = directory.appendingPathComponent("pin-\(index + 1).png")
             if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }

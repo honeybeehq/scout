@@ -76,6 +76,8 @@ enum TaskComposer {
         var details: [String] = []
         if let context = snippet.primaryContext {
             details.append("**Where:** " + describe(context, project: project))
+        } else if let project {
+            details.append("**Where:** repo `\(project.rootPath)`" + (project.gitBranch.map { " (branch `\($0)`)" } ?? ""))
         }
         let targets = snippet.targets.prefix(3)
         if !targets.isEmpty {

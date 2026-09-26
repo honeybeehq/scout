@@ -34,6 +34,16 @@ nonisolated final class PointerTracker: @unchecked Sendable {
         queue.sync { closeDwell(at: clock.now) }
     }
 
+    func flushDwell() {
+        queue.async { [self] in
+            guard let dwell else { return }
+            let now = clock.now
+            guard now - dwell.since >= Self.dwellThreshold else { return }
+            onFocus(Focus(range: TimeRange(start: dwell.since, end: now), target: dwell.target))
+            self.dwell = (dwell.target, now)
+        }
+    }
+
     private func sample() {
         let cocoaPoint = NSEvent.mouseLocation
         let point = CGPoint(x: cocoaPoint.x, y: primaryScreenHeight - cocoaPoint.y)

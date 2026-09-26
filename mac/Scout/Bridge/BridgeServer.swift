@@ -11,6 +11,7 @@ final class BridgeServer {
         var context: BridgeContextMessage?
         var lastHoverAt: Date?
         var hovered: BridgeElement?
+        var viewport: BridgeViewport?
 
         var name: String {
             hello?.app?.name ?? hello?.app?.url.flatMap { URL(string: $0)?.host() } ?? "App"
@@ -25,13 +26,19 @@ final class BridgeServer {
     private(set) var port: UInt16?
     private(set) var failure: String?
 
-    var onHover: ((Client, BridgeElement, Date) -> Void)?
+    var onHover: ((Client, BridgeElement, BridgeViewport?, Date) -> Void)?
     var onContext: ((Client) -> Void)?
     var onSignal: ((Client, BridgeSignalMessage) -> Void)?
 
     private var listener: NWListener?
     private var connections: [String: NWConnection] = [:]
-    private var pendingPins: [String: CheckedContinuation<(Client, BridgeElement)?, Never>] = [:]
+    private var pendingPins: [String: CheckedContinuation<PinReply?, Never>] = [:]
+
+    struct PinReply {
+        var client: Client
+        var element: BridgeElement
+        var viewport: BridgeViewport?
+    }
     private var sessionActive = false
     private var aimActive = false
     private let token = BridgeServer.loadOrCreateToken()
@@ -87,7 +94,7 @@ final class BridgeServer {
             .max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
     }
 
-    func requestPin(id: String, at date: Date, timeout: Duration = .milliseconds(220)) async -> (Client, BridgeElement)? {
+    func requestPin(id: String, at date: Date, timeout: Duration = .milliseconds(220)) async -> PinReply? {
         guard let client = recentlyHovered(within: 2) else { return nil }
         send(["type": "pin", "id": id, "at": date.timeIntervalSince1970 * 1000], to: client.id)
         return await withCheckedContinuation { continuation in
@@ -99,6 +106,13 @@ final class BridgeServer {
         }
     }
 
+    func project(forTarget target: Target) -> ProjectReference? {
+        guard target.provider == .web else { return nil }
+        let parts = target.id.split(separator: ":", maxSplits: 2)
+        guard parts.count == 3, let client = clients.first(where: { $0.id == parts[1] }), let root = client.hello?.project?.root else { return nil }
+        return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: client.hello?.project?.gitBranch)
+    }
+
     func project(forLocation location: String?) -> ProjectReference? {
         guard let location, let origin = Self.origin(of: location) else { return nil }
         let client = clients.first { $0.origin == origin && $0.hello?.project?.root != nil }
@@ -106,7 +120,7 @@ final class BridgeServer {
         return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: client?.hello?.project?.gitBranch)
     }
 
-    private func resolvePin(_ id: String, with result: (Client, BridgeElement)?) {
+    private func resolvePin(_ id: String, with result: PinReply?) {
         pendingPins.removeValue(forKey: id)?.resume(returning: result)
     }
 
@@ -126,7 +140,8 @@ final class BridgeServer {
     }
 
     nonisolated static func isAllowedOrigin(_ origin: String?) -> Bool {
-        guard let origin, origin != "null" else { return true }
+        guard let origin else { return true }
+        guard origin != "null" else { return false }
         guard let host = URL(string: origin)?.host()?.lowercased() else { return false }
         return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" || host.hasSuffix(".localhost")
     }
@@ -198,9 +213,18 @@ final class BridgeServer {
             send(["type": "error", "code": "invalidRequest", "message": "Expected a JSON object with a type."], to: id)
             return
         }
+        if envelope.type != "hello", clients[index].hello == nil {
+            send(["type": "error", "code": "unauthorized", "message": "Send hello with the token from bridge.json first."], to: id)
+            return
+        }
         switch envelope.type {
         case "hello":
             guard let hello = try? decoder.decode(BridgeHello.self, from: data) else { return }
+            guard hello.token == token else {
+                send(["type": "error", "code": "unauthorized", "message": "Missing or wrong token. Scout's SDK adapters read it from bridge.json."], to: id)
+                connections[id]?.cancel()
+                return
+            }
             clients[index].hello = hello
             send([
                 "type": "welcome",
@@ -217,13 +241,16 @@ final class BridgeServer {
             let date = hover.at.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date()
             clients[index].lastHoverAt = Date()
             clients[index].hovered = element
-            onHover?(clients[index], element, date)
+            clients[index].viewport = hover.viewport ?? clients[index].viewport
+            onHover?(clients[index], element, clients[index].viewport, date)
         case "pinned":
             guard let pinned = try? decoder.decode(BridgePinnedMessage.self, from: data) else { return }
-            resolvePin(pinned.id, with: pinned.element.map { (clients[index], $0) })
+            resolvePin(pinned.id, with: pinned.element.map { PinReply(client: clients[index], element: $0, viewport: pinned.viewport ?? clients[index].viewport) })
         case "signal":
             guard let signal = try? decoder.decode(BridgeSignalMessage.self, from: data) else { return }
             onSignal?(clients[index], signal)
+        case "error":
+            break
         default:
             var error: [String: Any] = ["type": "error", "code": "unsupported", "message": "Unknown message type \(envelope.type)."]
             if let requestID = envelope.id { error["id"] = requestID }

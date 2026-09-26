@@ -27,12 +27,14 @@ nonisolated struct HiveClient: Sendable {
     enum HiveError: LocalizedError {
         case notInstalled
         case handshakeFailed
+        case timedOut
         case requestFailed(String)
 
         var errorDescription: String? {
             switch self {
             case .notInstalled: "hive isn't running on this Mac."
             case .handshakeFailed: "hive answered with an unexpected protocol."
+            case .timedOut: "hive didn't answer in time."
             case .requestFailed(let message): message
             }
         }
@@ -106,10 +108,24 @@ nonisolated struct HiveClient: Sendable {
         )
     }
 
-    private func call(verb: String, params: [String: Any]) async throws -> [String: Any] {
+    private func call(verb: String, params: [String: Any], timeout: Duration = .seconds(8)) async throws -> [String: Any] {
         guard isInstalled else { throw HiveError.notInstalled }
         let connection = LineConnection(path: socketPath)
         defer { connection.close() }
+        let expired = Once()
+        let watchdog = Task {
+            try await Task.sleep(for: timeout)
+            expired.run { connection.close() }
+        }
+        defer { watchdog.cancel() }
+        do {
+            return try await exchange(on: connection, verb: verb, params: params)
+        } catch {
+            throw expired.hasRun ? HiveError.timedOut : error
+        }
+    }
+
+    private func exchange(on connection: LineConnection, verb: String, params: [String: Any]) async throws -> [String: Any] {
         try await connection.open()
 
         let hello = try await connection.readJSON()
@@ -212,6 +228,12 @@ nonisolated private final class LineConnection: @unchecked Sendable {
 nonisolated private final class Once: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false
+
+    var hasRun: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return done
+    }
 
     func run(_ body: () -> Void) {
         lock.lock()

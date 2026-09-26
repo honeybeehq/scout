@@ -4,7 +4,8 @@ import ScoutCore
 
 nonisolated final class ProjectResolver: @unchecked Sendable {
     private let lock = NSLock()
-    private var cache: [String: ProjectReference?] = [:]
+    private var cache: [String: (project: ProjectReference, at: Date)] = [:]
+    private static let cacheLifetime: TimeInterval = 60
 
     func resolve(_ context: AppContext?) async -> ProjectReference? {
         guard let context else { return nil }
@@ -13,19 +14,20 @@ nonisolated final class ProjectResolver: @unchecked Sendable {
         let key = "port:\(port)"
         if let cached = cached(key) { return cached }
         let project = await Task.detached(priority: .utility) { Self.project(listeningOn: port) }.value
-        store(project, for: key)
+        if let project { store(project, for: key) }
         return project
     }
 
-    private func cached(_ key: String) -> ProjectReference?? {
+    private func cached(_ key: String) -> ProjectReference? {
         lock.lock()
         defer { lock.unlock() }
-        return cache[key]
+        guard let entry = cache[key], Date().timeIntervalSince(entry.at) < Self.cacheLifetime else { return nil }
+        return entry.project
     }
 
-    private func store(_ project: ProjectReference?, for key: String) {
+    private func store(_ project: ProjectReference, for key: String) {
         lock.lock()
-        cache[key] = project
+        cache[key] = (project, Date())
         lock.unlock()
     }
 
@@ -37,10 +39,7 @@ nonisolated final class ProjectResolver: @unchecked Sendable {
     }
 
     static func project(listeningOn port: Int) -> ProjectReference? {
-        guard let pid = listeningProcess(port: port), let cwd = workingDirectory(of: pid) else { return nil }
-        guard let root = gitRoot(containing: cwd) else {
-            return ProjectReference(rootPath: cwd, name: URL(fileURLWithPath: cwd).lastPathComponent)
-        }
+        guard let pid = listeningProcess(port: port), let cwd = workingDirectory(of: pid), let root = gitRoot(containing: cwd) else { return nil }
         return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: gitBranch(at: root))
     }
 

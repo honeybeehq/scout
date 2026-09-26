@@ -17,12 +17,30 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let lock = NSLock()
     private var smoothedLevel: Float = 0
+    private var configurationObserver: NSObjectProtocol?
+    private var restart: (() -> Void)?
 
     var inputName: String? {
         AVCaptureDevice.default(for: .audio)?.localizedName
     }
 
     func start(
+        convertingTo targetFormat: AVAudioFormat?,
+        onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void,
+        onLevel: @escaping @Sendable (Float) -> Void
+    ) throws {
+        try install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
+        restart = { [weak self] in
+            guard let self else { return }
+            self.engine.inputNode.removeTap(onBus: 0)
+            try? self.install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
+        }
+        configurationObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
+            self?.restart?()
+        }
+    }
+
+    private func install(
         convertingTo targetFormat: AVAudioFormat?,
         onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void,
         onLevel: @escaping @Sendable (Float) -> Void
@@ -55,6 +73,9 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     }
 
     func stop() {
+        if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
+        configurationObserver = nil
+        restart = nil
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
     }
