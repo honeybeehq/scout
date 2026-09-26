@@ -1,0 +1,21 @@
+{
+  "name": "@scout/react",
+  "version": "0.1.0",
+  "description": "React component names, owner stacks and source locations for Scout.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@scout/web": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit"
+  }
+}

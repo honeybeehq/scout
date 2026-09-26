@@ -1,0 +1,19 @@
+{
+  "name": "scout-sdk-web",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p packages/web --noEmit && tsc -p packages/react --noEmit && tsc -p packages/vite --noEmit && tsc -p fixtures/react-vite",
+    "bridge": "node scripts/mock-bridge.mjs",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
+    "playwright": "1.63.0",
+    "typescript": "^5.9.0",
+    "ws": "^8.22.0"
+  }
+}

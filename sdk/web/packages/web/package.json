@@ -1,0 +1,19 @@
+{
+  "name": "@scout/web",
+  "version": "0.1.0",
+  "description": "Scout's in-page SDK: reports the element under the pointer, routes and runtime signals to the Scout app while you scout.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./global": "./dist/scout.global.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit"
+  }
+}
