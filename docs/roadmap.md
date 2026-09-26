@@ -41,8 +41,8 @@ Done: `⌥` aim overlay, click-to-pin through a session event tap, accessibility
 ## M4: Web SDK and bridge v1 (in progress)
 
 - Bridge server ✅ (loopback WebSocket, Origin checks, `bridge.json` token, session/aim/pin, hover dwell, runtime signals, project root from hello). First-contact approval UI is still open.
-- `@scout/web`, `@scout/react`, `@scout/svelte`, plus `@scout/vite` and `@scout/next` adapters.
-- Error, console and network signals attached to snippets.
+- `@scout/web`, `@scout/react`, `@scout/vite` ✅ (e2e 20/20, and verified live against Scout: an `⌥`-click pin arrives as `PayButton "Pay now" · PayButton.tsx:3:5`). Still to do: `@scout/svelte`, `@scout/vue`, `@scout/next`, `@scout/tanstack-start`.
+- Error, console and network signals attached to snippets ✅.
 - Project resolution: SDK hello → nectar → dev-server port → cwd → git root → pro index → user overrides.
 
 ## M5: Smarter splitting

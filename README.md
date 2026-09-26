@@ -6,7 +6,15 @@ Scout replaces Syn. It is a native macOS app first (Swift 6, SwiftUI, macOS 26);
 
 ## Status
 
-**M0: Foundation.** Scout.app runs: menu bar item, global shortcut, and the full onboarding (permissions with live status and a System Settings guide, on-device voice check, pointing practice, hive/Apiary detection). The breakpoint engine runs on recorded signal logs. The live scouting session (M1) is next. See the [roadmap](docs/roadmap.md).
+What works today:
+
+- **Onboarding.** Live permission checks for Screen Recording, Microphone and Accessibility, a guide card that follows System Settings, relaunch-and-resume, an on-device voice check, pointing practice, and hive/Apiary detection.
+- **Scouting.** Press `⌃⌥S` and talk. On-device transcription with word timings, app/window/URL context, pointer dwell targets, and `⌥`-click pins feed the breakpoint engine, which cuts the stream into tasks while you talk.
+- **Tasks.** Each task gets a title, transcript, the elements you pointed at, runtime errors from the page, a video clip (cut in about 30 ms, no re-encode) and pin screenshots.
+- **Delivery.** Tasks go to the hive session already working in the app's repo (or a new one), with idempotent sends; the clipboard is the fallback.
+- **Web SDK.** `@scout/vite` + `@scout/react` add component names and `file:line` source locations for pins, plus errors and failed requests.
+
+Next up: first-contact approval for SDK clients, Next/Svelte adapters, and native iOS/Android SDKs. See the [roadmap](docs/roadmap.md).
 
 ## Run
 
@@ -27,6 +35,20 @@ Snapshots of every onboarding step (for visual checks, no screen-recording permi
 open -n ~/Applications/Scout.app --args --reset-onboarding --snapshot-dir=/tmp/scout-shots
 ```
 
+End-to-end checks without a human at the machine:
+
+```bash
+say -o /tmp/narration.aiff "The pay button is too small. [[slnc 2500]] Next thing, the footer overlaps."
+open -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --simulate-pin --simulate-output=/tmp/scout-simulation
+cat /tmp/scout-simulation/report.json
+```
+
+Web SDK:
+
+```bash
+cd sdk/web && pnpm install && pnpm e2e
+```
+
 Breakpoint engine:
 
 ```bash
@@ -44,6 +66,7 @@ swift run scout-segment --check Fixtures/sessions
 | `Sources/scout-segment` | Replay, explain and check CLI |
 | `Fixtures/sessions` | Signal logs with expected cuts |
 | `mac/` | Scout.app (`project.yml` → XcodeGen) |
+| `sdk/web` | `@scout/web`, `@scout/react`, `@scout/vite`, fixture app and e2e check |
 | `script/` | Build, run, icon rendering |
 | `docs/` | Product and engineering docs |
 
