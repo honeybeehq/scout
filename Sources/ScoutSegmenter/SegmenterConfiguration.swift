@@ -101,8 +101,8 @@ public struct SegmenterConfiguration: Codable, Hashable, Sendable {
 
     public static let manual: SegmenterConfiguration = {
         var configuration = SegmenterConfiguration()
-        configuration.threshold = .infinity
-        configuration.silenceTimeout = .infinity
+        configuration.threshold = 1_000_000
+        configuration.silenceTimeout = 1_000_000
         configuration.taskPhrases = ["new task", "next task"]
         return configuration
     }()

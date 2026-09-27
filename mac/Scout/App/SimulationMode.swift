@@ -28,6 +28,34 @@ enum SimulationMode {
         ProcessInfo.processInfo.arguments.contains("--simulate-review")
     }
 
+    static var isRunning: Bool {
+        audioFile != nil || reopensLatest
+    }
+
+    static var reopensLatest: Bool {
+        ProcessInfo.processInfo.arguments.contains("--reopen-latest")
+    }
+
+    static func reopenLatest(model: AppModel) async {
+        let output = outputDirectory
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        try? await Task.sleep(for: .seconds(1.5))
+        model.openLatestReview()
+        try? await Task.sleep(for: .seconds(4))
+        captureWindow(named: "reopened", into: output)
+        let tasks = model.review?.tasks ?? []
+        let report: [String: Any] = [
+            "session": model.review?.sessionID ?? "none",
+            "hasVideo": model.review?.video != nil,
+            "leftover": model.review?.leftoverSpeech.map(\.text) ?? [],
+            "tasks": tasks.map { "\($0.snippet.id) \(String(format: "%.1f-%.1f", $0.snippet.range.start, $0.snippet.range.end)) state=\($0.state) destination=\($0.destination?.label ?? "none") title=\($0.title) edited=\($0.transcriptOverride != nil)" },
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: output.appendingPathComponent("reopen.json"))
+        }
+        NSApp.terminate(nil)
+    }
+
     static var isQuickStop: Bool {
         ProcessInfo.processInfo.arguments.contains("--simulate-quick-stop")
     }
@@ -99,11 +127,17 @@ enum SimulationMode {
         if reviewsEdits, let review = model.review {
             reviewReport = await exerciseReview(review, model: model, output: output)
         }
-        for card in model.dispatcher.cards where card.state == .needsDestination || card.state == .held {
+        for card in (model.review?.tasks ?? model.dispatcher.cards) where card.state == .needsDestination || card.state == .held {
             model.dispatcher.choose(.clipboard, for: card)
             await model.dispatcher.send(card)
         }
         try? await Task.sleep(for: .seconds(4))
+        let tasksBeforeClear = model.review?.tasks.count ?? -1
+        model.dispatcher.dismissDelivered()
+        reviewReport["tasksBeforeClearSent"] = tasksBeforeClear
+        reviewReport["tasksAfterClearSent"] = model.review?.tasks.count ?? -1
+        model.review?.save()
+        try? await Task.sleep(for: .seconds(1))
         snapshotPanels(into: output, suffix: "after-stop")
         writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport])
         NSApp.terminate(nil)
@@ -171,6 +205,12 @@ enum SimulationMode {
                 review.attach(leftover, to: neighbor)
                 step("attach next leftover to its neighbor")
             }
+            if let card = review.tasks.first {
+                review.beginTextEdit()
+                card.transcriptOverride = card.transcript + " Also make it bigger on tablets."
+                review.edited(card)
+                step("edit first transcript")
+            }
         }
         if let first = review.tasks.first { review.select(first) }
         try? await Task.sleep(for: .seconds(1.5))
@@ -198,7 +238,7 @@ enum SimulationMode {
     }
 
     private static func writeReport(model: AppModel, into directory: URL, elapsed: TimeInterval, extra: [String: Any] = [:]) {
-        let cards: [[String: Any]] = model.dispatcher.cards.map { card in
+        let cards: [[String: Any]] = (model.review?.tasks ?? model.dispatcher.cards).map { card in
             [
                 "id": card.snippet.id,
                 "range": [card.snippet.range.start, card.snippet.range.end],
@@ -221,7 +261,7 @@ enum SimulationMode {
             "bridgePort": model.bridge.port.map(Int.init) ?? 0,
             "bridgeFailure": model.bridge.failure ?? "",
             "captureProblem": model.session?.captureProblem ?? "",
-            "attachments": model.dispatcher.cards.flatMap { $0.attachments.map(\.line) },
+            "attachments": (model.review?.tasks ?? model.dispatcher.cards).flatMap { $0.attachments.map(\.line) },
             "cards": cards,
         ]
         report.merge(extra) { $1 }

@@ -13,6 +13,7 @@ final class ReviewPlayer {
 
     private weak var review: SessionReview?
     private var timeObserver: Any?
+    private var endObserver: NSObjectProtocol?
 
     func attach(_ review: SessionReview) {
         self.review = review
@@ -21,11 +22,16 @@ final class ReviewPlayer {
             loadedURL = nil
             return
         }
-        guard loadedURL != url else { return }
+        guard loadedURL != url || timeObserver == nil else { return }
         loadedURL = url
-        player.replaceCurrentItem(with: AVPlayerItem(url: url))
+        let item = AVPlayerItem(url: url)
+        player.replaceCurrentItem(with: item)
         player.actionAtItemEnd = .pause
         installObserver()
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        endObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reachedEnd() }
+        }
         seek(to: review.playhead)
     }
 
@@ -34,14 +40,12 @@ final class ReviewPlayer {
     }
 
     func play() {
-        guard let review, let task = review.selectedTask else {
-            player.play()
-            isPlaying = true
-            return
-        }
-        let range = task.snippet.range
-        if review.playhead < range.start || review.playhead >= range.end - 0.05 {
+        guard let review, player.currentItem != nil else { return }
+        if let range = review.selectedTask?.snippet.range, review.playhead < range.start || review.playhead >= range.end - 0.05 {
             seek(to: range.start)
+        } else {
+            let current = review.sessionTime(forVideoTime: player.currentTime().seconds)
+            if abs(current - review.playhead) > 0.15 { seek(to: review.playhead) }
         }
         player.play()
         isPlaying = true
@@ -63,6 +67,19 @@ final class ReviewPlayer {
         pause()
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         timeObserver = nil
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        endObserver = nil
+        loadedURL = nil
+    }
+
+    private func reachedEnd() {
+        guard let review, isPlaying else { return }
+        if loopsTask, let range = review.selectedTask?.snippet.range {
+            seek(to: range.start)
+            player.play()
+        } else {
+            isPlaying = false
+        }
     }
 
     private func installObserver() {

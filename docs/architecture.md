@@ -80,8 +80,8 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
     signals.jsonl              every Signal, append-only; replayable with scout-segment
     session.mp4                the whole recording, joined from the segments on stop (passthrough)
     review.json                task ranges, titles, edits and delivery state; reopens the session later
-    media/init.mp4             fMP4 init segment
-    media/seg-00001.m4s …      2 s media segments
+    media/init.mp4             fMP4 init segment (while recording)
+    media/seg-00001.m4s …      2 s media segments (deleted once session.mp4 exists)
     snippets/<snippet-id>/
       snippet.json             Snippet (ScoutCore) + delivery state
       task.md                  the text sent to the agent
@@ -90,7 +90,7 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
   corrections.jsonl            user merges and splits, for tuning the segmenter
 ```
 
-Retention: sessions older than 14 days are pruned, except snippets that were sent (their folders are referenced from agent transcripts). Media segments without a snippet are deleted as soon as the session ends.
+Retention: when a session ends, its segments are joined into `session.mp4` (passthrough) and `media/` is deleted two minutes later, so a session keeps one copy of its video. `session.mp4` is pruned after 7 days and whole sessions after 14; `review.json` and the snippet folders of sent tasks go with the session.
 
 ## Permissions model
 

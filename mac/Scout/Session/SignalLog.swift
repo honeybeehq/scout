@@ -40,7 +40,7 @@ nonisolated enum ScoutPaths {
         support.appendingPathComponent("Sessions", isDirectory: true)
     }
 
-    static func prune(now: Date = Date(), mediaAge: TimeInterval = 86_400, sessionAge: TimeInterval = 14 * 86_400) {
+    static func prune(now: Date = Date(), mediaAge: TimeInterval = 86_400, videoAge: TimeInterval = 7 * 86_400, sessionAge: TimeInterval = 14 * 86_400) {
         let manager = FileManager.default
         let days = (try? manager.contentsOfDirectory(at: sessions, includingPropertiesForKeys: nil)) ?? []
         for day in days {
@@ -50,8 +50,13 @@ nonisolated enum ScoutPaths {
                 let age = now.timeIntervalSince(modified)
                 if age > sessionAge {
                     try? manager.removeItem(at: folder)
-                } else if age > mediaAge {
+                    continue
+                }
+                if age > mediaAge {
                     try? manager.removeItem(at: folder.appendingPathComponent("media"))
+                }
+                if age > videoAge {
+                    try? manager.removeItem(at: folder.appendingPathComponent("session.mp4"))
                 }
             }
             if (try? manager.contentsOfDirectory(atPath: day.path))?.isEmpty == true {

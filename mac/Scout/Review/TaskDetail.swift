@@ -46,11 +46,17 @@ private struct PlayerPanel: View {
                 if review.video != nil {
                     PlayerSurface(player: player.player)
                 } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 28, weight: .medium))
-                        Text(review.isLive ? "The video is ready when you stop scouting." : "No screen recording for this session.")
-                            .font(Typography.caption)
+                    VStack(spacing: 10) {
+                        if review.isFinishing {
+                            ProgressView().controlSize(.small)
+                            Text("Preparing the video…")
+                                .font(Typography.caption)
+                        } else {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 28, weight: .medium))
+                            Text("No screen recording for this session.")
+                                .font(Typography.caption)
+                        }
                     }
                     .foregroundStyle(Palette.textTertiary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -136,7 +142,10 @@ private struct TitleField: View {
             .foregroundStyle(Palette.text)
             .disabled(card.isLocked)
             .focused($focused)
-            .onChange(of: focused) { _, value in review.isEditingText = value }
+            .onChange(of: focused) { _, value in
+                review.isEditingText = value
+                if value { review.beginTextEdit() }
+            }
         }
     }
 }
@@ -167,24 +176,36 @@ private struct TranscriptField: View {
                     }
                 }
             }
-            TextEditor(text: Binding(
-                get: { card.transcript },
-                set: { value in
-                    card.transcriptOverride = value == card.snippet.transcript ? nil : value
-                    review.edited(card)
+            if card.isLocked {
+                Text(card.transcript)
+                    .font(.system(size: 14.5))
+                    .lineSpacing(4)
+                    .foregroundStyle(Palette.textSecondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color.white.opacity(0.03), in: .rect(cornerRadius: 12, style: .continuous))
+            } else {
+                TextField("What should change?", text: Binding(
+                    get: { card.transcript },
+                    set: { value in
+                        card.transcriptOverride = value == card.snippet.transcript ? nil : value
+                        review.edited(card)
+                    }
+                ), axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14.5))
+                .lineSpacing(4)
+                .lineLimit(3...)
+                .padding(12)
+                .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(focused ? Palette.flare.opacity(0.5) : Color.white.opacity(0.08)))
+                .focused($focused)
+                .onChange(of: focused) { _, value in
+                    review.isEditingText = value
+                    if value { review.beginTextEdit() }
                 }
-            ))
-            .font(.system(size: 14.5))
-            .lineSpacing(4)
-            .scrollContentBackground(.hidden)
-            .scrollDisabled(true)
-            .frame(minHeight: 70)
-            .padding(12)
-            .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(focused ? Palette.flare.opacity(0.5) : Color.white.opacity(0.08)))
-            .disabled(card.isLocked)
-            .focused($focused)
-            .onChange(of: focused) { _, value in review.isEditingText = value }
+            }
         }
     }
 }
@@ -334,7 +355,7 @@ private struct ContextSection: View {
                     if let context = card.snippet.primaryContext {
                         HStack(spacing: 6) {
                             Text(context.app.name).font(.system(size: 13, weight: .semibold))
-                            if let location = context.location ?? context.windowTitle {
+                            if let location = context.location ?? context.windowTitle, location != context.app.name {
                                 Text(location)
                                     .font(Typography.mono)
                                     .foregroundStyle(Palette.textSecondary)

@@ -95,7 +95,7 @@ struct SnippetCardView: View {
                 Spacer(minLength: 4)
                 if hovering {
                     Button {
-                        withAnimation(Motion.smooth) { model.dispatcher.dismiss(card) }
+                        withAnimation(Motion.smooth) { card.state.isFinished ? model.dispatcher.removeFromStack(card) : model.dispatcher.withdraw(card) }
                     } label: {
                         Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
                     }

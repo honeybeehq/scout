@@ -4,6 +4,7 @@ import SwiftUI
 struct TaskList: View {
     let review: SessionReview
     let player: ReviewPlayer
+    var onFocusRoot: () -> Void = {}
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -26,11 +27,12 @@ struct TaskList: View {
                                 player.pause()
                                 review.select(card)
                                 player.seek(to: card.snippet.range.start)
+                                onFocusRoot()
                             }
                     }
 
                     if review.tasks.isEmpty {
-                        Text(review.isLive ? "Tasks appear here as you talk." : "No tasks. Pick up speech below, or split the timeline.")
+                        Text(review.leftoverSpeech.isEmpty ? "No tasks in this session." : "No tasks yet. Pick up speech below.")
                             .font(.system(size: 12.5))
                             .foregroundStyle(Palette.textTertiary)
                             .padding(10)

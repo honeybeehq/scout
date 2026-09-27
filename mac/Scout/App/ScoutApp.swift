@@ -64,7 +64,7 @@ private struct MenuBarLabel: View {
                 }
                 model.openReviewWindow = {
                     openWindow(id: ScoutApp.reviewWindowID)
-                    if SimulationMode.audioFile == nil { NSApp.activate() }
+                    if !SimulationMode.isRunning { NSApp.activate() }
                 }
             }
     }

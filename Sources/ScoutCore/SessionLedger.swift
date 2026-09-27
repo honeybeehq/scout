@@ -39,7 +39,7 @@ public struct SessionLedger: Codable, Hashable, Sendable {
             range: range,
             utterances: utterances.filter { Self.midpoint($0.range).isWithin(range) },
             focuses: focuses.filter { Self.midpoint($0.range).isWithin(range) },
-            marks: marks.filter { $0.at.isWithin(range) },
+            marks: marks.filter { $0.at >= range.start && $0.at <= range.end },
             contexts: contexts.filter { $0.at.isWithin(range) },
             openingContext: context(at: range.start),
             closedBy: closedBy

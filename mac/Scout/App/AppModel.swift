@@ -15,6 +15,8 @@ final class AppModel {
     let preferences = Preferences()
     private(set) var session: ScoutingSession?
     private(set) var review: SessionReview?
+    private var reviews: [String: SessionReview] = [:]
+    private var latestSessionID: String?
     var openOnboarding: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
     var openReviewWindow: (() -> Void)?
@@ -44,10 +46,14 @@ final class AppModel {
         self.hotkey = hotkey
         shortcutRegistered = hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
+        dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
         bridge.start()
         Task.detached(priority: .background) { ScoutPaths.prune() }
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
+        }
+        if SimulationMode.reopensLatest {
+            Task { await SimulationMode.reopenLatest(model: self) }
         }
         if let audio = SimulationMode.audioFile {
             if SimulationMode.isQuickStop {
@@ -90,11 +96,12 @@ final class AppModel {
         session.transcriber.onInputFinished = onInputFinished
         session.onSnippetClosed = { [weak self, weak session] snippet, immediate in
             guard let self, let session else { return }
-            dispatcher.accept(snippet, from: session, sendImmediately: immediate)
+            session.adopt(dispatcher.accept(snippet, from: session, sendImmediately: immediate))
         }
         session.onSnippetDiscarded = { [weak self, weak session] snippetID in
-            guard let self, let session else { return }
-            dispatcher.retract(snippetID: snippetID, sessionID: session.id)
+            guard let self, let card = session?.cards.first(where: { $0.snippet.id == snippetID }), !card.isLocked else { return nil }
+            dispatcher.withdraw(card)
+            return card
         }
         self.session = session
         isScouting = true
@@ -109,22 +116,25 @@ final class AppModel {
         guard isScouting, let session else { return }
         isScouting = false
         breakHotkey?.unregister()
+        hud.hidePill()
         Task {
             await session.end()
-            guard self.session === session, !isScouting else { return }
-            hud.hidePill()
             let review = SessionReview(session: session, dispatcher: dispatcher)
-            review.refreshFromSession()
+            reviews[session.id] = review
+            latestSessionID = session.id
             if let first = review.tasks.first { review.select(first) }
             review.save()
-            if shouldOpenReview(review) {
-                self.review = review
-                hud.hideAll()
-                openReviewWindow?()
-            } else {
-                if self.review == nil || self.review?.isLive == true { self.review = review }
-                stackChanged()
+            if !isScouting {
+                if shouldOpenReview(review) {
+                    show(review)
+                } else {
+                    if self.review == nil { self.review = review }
+                    stackChanged()
+                }
             }
+            await session.exportVideo()
+            review.videoFinished()
+            removeSegments(of: session)
         }
     }
 
@@ -132,53 +142,74 @@ final class AppModel {
         switch preferences.reviewOpening {
         case .always: return !review.tasks.isEmpty || !review.leftoverSpeech.isEmpty
         case .never: return false
-        case .whenNeeded:
-            return review.tasks.contains { card in
-                switch card.state {
-                case .needsDestination, .held, .failed: true
-                default: false
-                }
-            } || !review.leftoverSpeech.isEmpty
+        case .whenNeeded: return review.needsAttention
+        }
+    }
+
+    private func show(_ review: SessionReview) {
+        if let current = self.review, current !== review { current.save() }
+        self.review = review
+        hud.hideAll()
+        openReviewWindow?()
+    }
+
+    private func removeSegments(of session: ScoutingSession) {
+        guard session.video != nil else { return }
+        let media = session.directory.appendingPathComponent("media", isDirectory: true)
+        Task.detached(priority: .background) {
+            try? await Task.sleep(for: .seconds(120))
+            try? FileManager.default.removeItem(at: media)
         }
     }
 
     func openLatestReview() {
-        if review == nil, let latest = SessionLibrary.recent(limit: 1).first {
+        if let latestSessionID, let cached = reviews[latestSessionID] {
+            show(cached)
+        } else if let latest = SessionLibrary.recent(limit: 1).first {
             openReview(latest)
-            return
+        } else {
+            openReviewWindow?()
         }
-        openReviewWindow?()
     }
 
     func openReview(_ summary: SessionSummary) {
-        review?.save()
-        if let existing = review, existing.sessionID == summary.id {
-            openReviewWindow?()
+        if let cached = reviews[summary.id] {
+            show(cached)
             return
         }
-        guard let record = ReviewRecord.read(from: summary.directory) else { return }
-        let ledger = SessionLibrary.ledger(in: summary.directory)
-        let loaded = SessionReview(directory: summary.directory, record: record, ledger: ledger, dispatcher: dispatcher)
-        if dispatcher.cards(inSession: record.sessionID).isEmpty {
-            for task in record.tasks {
-                let card = SnippetCard(snippet: ledger.snippet(id: task.id, range: TimeRange(start: task.start, end: task.end)), sessionID: record.sessionID, sessionDirectory: summary.directory)
+        let directory = summary.directory
+        Task {
+            let loaded = await Task.detached(priority: .userInitiated) { () -> (ReviewRecord, SessionLedger)? in
+                guard let record = ReviewRecord.read(from: directory) else { return nil }
+                return (record, SessionLibrary.ledger(in: directory))
+            }.value
+            guard let (record, ledger) = loaded else { return }
+            let video = record.video.map { ExportedClip(url: directory.appendingPathComponent($0.file), range: TimeRange(start: $0.start, end: $0.end)) }
+            let cards = record.tasks.map { task -> SnippetCard in
+                let card = SnippetCard(snippet: ledger.snippet(id: task.id, range: TimeRange(start: task.start, end: task.end)), sessionID: record.sessionID, sessionDirectory: directory)
                 card.restoreTitle(task.title, custom: task.titleIsCustom)
                 card.transcriptOverride = task.transcriptOverride
                 card.excludedTargetIDs = Set(task.excludedTargetIDs)
-                card.sessionVideo = loaded.video
-                card.sessionDisplay = loaded.display
+                card.sessionVideo = video
+                card.sessionDisplay = record.display
+                card.holdRequested = true
+                if let destination = task.destination {
+                    card.destination = destination
+                    card.destinationChosenByUser = task.destinationChosenByUser ?? true
+                }
                 if let sentTo = task.sentTo {
                     card.state = .sent(sentTo)
-                    dispatcher.insert(card)
                 } else {
-                    card.state = .held
-                    dispatcher.prepareHeld(card)
+                    card.state = card.destination == nil ? .needsDestination : .held
+                    dispatcher.prepare(card)
                 }
+                return card
             }
+            let review = SessionReview(directory: directory, record: record, ledger: ledger, cards: cards, dispatcher: dispatcher)
+            if let first = review.tasks.first { review.select(first) }
+            reviews[record.sessionID] = review
+            show(review)
         }
-        if let first = loaded.tasks.first { loaded.select(first) }
-        review = loaded
-        openReviewWindow?()
     }
 
     func sendAll(in review: SessionReview) async {
@@ -190,7 +221,7 @@ final class AppModel {
 
     func windowOpened() {
         openWindows += 1
-        guard SimulationMode.audioFile == nil else { return }
+        guard !SimulationMode.isRunning else { return }
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
     }

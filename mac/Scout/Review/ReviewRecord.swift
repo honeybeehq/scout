@@ -8,6 +8,11 @@ nonisolated struct ReviewRecord: Codable, Sendable {
         var end: Double
     }
 
+    struct Span: Codable, Sendable {
+        var start: Double
+        var end: Double
+    }
+
     struct Task: Codable, Sendable {
         var id: String
         var start: Double
@@ -17,7 +22,8 @@ nonisolated struct ReviewRecord: Codable, Sendable {
         var transcriptOverride: String?
         var excludedTargetIDs: [String]
         var sentTo: String?
-        var destination: String?
+        var destination: Destination?
+        var destinationChosenByUser: Bool?
 
         @MainActor
         init(_ card: SnippetCard) {
@@ -29,7 +35,8 @@ nonisolated struct ReviewRecord: Codable, Sendable {
             transcriptOverride = card.transcriptOverride
             excludedTargetIDs = card.excludedTargetIDs.sorted()
             if case .sent(let destination) = card.state { sentTo = destination }
-            destination = card.destination?.label
+            destination = card.destination
+            destinationChosenByUser = card.destinationChosenByUser
         }
     }
 
@@ -39,6 +46,7 @@ nonisolated struct ReviewRecord: Codable, Sendable {
     var duration: Double
     var video: Video?
     var display: CaptureDisplay?
+    var discarded: [Span]?
     var tasks: [Task]
 
     static let fileName = "review.json"

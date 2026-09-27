@@ -29,10 +29,12 @@ final class ScoutingSession {
     private(set) var captureProblem: String?
     private(set) var ledger = SessionLedger()
     private(set) var video: ExportedClip?
+    private(set) var cards: [SnippetCard] = []
+    private(set) var discardedRanges: [TimeRange] = []
     let segmentation: Segmentation
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
-    var onSnippetDiscarded: ((String) -> Void)?
+    var onSnippetDiscarded: ((String) -> SnippetCard?)?
     private(set) var runtimeEvents: [RuntimeEvent] = []
 
     struct RuntimeEvent {
@@ -160,10 +162,27 @@ final class ScoutingSession {
         ledger.extend(to: end)
         handle(segmenter.finish(at: end))
         log.close()
-        if let recorder {
-            video = try? await recorder.exportClip(from: 0, to: end, padding: 0, into: directory.appendingPathComponent("session.mp4"))
-        }
         phase = .ended
+    }
+
+    func adopt(_ card: SnippetCard) {
+        cards.append(card)
+    }
+
+    func isFiller(_ utterance: Utterance) -> Bool {
+        segmenter.isFiller(utterance)
+    }
+
+    func exportVideo() async {
+        guard phase == .ended, video == nil, let recorder else { return }
+        video = try? await recorder.exportClip(from: 0, to: ledger.end, padding: 0, into: directory.appendingPathComponent("session.mp4"))
+        guard let video else { return }
+        for card in cards {
+            card.sessionVideo = video
+            card.sessionDisplay = recorder.display
+            card.recorder = nil
+        }
+        self.recorder = nil
     }
 
     func splitNow() {
@@ -260,10 +279,12 @@ final class ScoutingSession {
                 sendNextClosedImmediately = false
                 onSnippetClosed?(snippet, immediate)
             case .discarded(let id):
-                if openSnippet?.id == id {
+                if let open = openSnippet, open.id == id {
+                    discardedRanges.append(open.range)
                     openSnippet = nil
-                } else {
-                    onSnippetDiscarded?(id)
+                } else if let card = onSnippetDiscarded?(id) {
+                    discardedRanges.append(card.snippet.range)
+                    cards.removeAll { $0 === card }
                 }
             }
         }

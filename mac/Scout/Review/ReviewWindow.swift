@@ -32,12 +32,13 @@ private struct ReviewContent: View {
     @Environment(AppModel.self) private var model
     let review: SessionReview
     let player: ReviewPlayer
+    @FocusState private var rootFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             ReviewHeader(review: review, player: player)
             HStack(spacing: 0) {
-                TaskList(review: review, player: player)
+                TaskList(review: review, player: player, onFocusRoot: { rootFocused = true })
                     .frame(width: 300)
                     .background(Color.black.opacity(0.18))
                 Rectangle().fill(Palette.hairline).frame(width: 1)
@@ -48,17 +49,22 @@ private struct ReviewContent: View {
                         Image(systemName: "rectangle.stack")
                             .font(.system(size: 30))
                             .foregroundStyle(Palette.textTertiary)
-                        Text(review.isLive ? "Keep talking. Tasks show up here." : "Nothing to review in this session.")
+                        Text(review.leftoverSpeech.isEmpty ? "Nothing to review in this session." : "No tasks yet. Pick up speech from the list on the left.")
                             .foregroundStyle(Palette.textSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             TimelinePanel(review: review, player: player)
+                .simultaneousGesture(TapGesture().onEnded { rootFocused = true })
         }
+        .focusable()
+        .focusEffectDisabled()
+        .focused($rootFocused)
         .onAppear {
             if review.selectedTaskID == nil, let first = review.tasks.first { review.select(first) }
             player.attach(review)
+            rootFocused = true
         }
         .onChange(of: review.video?.url) { player.attach(review) }
         .task(id: review.video?.url) { await review.loadFilmstrip() }
@@ -92,7 +98,7 @@ private struct ReviewHeader: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ScoutMark(litArcs: 3, pulsing: review.isLive)
+            ScoutMark(litArcs: 3, pulsing: review.isFinishing)
                 .frame(width: 26, height: 26)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 15, weight: .semibold))
@@ -176,7 +182,7 @@ private struct ReviewHeader: View {
     }
 
     private var title: String {
-        review.isLive ? "Scouting now" : "Session review"
+        "Session review"
     }
 
     private var subtitle: String {

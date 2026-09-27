@@ -1,0 +1,140 @@
+import Foundation
+import Observation
+import ScoutCore
+
+enum Destination: Hashable, Codable {
+    case session(id: String, title: String, agent: String)
+    case newSession(cwd: String, agent: String)
+    case clipboard
+
+    var label: String {
+        switch self {
+        case .session(_, let title, let agent): "\(title) · \(agent)"
+        case .newSession(let cwd, let agent): "New \(agent) session in \(URL(fileURLWithPath: cwd).lastPathComponent)"
+        case .clipboard: "Clipboard"
+        }
+    }
+
+    var key: String {
+        switch self {
+        case .session(let id, _, _): "session-\(id)"
+        case .newSession(let cwd, let agent): "new-\(agent)-\(cwd)"
+        case .clipboard: "clipboard"
+        }
+    }
+}
+
+@Observable
+final class SnippetCard: Identifiable {
+    enum State: Equatable {
+        case preparing
+        case countdown(until: Date)
+        case needsDestination
+        case held
+        case sending
+        case sent(String)
+        case failed(String)
+        case withdrawn
+
+        var isFinished: Bool {
+            if case .sent = self { return true }
+            return false
+        }
+
+        var isClosed: Bool {
+            switch self {
+            case .sent, .withdrawn: true
+            default: false
+            }
+        }
+    }
+
+    private(set) var snippet: Snippet
+    let sessionID: String
+    let sessionDirectory: URL
+    var title: String {
+        didSet { if title != oldValue, isUserEditing { titleIsCustom = true } }
+    }
+    private(set) var titleIsCustom = false
+    var transcriptOverride: String?
+    var excludedTargetIDs: Set<String> = []
+    var isUserEditing = false
+    var holdRequested = false
+    var project: ProjectReference?
+    var destination: Destination?
+    var destinationChosenByUser = false
+    var state: State = .preparing
+    var attachments: [ComposedTask.Attachment] = []
+    var runtimeNotes: [String] = []
+    var recorder: SegmentedScreenRecorder?
+    var sessionVideo: ExportedClip?
+    var sessionDisplay: CaptureDisplay?
+
+    var id: String { "\(sessionID)/\(snippet.id)" }
+
+    var isLocked: Bool {
+        state.isFinished || state == .sending
+    }
+
+    var needsAttention: Bool {
+        switch state {
+        case .needsDestination, .held, .failed: true
+        default: false
+        }
+    }
+
+    var transcript: String {
+        transcriptOverride ?? snippet.transcript
+    }
+
+    var targets: [Target] {
+        snippet.targets.filter { !excludedTargetIDs.contains($0.id) }
+    }
+
+    var deliverableSnippet: Snippet {
+        var snippet = snippet
+        if let transcriptOverride {
+            snippet.utterances = [Utterance(id: "edited", range: snippet.range, text: transcriptOverride)]
+        }
+        snippet.marks = snippet.marks.map { mark in
+            var mark = mark
+            if let target = mark.target, excludedTargetIDs.contains(target.id) { mark.target = nil }
+            return mark
+        }
+        snippet.focuses.removeAll { excludedTargetIDs.contains($0.target.id) }
+        return snippet
+    }
+
+    init(snippet: Snippet, sessionID: String, sessionDirectory: URL) {
+        self.snippet = snippet
+        self.sessionID = sessionID
+        self.sessionDirectory = sessionDirectory
+        title = TaskComposer.title(for: snippet)
+    }
+
+    func replaceSnippet(_ newSnippet: Snippet) {
+        guard !isLocked else { return }
+        let transcriptChanged = newSnippet.transcript != snippet.transcript
+        snippet = newSnippet
+        attachments = []
+        if transcriptChanged, !titleIsCustom { title = TaskComposer.title(for: newSnippet) }
+    }
+
+    func restoreTitle(_ title: String, custom: Bool) {
+        self.title = title
+        titleIsCustom = custom
+    }
+
+    func inheritDelivery(from source: SnippetCard) {
+        project = source.project
+        destination = source.destination
+        destinationChosenByUser = source.destinationChosenByUser
+        recorder = source.recorder
+        sessionVideo = source.sessionVideo
+        sessionDisplay = source.sessionDisplay
+        runtimeNotes = source.runtimeNotes
+        excludedTargetIDs = source.excludedTargetIDs
+        holdRequested = true
+        state = destination == nil ? .needsDestination : .held
+    }
+}

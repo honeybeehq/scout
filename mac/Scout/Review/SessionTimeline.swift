@@ -63,7 +63,7 @@ struct SessionTimeline: View {
                 if let hoverX, draggingEdge == nil {
                     hoverMarker(at: hoverX, scale: scale)
                 }
-                playhead(scale: scale)
+                Playhead(review: review, scale: scale)
             }
             .coordinateSpace(.named("timeline"))
         }
@@ -95,15 +95,17 @@ struct SessionTimeline: View {
         let shape = Path(roundedRect: track, cornerRadius: 10, style: .continuous)
         context.fill(shape, with: .color(Color.white.opacity(0.05)))
         let frames = review.filmstrip
-        if let first = frames.first {
+        if let first = frames.first, let video = review.video {
+            let covered = CGRect(x: scale.x(video.range.start), y: track.minY, width: scale.x(video.range.end) - scale.x(video.range.start), height: track.height)
             let aspect = CGFloat(first.width) / CGFloat(max(first.height, 1))
             let tileWidth = Self.filmHeight * aspect
-            let tiles = max(1, Int((track.width / tileWidth).rounded(.up)))
+            let tiles = max(1, Int((covered.width / tileWidth).rounded(.up)))
             var film = context
             film.clip(to: shape)
+            film.clip(to: Path(covered))
             for tile in 0..<tiles {
                 let frame = frames[min(frames.count - 1, tile * frames.count / tiles)]
-                let rect = CGRect(x: track.minX + CGFloat(tile) * tileWidth, y: track.minY, width: tileWidth, height: track.height)
+                let rect = CGRect(x: covered.minX + CGFloat(tile) * tileWidth, y: track.minY, width: tileWidth, height: track.height)
                 film.draw(Image(decorative: frame, scale: 1), in: rect)
             }
         }
@@ -141,9 +143,11 @@ struct SessionTimeline: View {
             let shape = Path(roundedRect: rect, cornerRadius: 4)
             if inTask {
                 context.fill(shape, with: .color(Color.white.opacity(0.32)))
-            } else {
+            } else if review.isLeftover(utterance) {
                 context.fill(shape, with: .color(Palette.amber.opacity(0.22)))
                 context.stroke(shape, with: .color(Palette.amber.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+            } else {
+                context.fill(shape, with: .color(Color.white.opacity(0.1)))
             }
         }
         for mark in review.ledger.marks {
@@ -250,21 +254,26 @@ struct SessionTimeline: View {
         .allowsHitTesting(false)
     }
 
-    private func playhead(scale: TimelineScale) -> some View {
-        let x = scale.x(review.playhead)
-        return ZStack(alignment: .top) {
-            Rectangle().fill(Color.white).frame(width: 1.5, height: Self.speechTop + 12)
-            Circle().fill(Color.white).frame(width: 9, height: 9).offset(y: -2)
-        }
-        .shadow(color: .black.opacity(0.6), radius: 2)
-        .position(x: x, y: (Self.speechTop + 12) / 2)
-        .allowsHitTesting(false)
-    }
 
     static func clock(_ seconds: SessionTime, precise: Bool = false) -> String {
         let total = max(0, seconds)
         let minutes = Int(total) / 60
         let rest = total - Double(minutes * 60)
         return precise ? String(format: "%d:%04.1f", minutes, rest) : String(format: "%d:%02d", minutes, Int(rest))
+    }
+}
+
+private struct Playhead: View {
+    let review: SessionReview
+    let scale: TimelineScale
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            Rectangle().fill(Color.white).frame(width: 1.5, height: SessionTimeline.speechTop + 12)
+            Circle().fill(Color.white).frame(width: 9, height: 9).offset(y: -2)
+        }
+        .shadow(color: .black.opacity(0.6), radius: 2)
+        .position(x: scale.x(review.playhead), y: (SessionTimeline.speechTop + 12) / 2)
+        .allowsHitTesting(false)
     }
 }

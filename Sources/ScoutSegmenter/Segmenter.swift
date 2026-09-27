@@ -346,6 +346,10 @@ public struct Segmenter: Sendable {
         return outbox
     }
 
+    public func isFiller(_ utterance: Utterance) -> Bool {
+        isFillerOnly(utterance)
+    }
+
     private func isFillerOnly(_ utterance: Utterance) -> Bool {
         let tokens = TextAnalysis.tokens(utterance.text)
         if tokens.allSatisfy(fillerWords.contains) { return true }
