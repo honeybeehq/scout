@@ -7,6 +7,7 @@ nonisolated enum TargetResolver {
         "AXComboBox", "AXMenuButton", "AXMenuItem", "AXSlider", "AXTab", "AXDisclosureTriangle", "AXCell", "AXImage",
     ]
     private static let containerRoles: Set<String> = ["AXGroup", "AXStaticText", "AXUnknown"]
+    private static let anonymousRoles: Set<String> = ["AXGroup", "AXUnknown", "AXSplitGroup", "AXLayoutArea", "AXLayoutItem", "AXList", "AXOutline", "AXTable", "AXWebArea", "AXToolbar"]
     private static let ownProcessID = ProcessInfo.processInfo.processIdentifier
 
     static func target(at point: CGPoint) -> Target? {
@@ -24,6 +25,7 @@ nonisolated enum TargetResolver {
         guard role != "AXWindow", role != "AXApplication", role != "AXScrollArea" else { return nil }
         let frame = element.frame
         let label = element.label
+        guard label != nil || element.identifier != nil || !anonymousRoles.contains(role) else { return nil }
         let identifier = element.identifier
         let frameKey = frame.map { "\(Int($0.minX)),\(Int($0.minY)),\(Int($0.width))x\(Int($0.height))" } ?? "-"
         return Target(

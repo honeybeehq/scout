@@ -45,8 +45,9 @@ Rules:
 
 1. **Everything is a signal on one clock.** Capture sources don't talk to each other. Each one turns its input into `Signal`s timestamped in `SessionTime`. The segmenter, the assembler and the UI read only signals. So a session can be replayed exactly (`scout-segment signals.jsonl --explain`), and every real session can become a fixture.
 2. **High-frequency data stays in capture.** Audio buffers and video frames never reach the main actor. Capture classes are `nonisolated` and own their queues. Only low-rate results (utterances, focuses, context changes, about 1–10 per second) cross into the session.
-3. **Snippets close while the user is still talking.** The segmenter emits `closed` as soon as the next utterance arrives, a hard cue is heard, or the silence timeout passes. The assembler and delivery start right away.
-4. **Media is segmented on disk from the start.** The screen writer produces 2-second fragmented-MP4 segments (`AVAssetWriter` with `.mpeg4AppleHLS` output). A clip is the init segment plus the media segments overlapping the snippet's range (with 1 s of padding), then trimmed with a passthrough export. Nothing is ever re-encoded, and cutting a clip takes tens of milliseconds, not a full render.
+3. **Tasks are ranges over one ledger.** `SessionLedger` (ScoutCore) keeps every utterance, focus, pin and context change of a session. A task is just a time range; `ledger.snippet(id:range:)` rebuilds its transcript, targets and context from the ledger (utterances and focuses by midpoint, pins by time, context at the time of speech). That is what lets the review split, join, trim and re-attach speech without losing anything, and it is how old sessions are reopened from `signals.jsonl` + `review.json`.
+4. **Snippets close while the user is still talking.** The segmenter emits `closed` as soon as the next utterance arrives, a hard cue is heard, or the silence timeout passes. The assembler and delivery start right away.
+5. **Media is segmented on disk from the start.** The screen writer produces 2-second fragmented-MP4 segments (`AVAssetWriter` with `.mpeg4AppleHLS` output). A clip is the init segment plus the media segments overlapping the snippet's range (with 1 s of padding), then trimmed with a passthrough export. Nothing is ever re-encoded, and cutting a clip takes tens of milliseconds, not a full render.
 
 ## macOS app modules (`mac/Scout`)
 
@@ -64,6 +65,7 @@ Rules:
 | `Context/` | Frontmost app, window title, browser URL (AX `AXWebArea`/`AXURL`), pointer dwell, `TargetResolver` | M1 |
 | `Delivery/` | Project resolution, task composition, titles, routing and sending (`Dispatcher`) | M1 |
 | `HUD/` | Scouting pill, snippet stack, aim overlay and pin event tap | M1–M3 |
+| `Review/` | Session review: `SessionReview` (re-cutting, undo, persistence), player, timeline, task list and detail | M1.5 |
 | `Capture/` | ScreenCaptureKit segmented recorder, clip cutting, visual change, frame snapshots | M2 |
 | `Bridge/` | SDK bridge server (see sdk-protocol.md) | M4 |
 
@@ -76,6 +78,8 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
   Sessions/<yyyy-mm-dd>/<session-id>/
     session.json               start time, displays, app version, settings snapshot
     signals.jsonl              every Signal, append-only; replayable with scout-segment
+    session.mp4                the whole recording, joined from the segments on stop (passthrough)
+    review.json                task ranges, titles, edits and delivery state; reopens the session later
     media/init.mp4             fMP4 init segment
     media/seg-00001.m4s …      2 s media segments
     snippets/<snippet-id>/

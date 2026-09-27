@@ -30,14 +30,13 @@ struct OnboardingView: View {
         .frame(width: Self.size.width, height: Self.size.height)
         .environment(\.colorScheme, .dark)
         .onAppear {
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate()
+            model.windowOpened()
             model.permissions.startMonitoring()
         }
         .onDisappear {
             model.permissions.stopMonitoring()
             model.permissions.guide.hide()
-            NSApp.setActivationPolicy(.accessory)
+            model.windowClosed()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.permissions.noteAppBecameActive()

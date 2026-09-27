@@ -96,7 +96,12 @@ nonisolated final class ContextTracker: @unchecked Sendable {
         return FileManager.default.fileExists(atPath: framework.path)
     }
 
-    static func displayLocation(_ url: URL) -> String {
+    static func displayLocation(_ url: URL) -> String? {
+        if url.isFileURL, url.path.contains(".app/Contents/") { return nil }
+        return pageLocation(url)
+    }
+
+    private static func pageLocation(_ url: URL) -> String {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url.absoluteString }
         components.query = nil
         components.fragment = nil

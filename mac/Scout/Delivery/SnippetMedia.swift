@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import ImageIO
 import ScoutCore
 import UniformTypeIdentifiers
@@ -15,6 +16,34 @@ enum SnippetMedia {
                   let frame = await recorder.snapshot(at: mark.at)
             else { continue }
             let image = outlined(frame, mark: mark, display: display) ?? frame
+            let url = directory.appendingPathComponent("pin-\(index + 1).png")
+            if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }
+        }
+        return attachments
+    }
+
+    static func attachments(for snippet: Snippet, video: ExportedClip, display: CaptureDisplay?, into directory: URL) async -> [ComposedTask.Attachment] {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var attachments: [ComposedTask.Attachment] = []
+        let asset = AVURLAsset(url: video.url)
+        let start = max(0, snippet.range.start - 1 - video.range.start)
+        let end = min(video.range.duration, snippet.range.end + 1 - video.range.start)
+        let clipURL = directory.appendingPathComponent("clip.mp4")
+        try? FileManager.default.removeItem(at: clipURL)
+        if end > start, let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) {
+            export.timeRange = CMTimeRange(start: CMTime(seconds: start, preferredTimescale: 600), end: CMTime(seconds: end, preferredTimescale: 600))
+            if (try? await export.export(to: clipURL, as: .mp4)) != nil {
+                attachments.append(.init(kind: .video, url: clipURL))
+            }
+        }
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
+        for (index, mark) in snippet.marks.enumerated() {
+            let time = CMTime(seconds: max(0, mark.at - video.range.start), preferredTimescale: 600)
+            guard let frame = try? await generator.image(at: time).image else { continue }
+            let onDisplay = display.map { $0.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)) } ?? false
+            let image = (onDisplay ? display.flatMap { outlined(frame, mark: mark, display: $0) } : nil) ?? frame
             let url = directory.appendingPathComponent("pin-\(index + 1).png")
             if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }
         }

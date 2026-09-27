@@ -33,8 +33,17 @@ struct MenuBarPanel: View {
             }
             .buttonStyle(FlareButtonStyle(large: false))
 
+            SegmentationToggle()
+
             VStack(alignment: .leading, spacing: 8) {
-                Text("Recent").eyebrowStyle(Palette.textTertiary)
+                HStack {
+                    Text("Recent").eyebrowStyle(Palette.textTertiary)
+                    Spacer()
+                    Button("Review") { model.openLatestReview() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(Palette.flareSoft)
+                }
                 let recent = model.dispatcher.cards.suffix(5).reversed()
                 if recent.isEmpty {
                     Text("Tasks you capture show up here.")
@@ -94,6 +103,42 @@ struct MenuBarPanel: View {
                     .help(apps.map(\.name).joined(separator: ", "))
             }
         }
+    }
+}
+
+private struct SegmentationToggle: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var preferences = model.preferences
+        HStack(spacing: 10) {
+            Text("New task on")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            Spacer()
+            HStack(spacing: 2) {
+                ForEach(Segmentation.allCases) { mode in
+                    Button {
+                        withAnimation(Motion.snappy) { preferences.segmentation = mode }
+                    } label: {
+                        Text(mode == .automatic ? "Auto" : "\(model.breakShortcut.symbols.joined()) only")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(preferences.segmentation == mode ? Palette.ink : Palette.textSecondary)
+                            .padding(.horizontal, 10)
+                            .frame(height: 24)
+                            .background {
+                                if preferences.segmentation == mode { Capsule().fill(.white) }
+                            }
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(2)
+            .background(Color.white.opacity(0.07), in: .capsule)
+            .disabled(model.isScouting)
+        }
+        .help(preferences.segmentation.explanation)
     }
 }
 

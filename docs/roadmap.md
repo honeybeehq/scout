@@ -21,6 +21,13 @@ Talk in any app, get split tasks, send them to hive. Verified end to end with `-
 - The pill and the snippet stack. Task markdown. Delivery through the router (hive `send`/`spawn`, clipboard fallback) with idempotency keys.
 - Voice commands: "new task", "scratch that", "send it".
 
+## M1.5: Review and manual tasks ✅
+
+- Review window: session video, filmstrip timeline with draggable, snapping task edges, split/join/delete/undo, leftover speech with *New task* / *Add to task N*, editable titles and transcripts, excludable targets, pin frames, per-task and bulk destinations, send one or all.
+- `SessionLedger` in ScoutCore: tasks are ranges rebuilt from one ledger; sessions persist in `review.json` and reopen from the menu bar or the *Sessions* menu.
+- Manual mode: only ⌃⌥B, the pill's *Next* or a spoken "new task" cut. Fixture `h-manual-marks.jsonl` checks that pauses, cues, app switches and silence don't.
+- Open: word-level splitting inside a sentence, keyboard focus handling for the timeline, a "resend to another session" action for sent tasks.
+
 ## M2: Clips ✅
 
 Done: segmented recording, clip cutting (~30 ms while recording, ~5 ms after stop, no re-encode), visual-change signal, pin screenshots. Open: following the pointer to another display mid-session, password-manager exclusion.

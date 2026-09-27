@@ -19,26 +19,51 @@ struct ScoutingPill: View {
                 liveText(session)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if session.closedCount > 0 {
-                    Text("\(session.closedCount)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                if session.segmentation == .manual {
+                    Text("Task \(session.closedCount + 1)")
+                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(Palette.flareSoft)
+                        .contentTransition(.numericText())
+                        .fixedSize()
+                    Button {
+                        session.splitNow()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text("Next")
+                            Text(model.breakShortcut.symbols.joined())
+                                .font(Typography.mono)
+                                .opacity(0.75)
+                        }
+                        .font(.system(size: 11.5, weight: .semibold))
                         .foregroundStyle(Palette.ink)
-                        .frame(minWidth: 22, minHeight: 22)
-                        .background(Palette.flareGradient, in: .circle)
-                        .transition(.scale.combined(with: .opacity))
-                        .help("Snippets captured")
-                }
+                        .padding(.horizontal, 10)
+                        .frame(height: 26)
+                        .background(Palette.flareGradient, in: .capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .help("End this task and start the next one")
+                } else {
+                    if session.closedCount > 0 {
+                        Text("\(session.closedCount)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(Palette.ink)
+                            .frame(minWidth: 22, minHeight: 22)
+                            .background(Palette.flareGradient, in: .circle)
+                            .transition(.scale.combined(with: .opacity))
+                            .help("Tasks captured")
+                    }
 
-                Button {
-                    session.splitNow()
-                } label: {
-                    Image(systemName: "scissors")
-                        .font(.system(size: 12, weight: .semibold))
-                        .frame(width: 28, height: 28)
+                    Button {
+                        session.splitNow()
+                    } label: {
+                        Image(systemName: "scissors")
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Palette.textSecondary)
+                    .help("Cut here and start a new task (\(model.breakShortcut.symbols.joined()))")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Palette.textSecondary)
-                .help("Cut here and start a new task")
 
                 Button {
                     model.toggleScouting()

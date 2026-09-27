@@ -80,7 +80,11 @@ private struct GeneralSettings: View {
                     SettingRow(title: "Aim and pin", detail: "Hold ⌥ while scouting, then click an element.") {
                         Keycap(symbol: "⌥", size: 26)
                     }
+                    SettingRow(title: "Next task", detail: "While scouting, ends the current task and starts the next.") {
+                        KeyCombo(symbols: model.breakShortcut.symbols, size: 26)
+                    }
                 }
+                SplittingSection()
                 SettingsSection(title: "App") {
                     SettingRow(title: "Open Scout at login", detail: nil) {
                         Toggle("", isOn: $opensAtLogin)
@@ -96,6 +100,30 @@ private struct GeneralSettings: View {
                 }
             }
             .padding(24)
+        }
+    }
+}
+
+private struct SplittingSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var preferences = model.preferences
+        SettingsSection(title: "Tasks") {
+            Picker("Start a new task", selection: $preferences.segmentation) {
+                ForEach(Segmentation.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Text(preferences.segmentation.explanation)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            SettingRow(title: "Open the review after scouting", detail: "Trim clips, fix splits and send tasks.") {
+                Picker("", selection: $preferences.reviewOpening) {
+                    ForEach(ReviewOpening.allCases) { Text($0.title).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
         }
     }
 }

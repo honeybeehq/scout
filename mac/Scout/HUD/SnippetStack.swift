@@ -8,7 +8,7 @@ struct SnippetStack: View {
         let dispatcher = model.dispatcher
         VStack(alignment: .trailing, spacing: 10) {
             if let session = model.session, session.phase == .live, let open = session.openSnippet {
-                FormingCard(snippet: open, onCut: session.splitNow)
+                FormingCard(snippet: open, manual: session.segmentation == .manual, number: session.closedCount + 1, shortcut: model.breakShortcut.symbols.joined(), onCut: session.splitNow)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
 
@@ -38,13 +38,16 @@ struct SnippetStack: View {
 
 private struct FormingCard: View {
     let snippet: Snippet
+    let manual: Bool
+    let number: Int
+    let shortcut: String
     let onCut: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 WaitingDots(color: Palette.flare)
-                Text("Listening")
+                Text(manual ? "Task \(number)" : "Listening")
                     .eyebrowStyle()
                 Spacer()
                 if let context = snippet.primaryContext {
@@ -53,11 +56,11 @@ private struct FormingCard: View {
                         .foregroundStyle(Palette.textTertiary)
                 }
                 Button(action: onCut) {
-                    Label("Cut", systemImage: "scissors")
+                    Label(manual ? "Next \(shortcut)" : "Cut", systemImage: "scissors")
                         .font(.system(size: 11, weight: .semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Palette.textSecondary)
+                .foregroundStyle(manual ? Palette.flareSoft : Palette.textSecondary)
             }
             Text(snippet.transcript.isEmpty ? "…" : SnippetCardView.excerpt(snippet.transcript, limit: 220))
                 .font(.system(size: 13))
@@ -107,12 +110,12 @@ struct SnippetCardView: View {
                 .foregroundStyle(Palette.text)
                 .lineLimit(2)
 
-            Text(Self.excerpt(card.snippet.transcript, limit: 180))
+            Text(Self.excerpt(card.transcript, limit: 180))
                 .font(.system(size: 12.5))
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(3)
 
-            let targets = card.snippet.targets.prefix(2)
+            let targets = card.targets.prefix(2)
             if !targets.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(Array(targets)) { target in

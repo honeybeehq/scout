@@ -7,6 +7,7 @@ struct KeyShortcut: Codable, Equatable {
     var key: String
 
     static let startScouting = KeyShortcut(keyCode: UInt32(kVK_ANSI_S), carbonModifiers: UInt32(controlKey | optionKey), key: "S")
+    static let nextTask = KeyShortcut(keyCode: UInt32(kVK_ANSI_B), carbonModifiers: UInt32(controlKey | optionKey), key: "B")
 
     var symbols: [String] {
         var symbols: [String] = []

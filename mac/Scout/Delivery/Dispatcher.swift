@@ -41,10 +41,16 @@ final class SnippetCard: Identifiable {
         }
     }
 
-    let snippet: Snippet
+    private(set) var snippet: Snippet
     let sessionID: String
     let sessionDirectory: URL
-    var title: String
+    var title: String {
+        didSet { if title != oldValue, isUserEditing { titleIsCustom = true } }
+    }
+    private(set) var titleIsCustom = false
+    var transcriptOverride: String?
+    var excludedTargetIDs: Set<String> = []
+    var isUserEditing = false
     var project: ProjectReference?
     var destination: Destination?
     var destinationChosenByUser = false
@@ -52,14 +58,56 @@ final class SnippetCard: Identifiable {
     var attachments: [ComposedTask.Attachment] = []
     var runtimeNotes: [String] = []
     var recorder: SegmentedScreenRecorder?
+    var sessionVideo: ExportedClip?
+    var sessionDisplay: CaptureDisplay?
 
     var id: String { "\(sessionID)/\(snippet.id)" }
+
+    var isLocked: Bool {
+        state.isFinished || state == .sending
+    }
+
+    var transcript: String {
+        transcriptOverride ?? snippet.transcript
+    }
+
+    var targets: [Target] {
+        snippet.targets.filter { !excludedTargetIDs.contains($0.id) }
+    }
+
+    var deliverableSnippet: Snippet {
+        var snippet = snippet
+        if let transcriptOverride {
+            snippet.utterances = [Utterance(id: "edited", range: snippet.range, text: transcriptOverride)]
+        }
+        snippet.marks = snippet.marks.map { mark in
+            var mark = mark
+            if let target = mark.target, excludedTargetIDs.contains(target.id) { mark.target = nil }
+            return mark
+        }
+        snippet.focuses.removeAll { excludedTargetIDs.contains($0.target.id) }
+        return snippet
+    }
 
     init(snippet: Snippet, sessionID: String, sessionDirectory: URL) {
         self.snippet = snippet
         self.sessionID = sessionID
         self.sessionDirectory = sessionDirectory
         title = TaskComposer.title(for: snippet)
+    }
+
+    func replaceSnippet(_ newSnippet: Snippet) {
+        guard !isLocked else { return }
+        let transcriptChanged = newSnippet.transcript != snippet.transcript
+        snippet = newSnippet
+        attachments = []
+        if transcriptChanged { transcriptOverride = nil }
+        if !titleIsCustom { title = TaskComposer.title(for: newSnippet) }
+    }
+
+    func restoreTitle(_ title: String, custom: Bool) {
+        self.title = title
+        titleIsCustom = custom
     }
 }
 
@@ -84,6 +132,33 @@ final class Dispatcher {
 
     var pendingCount: Int {
         cards.filter { !$0.state.isFinished }.count
+    }
+
+    func cards(inSession sessionID: String) -> [SnippetCard] {
+        cards.filter { $0.sessionID == sessionID }.sorted { $0.snippet.range.start < $1.snippet.range.start }
+    }
+
+    func insert(_ card: SnippetCard) {
+        cards.append(card)
+    }
+
+    func prepareHeld(_ card: SnippetCard) {
+        cards.append(card)
+        Task {
+            if card.project == nil {
+                card.project = bridge.project(forLocation: card.snippet.primaryContext?.location) ?? card.snippet.targets.lazy.compactMap(bridge.project(forTarget:)).first
+            }
+            if card.project == nil {
+                card.project = await resolver.resolve(card.snippet.primaryContext)
+            }
+            await refreshSessions()
+            if !card.destinationChosenByUser {
+                card.destination = chooseDestination(for: card.project)
+            }
+            if !card.isLocked {
+                card.state = card.destination == nil ? .needsDestination : .held
+            }
+        }
     }
 
     func accept(_ snippet: Snippet, from session: ScoutingSession, sendImmediately: Bool) {
@@ -127,12 +202,17 @@ final class Dispatcher {
         }
         card.state = .sending
         do {
-            if let recorder = card.recorder, card.attachments.isEmpty {
+            if card.attachments.isEmpty, preferences.includeClips {
                 let directory = card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)", isDirectory: true)
-                card.attachments = await SnippetMedia.attachments(for: card.snippet, recorder: recorder, into: directory)
+                if let recorder = card.recorder {
+                    card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, recorder: recorder, into: directory)
+                } else if let video = card.sessionVideo {
+                    card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, video: video, display: card.sessionDisplay, into: directory)
+                }
             }
-            let task = try TaskComposer.compose(card.snippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
-            let key = "scout:\(card.sessionID):\(card.snippet.id):\(Self.keyComponent(destination))"
+            let task = try TaskComposer.compose(card.deliverableSnippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
+            let rangeKey = String(format: "%.1f-%.1f", card.snippet.range.start, card.snippet.range.end)
+            let key = "scout:\(card.sessionID):\(card.snippet.id):\(rangeKey):\(Self.keyComponent(destination))"
             if dryRun {
                 try task.message.write(to: task.directory.appendingPathComponent("message.txt"), atomically: true, encoding: .utf8)
                 card.state = .sent("\(destination.label) (dry run)")

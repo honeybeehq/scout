@@ -10,7 +10,8 @@ This is how Scout looks and behaves from the user's side. Visual rules are in [d
 | Menu bar item | Pointer-and-signal glyph. Tinted flare while scouting | Always |
 | Menu bar panel | Start/stop, recent tasks, integration status | Click on the menu bar item |
 | Scouting pill | Floating glass capsule at the top of the active screen | While scouting |
-| Snippet stack | Column of task cards on the right edge | Once the first snippet closes, until everything is sent or dismissed |
+| Snippet stack | Column of task cards on the right edge | While scouting, from the first closed task |
+| Review window | Full editor for a finished session: video, timeline, tasks, hand-off | After stopping (by default when a task is waiting), from the menu bar, or for any earlier session |
 | Aim overlay | Transparent full-screen layer that highlights the element under the pointer | While the aim key is held during scouting |
 | Settings guide | Small floating card beside System Settings | While the user is granting a permission |
 
@@ -62,7 +63,46 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
 
-**Stop.** Press the shortcut again or click ■. The open snippet closes, the pill retracts, and the stack stays until every card is sent or dismissed.
+**Stop.** Press the shortcut again or click ■. The open snippet closes and the pill retracts. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
+
+## Automatic and manual tasks
+
+Two ways to decide where one task ends and the next begins. Pick one in the menu bar panel ("New task on: Auto / ⌃⌥B only") or in Settings → General. The choice is fixed per session.
+
+- **Automatic** (default). The breakpoint engine cuts on pauses, cue phrases ("next thing", "also"), app/window/URL changes, a new target, topic shifts and screen changes. See [breakpoints.md](breakpoints.md).
+- **Manual.** Nothing cuts except you: press **⌃⌥B** (Caps+B with the Caps layer), click *Next* in the pill, or say "new task" / "next task" as a sentence of its own. Pauses, app switches and long silences never cut, so one task can span apps and minutes. The pill shows `Task 3 · Next ⌃⌥B`.
+
+⌃⌥B also works in automatic mode as a forced cut. It is registered only while scouting, so it never steals the chord otherwise.
+
+## The review window
+
+The review is where a finished recording becomes tasks you are happy to hand off.
+
+```
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│ ◉ Session review · 27 Sep 07:39 · 0:38 · Safari, Simulator   [Sessions] [Send all to…] [Send all ⌥⌘↩] │
+├──────────────┬────────────────────────────────────┬───────────────────────────────┤
+│ TASKS        │ ┌──────── session video ────────┐  │ TASK                          │
+│ ① Pay now …  │ │                               │  │ Make the Pay now button …     │
+│ ② Summary …  │ └───────────────────────────────┘  │ WHAT YOU SAID  (editable)     │
+│ ③ Email …    │ ▶ 0:02.4 / 0:09.2  Loop  ✂ Split  │ POINTED AT  [PayButton ✕]     │
+│ NOT IN A TASK│ PINS  [shot 1] [shot 2]            │ WHERE  Safari · /checkout     │
+│ “That's it.” │                                    │                               │
+│ [+ New] [Add to 3]                                │ Send to [web-shop · claude ▾] [Send task ⌘↩] │
+├──────────────┴────────────────────────────────────┴───────────────────────────────┤
+│ TIMELINE  Safari │ Simulator                          [✂ Split ⌘B][Join ⌘J][Delete ⌘⌫][Undo ⌘Z] │
+│ [▓▓ 1 ▓▓▓][░░][▓▓ 2 ▓▓][░░░][▓▓▓ 3 ▓▓▓]   ← filmstrip, outlined tasks            │
+│  ▂▂▂ ▂▂●   ▂▂▂▂  ┅┅┅    ← speech (dashed amber = not in a task), ● pins          │
+│ 0:00      0:05      0:10      0:15 …                                               │
+└───────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **One video, many tasks.** On stop, Scout joins the recording into `session.mp4` (a passthrough copy, no re-encode). The player shows the selected task and loops it; Space plays and pauses, ↑/↓ move between tasks.
+- **The timeline is the editor.** Each task is an outlined region on a filmstrip of the session. Drag a task's edge to trim it or to move the boundary between two neighbouring tasks; edges snap to pauses in your speech (hold ⌥ to place them freely). ⌘B splits the selected task at the playhead, ⌘J joins it with the next one, ⌘⌫ deletes it, ⌘Z undoes. Sent tasks are locked.
+- **Nothing you said gets lost.** Speech that isn't in any task shows as dashed amber on the timeline and under "Not in a task yet" in the list, with *New task* and *Add to task N* (the neighbouring task).
+- **Edit before sending.** The title and the transcript are editable (an *Edited* badge and *Use the original* appear). Elements under "Pointed at" can be left out. Pins show the frame at the moment of the pin.
+- **Hand-off.** Each task has its own destination and *Send task* (⌘↩). The header has *Send all to…* (one destination for every waiting task) and *Send all* (⌥⌘↩). Clips are cut from the task's current range when it is sent. Any edit puts a task that was counting down on hold.
+- **Earlier sessions.** *Sessions* lists recent sessions; the menu bar's *Review* opens the latest. Each session keeps its tasks and edits in `review.json` next to its recording.
 
 ## The snippet stack
 

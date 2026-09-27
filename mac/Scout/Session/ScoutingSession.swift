@@ -27,6 +27,9 @@ final class ScoutingSession {
     private(set) var elapsed: TimeInterval = 0
     private(set) var recorder: SegmentedScreenRecorder?
     private(set) var captureProblem: String?
+    private(set) var ledger = SessionLedger()
+    private(set) var video: ExportedClip?
+    let segmentation: Segmentation
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
     var onSnippetDiscarded: ((String) -> Void)?
@@ -58,15 +61,18 @@ final class ScoutingSession {
 
     private let recordsScreen: Bool
 
-    init(bridge: BridgeServer, recordsScreen: Bool) {
+    var startedAt: Date { clock.originDate }
+
+    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation) {
         self.bridge = bridge
         self.recordsScreen = recordsScreen
+        self.segmentation = segmentation
         let started = Date()
         let id = "session-" + Self.idFormatter.string(from: started) + "-" + UUID().uuidString.prefix(4).lowercased()
         self.id = id
         directory = ScoutPaths.newSessionDirectory(id: id, at: started)
         log = SignalLog(url: directory.appendingPathComponent("signals.jsonl"))
-        segmenter = Segmenter(idPrefix: "snippet-")
+        segmenter = Segmenter(configuration: segmentation == .manual ? .manual : .default, idPrefix: "snippet-")
         transcriber = LiveTranscriber(clock: clock)
         aim = AimController(clock: clock)
     }
@@ -151,8 +157,12 @@ final class ScoutingSession {
         await transcriber.stop()
         await recorder?.stop()
         let end = clock.now
+        ledger.extend(to: end)
         handle(segmenter.finish(at: end))
         log.close()
+        if let recorder {
+            video = try? await recorder.exportClip(from: 0, to: end, padding: 0, into: directory.appendingPathComponent("session.mp4"))
+        }
         phase = .ended
     }
 
@@ -233,6 +243,7 @@ final class ScoutingSession {
 
     private func ingest(_ signal: Signal) {
         log.append(signal)
+        ledger.record(signal)
         if case .context(let change) = signal { context = change.context }
         handle(segmenter.ingest(signal))
     }
