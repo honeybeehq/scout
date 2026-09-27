@@ -99,6 +99,14 @@ public struct SegmenterConfiguration: Codable, Hashable, Sendable {
 
     public static let `default` = SegmenterConfiguration()
 
+    public static let manual: SegmenterConfiguration = {
+        var configuration = SegmenterConfiguration()
+        configuration.threshold = .infinity
+        configuration.silenceTimeout = .infinity
+        configuration.taskPhrases = ["new task", "next task"]
+        return configuration
+    }()
+
     public func pauseWeight(for gap: Double) -> Double {
         guard let first = pauseCurve.first, let last = pauseCurve.last else { return 0 }
         if gap <= first.seconds { return first.weight }

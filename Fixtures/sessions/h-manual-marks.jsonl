@@ -1,0 +1,17 @@
+# expect: 4
+# expect-breaks: 13.5, 31.0, 42.8
+# mode: manual
+# Manual mode: cue phrases, app switches, long pauses and a 12 s silence must not cut. Only the break hotkey (split commands) and an explicit spoken "new task" do; "next thing" is ordinary speech here.
+{"type":"context","at":0.0,"context":{"app":{"bundleID":"com.google.Chrome","name":"Google Chrome"},"location":"http://localhost:3000/checkout"}}
+{"type":"utterance","id":"u1","range":{"start":0.5,"end":5.0},"text":"The pay now button is way too small and it looks disabled.","words":[]}
+{"type":"utterance","id":"u2","range":{"start":9.0,"end":12.5},"text":"Next thing, the total should be bold.","words":[]}
+{"type":"command","at":13.5,"command":"split"}
+{"type":"context","at":15.0,"context":{"app":{"bundleID":"com.apple.iphonesimulator","name":"Simulator"},"windowTitle":"iPhone 17 Pro"}}
+{"type":"utterance","id":"u3","range":{"start":16.0,"end":20.0},"text":"Also, in the simulator the tab bar icons are misaligned.","words":[]}
+{"type":"clock","at":32.0}
+{"type":"utterance","id":"u4","range":{"start":26.0,"end":30.0},"text":"Moving on, the home icon sits two points lower than the others.","words":[]}
+{"type":"command","at":31.0,"command":"split"}
+{"type":"utterance","id":"u5","range":{"start":33.0,"end":38.0},"text":"The settings screen has no back button.","words":[]}
+{"type":"clock","at":46.0}
+{"type":"utterance","id":"u6","range":{"start":47.5,"end":52.0},"text":"New task. The onboarding carousel skips a slide when you swipe fast.","words":[]}
+{"type":"clock","at":70.0}

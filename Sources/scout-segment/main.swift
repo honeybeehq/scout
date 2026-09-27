@@ -15,6 +15,7 @@ struct Fixture {
     var path: String
     var signals: [Signal]
     var expectations: Expectations
+    var manual = false
 
     var name: String { URL(fileURLWithPath: path).lastPathComponent }
 }
@@ -72,7 +73,8 @@ func loadFixture(at path: String) throws -> Fixture {
             throw FixtureError(description: "\(path):\(lineNumber): \(describe(error))")
         }
     }
-    return Fixture(path: path, signals: signals, expectations: expectations)
+    let manual = text.split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces) == "# mode: manual" }
+    return Fixture(path: path, signals: signals, expectations: expectations, manual: manual)
 }
 
 func parseHeader(_ line: String, into expectations: inout Expectations, location: String) throws {
@@ -113,7 +115,7 @@ func codingPath(_ path: [CodingKey]) -> String {
 }
 
 func run(_ fixture: Fixture) -> RunResult {
-    var segmenter = Segmenter(recordsEvaluations: true)
+    var segmenter = Segmenter(configuration: fixture.manual ? .manual : .default, recordsEvaluations: true)
     var result = RunResult()
     func absorb(_ events: [SegmenterEvent], at time: SessionTime) {
         result.stream += events.map { StreamEntry(signalTime: time, event: $0) }
