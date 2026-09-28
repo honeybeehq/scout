@@ -7,7 +7,7 @@ This is how Scout looks and behaves from the user's side. Visual rules are in [d
 | Surface | What it is | When it shows |
 |---|---|---|
 | Onboarding window | One 940×640 window, dark, full-bleed | First launch, or from the menu bar via "Setup guide" |
-| Menu bar item | Pointer-and-signal glyph. Tinted flare while scouting | Always |
+| Menu bar item | Pointer-and-signal glyph. Tinted with the accent while scouting | Always |
 | Menu bar panel | Start/stop, recent tasks, integration status | Click on the menu bar item |
 | Scouting pill | Floating glass capsule at the top of the active screen | While scouting |
 | Snippet stack | Column of task cards on the right edge | While scouting, from the first closed task |
@@ -29,7 +29,7 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
    - Screen Recording only takes effect after a relaunch. When the user returns from Settings without the grant showing, the row offers *Relaunch*. Scout quits, reopens, and resumes on this step.
    - The Scout mark on the left lights one arc per granted permission. With all three granted, the mark pulses and *Continue* turns on. *Skip for now* is always available so nobody gets stuck.
 3. **Voice.** Scout starts listening immediately. If needed it first downloads the on-device speech model, showing progress. The user's words appear large as they speak: finalized words in white, words still being decided in grey. After four words: "Scout hears you."
-4. **Point.** A practice page (a fake checkout form) teaches aiming. Holding `⌥` highlights the element under the pointer with its role and label. Clicking pins it; a flare marker drops with a ripple, and the pin appears in a list with its (sample) source location. The same step shows the global shortcut and lets the user change it.
+4. **Point.** A practice page (a fake checkout form) teaches aiming. Holding `⌥` highlights the element under the pointer with its role and label. Clicking pins it; an accent marker drops with a ripple, and the pin appears in a list with its (sample) source location. The same step shows the global shortcut and lets the user change it.
 5. **Agents.** Scout checks for hive and Apiary live and shows the most recently active sessions. The user picks where tasks go:
    - **Match project** (default): send to the session already working in the app's repo, or start one.
    - **New session**: start a fresh session for every task.
@@ -55,7 +55,7 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 **Pointing.** There are three levels:
 
 - **Hover.** Scout samples the element under the pointer about four times a second. An element the pointer rests on for 600 ms or more is attached to the current snippet, weighted by how long the pointer stayed there.
-- **Aim and pin.** Hold `⌥` for 200 ms and a beam-colored outline follows the element under the pointer, with a label chip (`Button "Pay now"`, plus `Checkout.tsx:88` when an SDK is present). Clicking pins the element. The click goes to Scout, not to the app. Releasing `⌥` ends aiming. A key pressed while `⌥` is held cancels aiming, so typing `⌥`-characters on non-US layouts keeps working.
+- **Aim and pin.** Hold `⌥` for 200 ms and an accent outline follows the element under the pointer, with a dark label chip (`Button "Pay now"`, plus `Checkout.tsx:88` when an SDK is present). Clicking pins the element. The click goes to Scout, not to the app. Releasing `⌥` ends aiming. A key pressed while `⌥` is held cancels aiming, so typing `⌥`-characters on non-US layouts keeps working.
 - **Region.** Holding `⌥` and dragging pins a rectangle instead of an element.
 
 **Voice commands.** Spoken phrases act as controls and are removed from the task text:

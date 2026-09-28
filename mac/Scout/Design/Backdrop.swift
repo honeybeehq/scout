@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct Aurora: View {
-    var glow: Color = Palette.flare
+    var glow: Color = Palette.accent
     var intensity: Double = 1
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

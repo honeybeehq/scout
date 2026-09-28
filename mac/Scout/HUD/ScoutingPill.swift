@@ -13,7 +13,7 @@ struct ScoutingPill: View {
                     .monospacedDigit()
                     .foregroundStyle(Palette.text)
 
-                LevelBars(levels: levels, active: session.phase == .live, tint: Palette.flare, maxHeight: 22, barWidth: 3)
+                LevelBars(levels: levels, active: session.phase == .live, tint: .white, maxHeight: 22, barWidth: 3)
                     .frame(width: 40, height: 22)
 
                 liveText(session)
@@ -22,7 +22,7 @@ struct ScoutingPill: View {
                 if session.segmentation == .manual {
                     Text("Task \(session.closedCount + 1)")
                         .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(Palette.flareSoft)
+                        .foregroundStyle(Palette.textSecondary)
                         .contentTransition(.numericText())
                         .fixedSize()
                     Button {
@@ -35,20 +35,20 @@ struct ScoutingPill: View {
                                 .opacity(0.75)
                         }
                         .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
+                        .foregroundStyle(Palette.text)
                         .padding(.horizontal, 10)
                         .frame(height: 26)
-                        .background(Palette.flareGradient, in: .capsule)
+                        .background(Palette.fillStrong, in: .capsule)
                     }
                     .buttonStyle(.plain)
                     .help("End this task and start the next one")
                 } else {
                     if session.closedCount > 0 {
                         Text("\(session.closedCount)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(Palette.ink)
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Palette.text)
                             .frame(minWidth: 22, minHeight: 22)
-                            .background(Palette.flareGradient, in: .circle)
+                            .background(Palette.fillStrong, in: .circle)
                             .transition(.scale.combined(with: .opacity))
                             .help("Tasks captured")
                     }
@@ -70,9 +70,9 @@ struct ScoutingPill: View {
                 } label: {
                     Image(systemName: "stop.fill")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Palette.text)
                         .frame(width: 28, height: 28)
-                        .background(Palette.rose.opacity(0.85), in: .circle)
+                        .background(Palette.fillStrong, in: .circle)
                 }
                 .buttonStyle(.plain)
                 .help("Stop scouting")
@@ -100,7 +100,7 @@ struct ScoutingPill: View {
         case .failed(let message):
             Text(message)
                 .font(.system(size: 13))
-                .foregroundStyle(Palette.rose)
+                .foregroundStyle(Palette.textSecondary)
                 .lineLimit(1)
         case .live, .ended:
             let tail = Self.tail(of: transcriber.finalizedText, keeping: 44)
@@ -151,10 +151,9 @@ private struct RecordingDot: View {
         TimelineView(.animation(minimumInterval: 1 / 20, paused: !active)) { context in
             let pulse = (sin(context.date.timeIntervalSinceReferenceDate * 3.2) + 1) / 2
             Circle()
-                .fill(Palette.flare)
-                .frame(width: 10, height: 10)
-                .shadow(color: Palette.flare.opacity(0.4 + 0.5 * pulse), radius: 4 + 5 * pulse)
-                .opacity(active ? 0.75 + 0.25 * pulse : 0.4)
+                .fill(Palette.accent)
+                .frame(width: 8, height: 8)
+                .opacity(active ? 0.55 + 0.45 * pulse : 0.35)
         }
     }
 }

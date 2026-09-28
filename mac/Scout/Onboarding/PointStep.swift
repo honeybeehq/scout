@@ -23,7 +23,7 @@ struct PointStep: View {
                     .buttonStyle(QuietButtonStyle())
             }
             Button("Continue") { model.onboarding.next() }
-                .buttonStyle(FlareButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(pins.isEmpty)
                 .keyboardShortcut(.defaultAction)
         }
@@ -155,7 +155,8 @@ private struct MockCheckout: View {
                     }
                     Text("Add promo code")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Palette.beam)
+                        .foregroundStyle(Palette.textSecondary)
+                        .underline()
                         .practiceElement(.promo)
                     Spacer(minLength: 0)
                     HStack(spacing: 10) {
@@ -202,18 +203,18 @@ private struct AimHighlight: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Palette.beam.opacity(0.14))
-                .strokeBorder(Palette.beam, lineWidth: 1.5)
+                .fill(Palette.accent.opacity(0.08))
+                .strokeBorder(Palette.accent, lineWidth: 1.5)
                 .frame(width: frame.width + 8, height: frame.height + 8)
                 .offset(x: frame.minX - 4, y: frame.minY - 4)
-                .shadow(color: Palette.beam.opacity(0.6), radius: 10)
 
             Text("\(element.role) “\(element.label)”")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(Palette.text)
                 .padding(.horizontal, 8)
                 .frame(height: 20)
-                .background(Palette.beam, in: .capsule)
+                .background(Palette.ink.opacity(0.9), in: .capsule)
+                .overlay(Capsule().strokeBorder(Palette.stroke))
                 .fixedSize()
                 .offset(x: frame.minX - 4, y: frame.minY - 30)
         }
@@ -229,15 +230,14 @@ private struct PinMarker: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Palette.flare, lineWidth: 2)
+                .stroke(Palette.accent, lineWidth: 1.5)
                 .frame(width: 34, height: 34)
                 .scaleEffect(ripple ? 1.6 : 0.4)
                 .opacity(ripple ? 0 : 0.9)
             Circle()
-                .fill(Palette.flareGradient)
+                .fill(Palette.accent)
                 .frame(width: 14, height: 14)
                 .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-                .shadow(color: Palette.flare.opacity(0.7), radius: 8)
         }
         .allowsHitTesting(false)
         .transition(.scale(scale: 0.2).combined(with: .opacity))
@@ -257,7 +257,7 @@ private struct PinTray: View {
                 Keycap(symbol: "⌥", size: 30, pressed: aiming)
                 Text(aiming ? "Aiming. Click to pin." : "Hold ⌥ over the page")
                     .font(Typography.caption)
-                    .foregroundStyle(aiming ? Palette.beam : Palette.textSecondary)
+                    .foregroundStyle(aiming ? Palette.text : Palette.textSecondary)
                     .contentTransition(.opacity)
             }
 
@@ -274,7 +274,7 @@ private struct PinTray: View {
                         .font(.system(size: 12.5, weight: .semibold))
                     Text(pin.element.source)
                         .font(Typography.mono)
-                        .foregroundStyle(Palette.beam)
+                        .foregroundStyle(Palette.textTertiary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
@@ -299,7 +299,7 @@ private struct ShortcutRow: View {
         HStack(spacing: 14) {
             Image(systemName: "record.circle")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Palette.flare)
+                .foregroundStyle(Palette.textSecondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Start scouting from anywhere")
                     .font(Typography.headline)
@@ -311,7 +311,7 @@ private struct ShortcutRow: View {
             KeyCombo(symbols: model.shortcut.symbols, size: 30, pressed: recording)
                 .opacity(recording ? 0.5 : 1)
             Button(recording ? "Cancel" : "Change") { recording ? stopRecording() : startRecording() }
-                .buttonStyle(GlassPillButtonStyle())
+                .buttonStyle(SecondaryButtonStyle())
         }
         .padding(.leading, 26)
         .padding(.trailing, 16)

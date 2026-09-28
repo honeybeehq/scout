@@ -26,7 +26,7 @@ struct SnippetStack: View {
 
             if dispatcher.cards.contains(where: { $0.state.isFinished }) {
                 Button("Clear sent") { withAnimation(Motion.smooth) { dispatcher.dismissDelivered() } }
-                    .buttonStyle(GlassPillButtonStyle())
+                    .buttonStyle(SecondaryButtonStyle())
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -46,7 +46,7 @@ private struct FormingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                WaitingDots(color: Palette.flare)
+                WaitingDots(color: Palette.textSecondary)
                 Text(manual ? "Task \(number)" : "Listening")
                     .eyebrowStyle()
                 Spacer()
@@ -60,7 +60,7 @@ private struct FormingCard: View {
                         .font(.system(size: 11, weight: .semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(manual ? Palette.flareSoft : Palette.textSecondary)
+                .foregroundStyle(manual ? Palette.text : Palette.textSecondary)
             }
             Text(snippet.transcript.isEmpty ? "…" : SnippetCardView.excerpt(snippet.transcript, limit: 220))
                 .font(.system(size: 13))
@@ -71,7 +71,7 @@ private struct FormingCard: View {
         .padding(14)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Palette.flare.opacity(0.45), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                .strokeBorder(Palette.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
         .glassEffect(.regular.tint(Palette.ink.opacity(0.5)), in: .rect(cornerRadius: 18))
     }
@@ -121,11 +121,11 @@ struct SnippetCardView: View {
                     ForEach(Array(targets)) { target in
                         Text(target.displayName)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Palette.beam)
+                            .foregroundStyle(Palette.textSecondary)
                             .lineLimit(1)
                             .padding(.horizontal, 8)
                             .frame(height: 20)
-                            .background(Palette.beam.opacity(0.14), in: .capsule)
+                            .background(Palette.fillRaised, in: .capsule)
                     }
                 }
             }
@@ -163,13 +163,17 @@ private struct DestinationMenu: View {
             }
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "arrow.turn.down.right")
+                if card.destination == nil {
+                    StatusDot(tone: .caution, size: 5)
+                } else {
+                    Image(systemName: "arrow.turn.down.right")
+                }
                 Text(card.destination?.label ?? "Choose where to send")
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(card.destination == nil ? Palette.amber : Palette.textSecondary)
+            .foregroundStyle(Palette.textSecondary)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -201,7 +205,7 @@ private struct DeliveryControl: View {
             .help("Sending soon. Click to hold.")
         case .needsDestination, .held:
             Button("Send") { Task { await model.dispatcher.send(card) } }
-                .buttonStyle(FlareButtonStyle(large: false))
+                .buttonStyle(PrimaryButtonStyle(large: false))
                 .disabled(card.destination == nil)
         case .sending:
             HStack(spacing: 6) {
@@ -209,9 +213,9 @@ private struct DeliveryControl: View {
                 Text("Sending").font(Typography.caption).foregroundStyle(Palette.textSecondary)
             }
         case .sent(let destination):
-            Label("Sent", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(Palette.mint)
+            Label("Sent", systemImage: "checkmark")
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(Palette.textSecondary)
                 .fixedSize()
                 .help("Sent to \(destination)")
         case .withdrawn:
@@ -222,7 +226,7 @@ private struct DeliveryControl: View {
             } label: {
                 Label("Retry", systemImage: "arrow.clockwise")
             }
-            .buttonStyle(GlassPillButtonStyle(tint: Palette.rose.opacity(0.3)))
+            .buttonStyle(SecondaryButtonStyle())
             .help(message)
         }
     }
@@ -239,7 +243,7 @@ private struct CountdownRing: View {
                 Circle().stroke(Color.white.opacity(0.15), lineWidth: 2)
                 Circle()
                     .trim(from: 0, to: total > 0 ? remaining / total : 0)
-                    .stroke(Palette.flare, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .stroke(Palette.text, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             .frame(width: 14, height: 14)

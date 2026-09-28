@@ -11,7 +11,7 @@ struct WelcomeStep: View {
 
             ZStack {
                 Circle()
-                    .fill(RadialGradient(colors: [Palette.flare.opacity(0.35), .clear], center: .center, startRadius: 4, endRadius: 150))
+                    .fill(RadialGradient(colors: [Palette.accent.opacity(0.18), .clear], center: .center, startRadius: 4, endRadius: 150))
                     .frame(width: 300, height: 300)
                     .blur(radius: 10)
                     .opacity(revealed ? 1 : 0)
@@ -44,7 +44,7 @@ struct WelcomeStep: View {
                 Button("Set up Scout") {
                     model.onboarding.next()
                 }
-                .buttonStyle(FlareButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
                 .keyboardShortcut(.defaultAction)
 
                 Label("About a minute. Nothing leaves this Mac until you send it.", systemImage: "lock.fill")

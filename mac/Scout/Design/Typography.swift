@@ -12,9 +12,9 @@ enum Typography {
 }
 
 extension View {
-    func eyebrowStyle(_ color: Color = Palette.flareSoft) -> some View {
+    func eyebrowStyle(_ color: Color = Palette.textTertiary) -> some View {
         font(Typography.eyebrow)
-            .tracking(1.6)
+            .tracking(1.4)
             .textCase(.uppercase)
             .foregroundStyle(color)
     }

@@ -9,7 +9,7 @@ struct OnboardingView: View {
     var body: some View {
         let onboarding = model.onboarding
         ZStack {
-            Aurora(glow: onboarding.step.glow)
+            Aurora(intensity: onboarding.step.glowIntensity)
                 .animation(Motion.smooth, value: onboarding.step)
             Grain()
 
@@ -80,7 +80,7 @@ struct StepRail: View {
                 let isDone = step.rawValue < current.rawValue
                 HStack(spacing: 6) {
                     Capsule()
-                        .fill(isCurrent ? AnyShapeStyle(Palette.flareGradient) : AnyShapeStyle(isDone ? Palette.mint.opacity(0.8) : Color.white.opacity(0.18)))
+                        .fill(isCurrent ? Color.white : Color.white.opacity(isDone ? 0.45 : 0.16))
                         .frame(width: isCurrent ? 22 : 6, height: 6)
                     if isCurrent {
                         Text(step.title)

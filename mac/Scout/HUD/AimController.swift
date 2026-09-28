@@ -193,19 +193,19 @@ private struct AimOverlay: View {
             if aim.isAiming, let target = aim.hovered, let frame = target.frame {
                 let local = CGRect(x: frame.x - screenOrigin.x, y: frame.y - screenOrigin.y, width: frame.width, height: frame.height)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Palette.beam.opacity(0.12))
-                    .strokeBorder(Palette.beam, lineWidth: 2)
-                    .shadow(color: Palette.beam.opacity(0.7), radius: 10)
+                    .fill(Palette.accent.opacity(0.06))
+                    .strokeBorder(Palette.accent, lineWidth: 2)
                     .frame(width: local.width + 6, height: local.height + 6)
                     .offset(x: local.minX - 3, y: local.minY - 3)
                     .animation(Motion.snappy, value: local)
 
                 Text(target.displayName)
                     .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
+                    .foregroundStyle(Palette.text)
                     .padding(.horizontal, 9)
                     .frame(height: 22)
-                    .background(Palette.beam, in: .capsule)
+                    .background(Palette.ink.opacity(0.92), in: .capsule)
+                    .overlay(Capsule().strokeBorder(Palette.stroke))
                     .fixedSize()
                     .offset(x: local.minX - 3, y: max(4, local.minY - 30))
                     .animation(Motion.snappy, value: local)
@@ -225,15 +225,14 @@ private struct PinPulse: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Palette.flare, lineWidth: 2.5)
+                .stroke(Palette.accent, lineWidth: 2)
                 .frame(width: 44, height: 44)
                 .scaleEffect(expanded ? 1.8 : 0.3)
                 .opacity(expanded ? 0 : 1)
             Circle()
-                .fill(Palette.flareGradient)
+                .fill(Palette.accent)
                 .frame(width: 16, height: 16)
                 .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-                .shadow(color: Palette.flare.opacity(0.8), radius: 10)
                 .scaleEffect(expanded ? 1 : 0.3)
         }
         .onAppear {

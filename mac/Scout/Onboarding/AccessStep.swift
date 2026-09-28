@@ -13,7 +13,7 @@ struct AccessStep: View {
             HStack(alignment: .center, spacing: 44) {
                 ZStack {
                     Circle()
-                        .fill(RadialGradient(colors: [Palette.beam.opacity(0.25), .clear], center: .center, startRadius: 2, endRadius: 120))
+                        .fill(RadialGradient(colors: [Color.white.opacity(0.06), .clear], center: .center, startRadius: 2, endRadius: 120))
                         .frame(width: 240, height: 240)
                     ScoutMark(litArcs: permissions.grantedCount, pulsing: permissions.allGranted)
                         .frame(width: 128, height: 128)
@@ -40,7 +40,7 @@ struct AccessStep: View {
                     .buttonStyle(QuietButtonStyle())
             }
             Button("Continue") { model.onboarding.next() }
-                .buttonStyle(FlareButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(!permissions.allGranted)
                 .keyboardShortcut(.defaultAction)
         }
@@ -55,7 +55,7 @@ private struct PermissionRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            IconOrb(symbol: permission.symbol, tint: state.isGranted ? Palette.mint : Palette.beam, active: state.isGranted || isNext)
+            IconOrb(symbol: permission.symbol, active: isNext)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(permission.title)
@@ -63,7 +63,7 @@ private struct PermissionRow: View {
                     .foregroundStyle(Palette.text)
                 Text(detail)
                     .font(.system(size: 12.5))
-                    .foregroundStyle(state == .denied ? Palette.rose : Palette.textSecondary)
+                    .foregroundStyle(Palette.textSecondary)
                     .contentTransition(.opacity)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -79,10 +79,10 @@ private struct PermissionRow: View {
         }
         .padding(.horizontal, 18)
         .frame(height: 78)
-        .glassEffect(.regular.tint(isNext ? Palette.beam.opacity(0.10) : Palette.night.opacity(0.2)), in: .rect(cornerRadius: 22))
+        .glassEffect(.regular.tint(Palette.night.opacity(isNext ? 0.1 : 0.3)), in: .rect(cornerRadius: 22))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(isNext ? Palette.beam.opacity(0.45) : .clear, lineWidth: 1)
+                .strokeBorder(isNext ? Palette.stroke : .clear, lineWidth: 1)
         }
         .opacity(state.isGranted ? 0.85 : 1)
         .animation(Motion.smooth, value: isNext)
@@ -104,24 +104,29 @@ private struct PermissionRow: View {
         case .granted:
             Checkmark()
         case .notRequested:
-            Button("Allow") { request() }
-                .buttonStyle(FlareButtonStyle(large: false))
+            if isNext {
+                Button("Allow") { request() }
+                    .buttonStyle(PrimaryButtonStyle(large: false))
+            } else {
+                Button("Allow") { request() }
+                    .buttonStyle(SecondaryButtonStyle())
+            }
         case .waiting:
             HStack(spacing: 10) {
                 WaitingDots()
                 Button("Open Settings") { model.permissions.openSettings(for: permission) }
-                    .buttonStyle(GlassPillButtonStyle())
+                    .buttonStyle(SecondaryButtonStyle())
             }
         case .needsRelaunch:
             HStack(spacing: 8) {
                 Button("Settings") { model.permissions.openSettings(for: permission) }
                     .buttonStyle(QuietButtonStyle())
                 Button("Relaunch") { Relauncher.relaunch() }
-                    .buttonStyle(FlareButtonStyle(large: false))
+                    .buttonStyle(PrimaryButtonStyle(large: false))
             }
         case .denied:
             Button("Open Settings") { model.permissions.openSettings(for: permission) }
-                .buttonStyle(GlassPillButtonStyle(tint: Palette.rose.opacity(0.3)))
+                .buttonStyle(SecondaryButtonStyle())
         }
     }
 

@@ -8,11 +8,13 @@ Code: `mac/Scout/Design/`.
 
 A pointer with three signal arcs coming from its tip: *point* and *talk* in one glyph (`ScoutMark.swift`).
 
-- The arcs double as a progress display. During onboarding, one arc lights per granted permission, and a pulse runs through lit arcs while Scout is ready or scouting.
-- The menu bar icon is the same mark rendered as a template image. It takes the flare color while scouting.
-- The app icon (`script/render-app-icon.sh`) renders the mark on an ink-to-indigo squircle with a flare glow in the lower-right corner.
+- The arcs double as a progress display, and they are the one place the accent appears as brand rather than as state. During onboarding, one arc lights per granted permission, and a pulse runs through lit arcs while Scout is ready or scouting.
+- The menu bar icon is the same mark rendered as a template image. It takes the accent color while scouting.
+- The app icon (`script/render-app-icon.sh`) renders the mark on an ink-to-indigo squircle with an accent glow in the lower-right corner.
 
 ## Color
+
+Scout is a dark, neutral interface with one accent. Color is rare on purpose, so when it appears it means something.
 
 | Token | Hex | Use |
 |---|---|---|
@@ -20,20 +22,25 @@ A pointer with three signal arcs coming from its tip: *point* and *talk* in one 
 | `night` | `#0E1020` | Panels, glass tint |
 | `indigo` | `#1C2156` | Aurora field |
 | `plum` | `#3B1650` | Aurora field |
-| `flare` | `#FF6A3D` | The one accent: primary actions, recording, pins |
-| `flareGradient` | `#FFB36B → #FF6A3D → #FF3D6E` | Primary buttons, pressed keycaps |
-| `beam` | `#8B96FF` | Aiming, element highlights, source locations |
-| `mint` | `#42E2A4` | Success, granted, listening |
-| `amber` | `#FFB84D` | Waiting |
-| `rose` | `#FF5876` | Denied, destructive |
+| `accent` | `#FF6A3D` | The only accent (see rules) |
+| `accentGradient` | `#FF8152 → #FF6A3D` | Primary button fill only |
+| `positive` | `#5CCF9E` | Status dot only |
+| `caution` | `#E9AE57` | Status dot only |
+| `negative` | `#EE6078` | Status dot or small warning glyph only |
 
-Text is white at 100%, 66% and 42% opacity. Hairlines are white at 10%.
+Neutrals do everything else: text in white at 100 / 64 / 40 / 24 %, fills in white at 5 / 9 / 14 %, hairlines at 8 %, strokes at 14 %.
 
-Rule: flare means "you" (your voice, your pins, your primary action). Beam means "Scout's understanding" (what Scout thinks you are pointing at). Keeping these apart makes it clear what the user did and what Scout inferred.
+Rules:
+
+1. **One accent, three jobs.** The accent marks the primary action (one per view), live capture (the recording dot, the aim outline, pins on screen) and the current selection (the selected task in the review). Nothing else is accent-colored: no eyebrows, links, icons, chips or counters.
+2. **Status is a dot, not a color scheme.** Positive, caution and negative appear only as a 5–6 pt dot or a small glyph next to neutral text. Never as text color, fill or border.
+3. **No colored glows.** Depth comes from glass and a 1 pt hairline, not from colored shadows.
+4. **Secondary actions are neutral.** Glass capsules with white text (`SecondaryButtonStyle`); quiet actions are text only (`QuietButtonStyle`). When several rows each have an action, only the one that matters next is primary.
+5. **The brand lives in two places.** The mark's signal arcs and the aurora. The aurora keeps one hue on every screen; only its intensity changes.
 
 ## Backdrop
 
-`Aurora` is a 3×3 `MeshGradient` whose inner points drift slowly (periods of 25–50 s). The lower-left control point carries a glow color that changes per onboarding step, animated with a spring. `Grain` adds a fixed noise layer at 1.5–5% opacity so gradients don't band. Both stop moving when Reduce Motion is on.
+`Aurora` is a 3×3 `MeshGradient` whose inner points drift slowly (periods of 25–50 s). The lower-left control point carries the accent as a soft glow; onboarding steps change only its intensity, animated with a spring. `Grain` adds a fixed noise layer at 1.5–5% opacity so gradients don't band. Both stop moving when Reduce Motion is on.
 
 ## Type
 
@@ -45,16 +52,16 @@ System fonts only.
 | Title | SF Pro Semibold, 30 pt, tracking −0.4 |
 | Headline | Semibold, 15 pt |
 | Body | Regular, 14 pt, line spacing +3 |
-| Eyebrow | Semibold, expanded width, 11 pt, uppercase, tracking 1.6, flare-soft |
+| Eyebrow | Semibold, expanded width, 11 pt, uppercase, tracking 1.4, 40% white |
 | Mono | SF Mono Medium, 12 pt, used for paths, URLs and source locations |
 | Transcript | Medium, 26 pt, used for live speech |
 
 ## Surfaces and shape
 
-- Cards are `glassEffect(.regular.tint(night @ 20–30%))` in continuous rounded rectangles with a 20–24 pt radius. The item that needs attention gets a beam-tinted glass and a 1 pt beam outline.
-- Primary buttons are flare-gradient capsules with a soft flare shadow. Secondary buttons are interactive glass capsules. Tertiary buttons are text only.
-- Keycaps are rounded squares with a 2 pt drop edge. Pressed keycaps sink 2 pt and fill with the flare gradient.
-- Status badges are a dot plus a label on a 12% tint of their tone.
+- Cards are `glassEffect(.regular.tint(night @ 10–30%))` in continuous rounded rectangles with a 20–24 pt radius. The item that needs attention gets a lighter glass and a 1 pt neutral stroke, not a color.
+- Primary buttons are accent-gradient capsules with a top highlight and no shadow. Secondary buttons are interactive glass capsules. Tertiary buttons are text only.
+- Keycaps are rounded squares with a 1.5 pt drop edge. Pressed keycaps sink and turn white.
+- Status badges are a status dot plus a secondary-text label on a 5% fill with a hairline.
 
 ## Motion
 

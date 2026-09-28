@@ -277,7 +277,7 @@ async function main() {
         }
       })
       assert(overlay, "no aim box in scout-overlay shadow root")
-      assert(overlay.border === "rgb(139, 150, 255)", `border ${overlay.border}`)
+      assert(overlay.border === "rgb(255, 106, 61)", `border ${overlay.border}`)
       assert(overlay.pointerEvents === "none", "overlay intercepts pointer events")
       assert(overlay.dx < 1 && overlay.dw < 1, "outline does not match the element")
       assert(overlay.chip.includes('"Pay now"') && overlay.chip.includes("PayButton.tsx"), `chip ${overlay.chip}`)

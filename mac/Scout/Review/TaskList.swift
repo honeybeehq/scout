@@ -41,7 +41,7 @@ struct TaskList: View {
                     let leftovers = review.leftoverSpeech
                     if !leftovers.isEmpty {
                         Text("Not in a task yet")
-                            .eyebrowStyle(Palette.amber.opacity(0.8))
+                            .eyebrowStyle()
                             .padding(.horizontal, 10)
                             .padding(.top, 14)
                         ForEach(leftovers) { utterance in
@@ -92,9 +92,9 @@ private struct TaskRow: View {
         HStack(alignment: .top, spacing: 10) {
             Text("\(index + 1)")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(selected ? Palette.ink : Palette.text)
+                .foregroundStyle(selected ? Color.white : Palette.textSecondary)
                 .frame(width: 22, height: 22)
-                .background(badgeColor.opacity(selected ? 1 : 0.35), in: .circle)
+                .background(selected ? Palette.accent : Palette.fillRaised, in: .circle)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(card.title)
@@ -127,15 +127,12 @@ private struct TaskRow: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(selected ? Palette.flare.opacity(0.5) : .clear, lineWidth: 1)
+                .strokeBorder(selected ? Palette.hairline : .clear, lineWidth: 1)
         }
         .contentShape(.rect(cornerRadius: 12))
         .animation(.easeOut(duration: 0.12), value: selected)
     }
 
-    private var badgeColor: Color {
-        card.state.isFinished ? Palette.mint : (selected ? Palette.flare : Palette.beam)
-    }
 }
 
 struct StateLine: View {
@@ -143,21 +140,20 @@ struct StateLine: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: symbol)
-            Text(text).lineLimit(1)
+            Image(systemName: symbol).foregroundStyle(tint)
+            Text(text).lineLimit(1).foregroundStyle(Palette.textTertiary)
         }
         .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(tint)
     }
 
     private var symbol: String {
         switch card.state {
-        case .sent: "checkmark.circle.fill"
-        case .failed: "exclamationmark.triangle.fill"
-        case .sending: "arrow.up.circle"
+        case .sent: "checkmark"
+        case .failed: "exclamationmark.triangle"
+        case .sending: "arrow.up"
         case .countdown: "timer"
-        case .needsDestination: "questionmark.circle"
-        default: "circle.dashed"
+        case .needsDestination: "circle.dotted"
+        default: "arrow.turn.down.right"
         }
     }
 
@@ -175,10 +171,10 @@ struct StateLine: View {
 
     private var tint: Color {
         switch card.state {
-        case .sent: Palette.mint
-        case .failed: Palette.rose
-        case .needsDestination: Palette.amber
-        default: Palette.textSecondary
+        case .sent: Palette.textTertiary
+        case .failed: Palette.negative
+        case .needsDestination: Palette.caution
+        default: Palette.textTertiary
         }
     }
 }
@@ -216,7 +212,7 @@ private struct LeftoverRow: View {
         .padding(10)
         .background {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Palette.amber.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .strokeBorder(Palette.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         }
     }
 }
@@ -225,10 +221,10 @@ private struct LeftoverActionStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Palette.amber)
+            .foregroundStyle(Palette.textSecondary)
             .padding(.horizontal, 9)
             .frame(height: 22)
-            .background(Palette.amber.opacity(configuration.isPressed ? 0.3 : 0.14), in: .capsule)
+            .background(configuration.isPressed ? Palette.fillStrong : Palette.fillRaised, in: .capsule)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
     }
 }

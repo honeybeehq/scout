@@ -16,13 +16,14 @@ interface Flash {
 
 const STYLE = `
 .box{position:fixed;box-sizing:border-box;border:2px solid var(--tone);border-radius:4px;
-background:color-mix(in srgb,var(--tone) 10%,transparent);
-box-shadow:0 0 0 1px rgb(7 8 13/.35),0 0 14px color-mix(in srgb,var(--tone) 45%,transparent);
+background:color-mix(in srgb,var(--tone) 6%,transparent);
+box-shadow:0 0 0 1px rgb(7 8 13/.35);
 animation:in 120ms ease-out}
-.beam{--tone:#8B96FF}.flare{--tone:#FF6A3D}
+.beam{--tone:#FFFFFF}.flare{--tone:#FF6A3D}
 .chip{position:absolute;left:-2px;bottom:calc(100% + 4px);max-width:420px;overflow:hidden;
-white-space:nowrap;text-overflow:ellipsis;padding:2px 7px;border-radius:5px;background:var(--tone);
-color:#07080D;font:600 11px/16px -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+white-space:nowrap;text-overflow:ellipsis;padding:2px 7px;border-radius:5px;background:rgb(7 8 13/.92);
+box-shadow:inset 0 0 0 1px rgb(255 255 255/.14);
+color:#FFFFFF;font:600 11px/16px -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
 .chip:empty{display:none}.below .chip{bottom:auto;top:calc(100% + 4px)}
 .out{opacity:0;transition:opacity 200ms}
 @keyframes in{from{opacity:0}}
@@ -57,7 +58,7 @@ export function createOverlay(): Overlay {
   const style = document.createElement("style")
   style.textContent = STYLE
   root.append(style)
-  const aimBox = createBox("beam", "aim")
+  const aimBox = createBox("flare", "aim")
   const flashes = new Set<Flash>()
   let target: Element | null = null
   let frame = 0

@@ -89,13 +89,13 @@ private struct GeneralSettings: View {
                     SettingRow(title: "Open Scout at login", detail: nil) {
                         Toggle("", isOn: $opensAtLogin)
                             .toggleStyle(.switch)
-                            .tint(Palette.flare)
+                            .tint(Palette.accent)
                             .labelsHidden()
                             .onChange(of: opensAtLogin) { _, enabled in model.opensAtLogin = enabled }
                     }
                     SettingRow(title: "Sessions folder", detail: ScoutPaths.support.appendingPathComponent("Sessions").path) {
                         Button("Show") { NSWorkspace.shared.open(ScoutPaths.support.appendingPathComponent("Sessions")) }
-                            .buttonStyle(GlassPillButtonStyle())
+                            .buttonStyle(SecondaryButtonStyle())
                     }
                 }
             }
@@ -156,7 +156,7 @@ private struct AgentSettings: View {
                     SettingRow(title: "Send automatically", detail: "Each task waits a moment so you can hold it or change where it goes.") {
                         Toggle("", isOn: $preferences.autoSend)
                             .toggleStyle(.switch)
-                            .tint(Palette.flare)
+                            .tint(Palette.accent)
                             .labelsHidden()
                     }
                     if preferences.autoSend {
@@ -168,7 +168,7 @@ private struct AgentSettings: View {
                     SettingRow(title: "Attach video clips", detail: "The part of the recording each task covers.") {
                         Toggle("", isOn: $preferences.includeClips)
                             .toggleStyle(.switch)
-                            .tint(Palette.flare)
+                            .tint(Palette.accent)
                             .labelsHidden()
                     }
                 }
@@ -194,7 +194,7 @@ private struct SDKSettings: View {
             VStack(alignment: .leading, spacing: 22) {
                 SettingsSection(title: "Bridge") {
                     SettingRow(title: "Status", detail: bridge.port.map { "Listening on 127.0.0.1:\($0)" } ?? bridge.failure ?? "Starting…") {
-                        StatusBadge(text: bridge.port == nil ? "Off" : "On", tone: bridge.port == nil ? .warning : .success)
+                        StatusBadge(text: bridge.port == nil ? "Off" : "On", tone: bridge.port == nil ? .negative : .positive)
                     }
                     let apps = bridge.clients.filter { $0.hello != nil }
                     if apps.isEmpty {
@@ -204,7 +204,7 @@ private struct SDKSettings: View {
                     } else {
                         ForEach(apps) { client in
                             HStack(spacing: 10) {
-                                Circle().fill(Palette.mint).frame(width: 7, height: 7)
+                                StatusDot(tone: .positive)
                                 Text(client.name).font(.system(size: 13, weight: .semibold))
                                 Text(client.hello?.app?.framework?.name ?? client.hello?.app?.kind ?? "")
                                     .font(Typography.caption)
@@ -212,7 +212,7 @@ private struct SDKSettings: View {
                                 Spacer()
                                 Text(client.hello?.project?.root.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "")
                                     .font(Typography.mono)
-                                    .foregroundStyle(Palette.beam)
+                                    .foregroundStyle(Palette.textTertiary)
                             }
                         }
                     }
@@ -233,7 +233,7 @@ private struct SDKSettings: View {
                             NSPasteboard.general.setString(viteSnippet, forType: .string)
                             copied = true
                         }
-                        .buttonStyle(GlassPillButtonStyle())
+                        .buttonStyle(SecondaryButtonStyle())
                     }
                 }
             }

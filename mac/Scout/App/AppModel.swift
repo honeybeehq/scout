@@ -120,6 +120,10 @@ final class AppModel {
         Task {
             await session.end()
             let review = SessionReview(session: session, dispatcher: dispatcher)
+            guard !review.tasks.isEmpty || !review.leftoverSpeech.isEmpty else {
+                stackChanged()
+                return
+            }
             reviews[session.id] = review
             latestSessionID = session.id
             if let first = review.tasks.first { review.select(first) }

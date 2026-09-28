@@ -14,7 +14,7 @@ enum MenuBarIcon {
     private static func glyph(scouting: Bool) -> some View {
         ScoutMark(
             litArcs: 3,
-            arcColor: scouting ? Palette.flare : .black,
+            arcColor: scouting ? Palette.accent : .black,
             pointerStyle: AnyShapeStyle(scouting ? Color.white : Color.black)
         )
         .frame(width: 18, height: 18)

@@ -24,13 +24,10 @@ final class OnboardingModel {
             }
         }
 
-        var glow: Color {
+        var glowIntensity: Double {
             switch self {
-            case .welcome, .ready: Palette.flare
-            case .access: Palette.beam
-            case .voice: Palette.mint
-            case .point: Palette.beam
-            case .connect: Palette.flareSoft
+            case .welcome, .ready: 1
+            default: 0.7
             }
         }
     }

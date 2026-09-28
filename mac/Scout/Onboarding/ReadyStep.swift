@@ -15,7 +15,7 @@ struct ReadyStep: View {
             ZStack {
                 ForEach(0..<3) { ring in
                     Circle()
-                        .stroke(Palette.flare.opacity(0.5), lineWidth: 1.5)
+                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
                         .frame(width: 150, height: 150)
                         .scaleEffect(celebrate ? 2.2 : 0.6)
                         .opacity(celebrate ? 0 : 0.8)
@@ -49,7 +49,7 @@ struct ReadyStep: View {
                         .foregroundStyle(Palette.textSecondary)
                 }
                 .toggleStyle(.switch)
-                .tint(Palette.flare)
+                .tint(Palette.accent)
                 .onChange(of: opensAtLogin) { _, enabled in
                     model.opensAtLogin = enabled
                 }
@@ -59,7 +59,7 @@ struct ReadyStep: View {
                 Button("Back") { model.onboarding.back() }
                     .buttonStyle(QuietButtonStyle())
                 Button("Start using Scout") { onFinish() }
-                    .buttonStyle(FlareButtonStyle())
+                    .buttonStyle(PrimaryButtonStyle())
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 56)

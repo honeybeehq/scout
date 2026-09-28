@@ -204,8 +204,7 @@ private struct DoneCard: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 58, height: 58)
-                .background(Palette.mint, in: .circle)
-                .shadow(color: Palette.mint.opacity(0.6), radius: 18)
+                .background(Color.white.opacity(0.92), in: .circle)
             Text("\(permission.title) is on")
                 .font(Typography.headline)
             Text("Taking you back to Scout")
@@ -255,7 +254,7 @@ private struct TogglePreview: View {
 }
 
 struct WaitingDots: View {
-    var color: Color = Palette.flare
+    var color: Color = Palette.textSecondary
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 20)) { context in

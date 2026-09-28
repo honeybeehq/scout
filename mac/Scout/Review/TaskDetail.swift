@@ -95,7 +95,7 @@ private struct PlayerPanel: View {
                 }
                 .toggleStyle(.button)
                 .buttonStyle(.plain)
-                .foregroundStyle(player.loopsTask ? Palette.flareSoft : Palette.textTertiary)
+                .foregroundStyle(player.loopsTask ? Palette.text : Palette.textTertiary)
 
                 Button {
                     player.pause()
@@ -154,6 +154,22 @@ private struct TranscriptField: View {
     let review: SessionReview
     let card: SnippetCard
     @FocusState private var focused: Bool
+    @State private var width: CGFloat = 340
+
+    static let fontSize: CGFloat = 14.5
+    static let lineSpacing: CGFloat = 4
+
+    static func height(for text: String, width: CGFloat) -> CGFloat {
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = lineSpacing
+        let bounds = ((text.isEmpty ? " " : text) + " ") as NSString
+        let rect = bounds.boundingRect(
+            with: CGSize(width: max(40, width - 10), height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: NSFont.systemFont(ofSize: fontSize), .paragraphStyle: style]
+        )
+        return ceil(rect.height) + 6
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -162,10 +178,10 @@ private struct TranscriptField: View {
                 if card.transcriptOverride != nil {
                     Text("Edited")
                         .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundStyle(Palette.amber)
+                        .foregroundStyle(Palette.textSecondary)
                         .padding(.horizontal, 7)
                         .frame(height: 18)
-                        .background(Palette.amber.opacity(0.14), in: .capsule)
+                        .background(Palette.fillRaised, in: .capsule)
                     Spacer()
                     if !card.isLocked {
                         Button("Use the original") {
@@ -186,21 +202,24 @@ private struct TranscriptField: View {
                     .padding(12)
                     .background(Color.white.opacity(0.03), in: .rect(cornerRadius: 12, style: .continuous))
             } else {
-                TextField("What should change?", text: Binding(
+                TextEditor(text: Binding(
                     get: { card.transcript },
                     set: { value in
                         card.transcriptOverride = value == card.snippet.transcript ? nil : value
                         review.edited(card)
                     }
-                ), axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: 14.5))
-                .lineSpacing(4)
-                .lineLimit(3...)
-                .padding(12)
-                .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(focused ? Palette.flare.opacity(0.5) : Color.white.opacity(0.08)))
+                ))
+                .font(.system(size: Self.fontSize))
+                .lineSpacing(Self.lineSpacing)
+                .scrollContentBackground(.hidden)
+                .scrollDisabled(true)
                 .focused($focused)
+                .frame(height: Self.height(for: card.transcript, width: width))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 10)
+                .background(Palette.fill, in: .rect(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(focused ? Color.white.opacity(0.28) : Palette.hairline))
                 .onChange(of: focused) { _, value in
                     review.isEditingText = value
                     if value { review.beginTextEdit() }
@@ -251,7 +270,7 @@ private struct TargetChip: View {
                 if let source = target.source {
                     Text(source.description)
                         .font(Typography.mono)
-                        .foregroundStyle(Palette.beam)
+                        .foregroundStyle(Palette.textTertiary)
                 } else if let parent = target.ancestry.first {
                     Text("in \(parent)")
                         .font(.system(size: 11))
@@ -272,7 +291,8 @@ private struct TargetChip: View {
         .padding(.leading, 12)
         .padding(.trailing, locked ? 12 : 8)
         .padding(.vertical, 8)
-        .background(Palette.beam.opacity(excluded ? 0.04 : 0.12), in: .rect(cornerRadius: 10, style: .continuous))
+        .background(excluded ? Color.clear : Palette.fill, in: .rect(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline))
         .opacity(excluded ? 0.5 : 1)
     }
 }
@@ -328,7 +348,7 @@ private struct PinThumbnail: View {
                     .font(.system(size: 10.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(width: 20, height: 20)
-                    .background(Palette.flare, in: .circle)
+                    .background(Palette.ink.opacity(0.75), in: .circle)
                     .padding(6)
             }
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.white.opacity(0.1)))
@@ -367,7 +387,7 @@ private struct ContextSection: View {
                     if let project = card.project {
                         Text("Repo \(project.rootPath)" + (project.gitBranch.map { " · \($0)" } ?? ""))
                             .font(Typography.mono)
-                            .foregroundStyle(Palette.beam)
+                            .foregroundStyle(Palette.textTertiary)
                             .lineLimit(1)
                             .truncationMode(.head)
                     }
@@ -376,9 +396,13 @@ private struct ContextSection: View {
             if !card.runtimeNotes.isEmpty {
                 Text("From the app").eyebrowStyle(Palette.textTertiary).padding(.top, 8)
                 ForEach(card.runtimeNotes, id: \.self) { note in
-                    Text(note)
+                    Label {
+                        Text(note)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle").foregroundStyle(Palette.negative)
+                    }
                         .font(Typography.mono)
-                        .foregroundStyle(Palette.rose.opacity(0.9))
+                        .foregroundStyle(Palette.textSecondary)
                         .lineLimit(2)
                 }
             }
@@ -394,23 +418,25 @@ private struct HandoffBar: View {
     var body: some View {
         HStack(spacing: 14) {
             if case .sent(let destination) = card.state {
-                Label("Sent to \(destination)", systemImage: "checkmark.circle.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.mint)
+                Label("Sent to \(destination)", systemImage: "checkmark")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Palette.textSecondary)
                     .lineLimit(1)
                 Spacer()
                 Button("Copy task") { copy() }
-                    .buttonStyle(GlassPillButtonStyle())
+                    .buttonStyle(SecondaryButtonStyle())
             } else {
                 Text("Send to").font(Typography.caption).foregroundStyle(Palette.textTertiary)
                 DestinationPicker(card: card)
                     .frame(maxWidth: 360, alignment: .leading)
                 Spacer()
                 if case .failed(let message) = card.state {
-                    Text(message)
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.rose)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        StatusDot(tone: .negative, size: 5)
+                        Text(message).lineLimit(1)
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
                 }
                 if card.state == .sending {
                     ProgressView().controlSize(.small)
@@ -428,7 +454,7 @@ private struct HandoffBar: View {
                         Text("⌘↩").font(Typography.mono).opacity(0.7)
                     }
                 }
-                .buttonStyle(FlareButtonStyle(large: false))
+                .buttonStyle(PrimaryButtonStyle(large: false))
                 .disabled(card.destination == nil || card.isLocked)
                 .keyboardShortcut(.return, modifiers: .command)
             }
@@ -458,14 +484,18 @@ struct DestinationPicker: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "arrow.turn.down.right")
+                if card.destination == nil {
+                    StatusDot(tone: .caution, size: 5)
+                } else {
+                    Image(systemName: "arrow.turn.down.right")
+                }
                 Text(card.destination?.label ?? "Choose where to send")
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .bold)).opacity(0.6)
             }
             .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(card.destination == nil ? Palette.amber : Palette.text)
+            .foregroundStyle(card.destination == nil ? Palette.textSecondary : Palette.text)
             .padding(.horizontal, 12)
             .frame(height: 30)
             .background(Color.white.opacity(0.07), in: .capsule)

@@ -10,7 +10,7 @@ struct AppIconArtwork: View {
                 )
             RoundedRectangle(cornerRadius: 185, style: .continuous)
                 .fill(
-                    RadialGradient(colors: [Palette.flare.opacity(0.55), .clear], center: UnitPoint(x: 0.78, y: 0.86), startRadius: 10, endRadius: 520)
+                    RadialGradient(colors: [Palette.accent.opacity(0.55), .clear], center: UnitPoint(x: 0.78, y: 0.86), startRadius: 10, endRadius: 520)
                 )
             RoundedRectangle(cornerRadius: 185, style: .continuous)
                 .strokeBorder(

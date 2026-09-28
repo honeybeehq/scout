@@ -34,7 +34,7 @@ struct VoiceStep: View {
                     .buttonStyle(QuietButtonStyle())
             }
             Button("Continue") { model.onboarding.next() }
-                .buttonStyle(FlareButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(!heardEnough)
                 .keyboardShortcut(.defaultAction)
         }
@@ -62,24 +62,24 @@ struct VoiceStep: View {
                 Button("Allow microphone") {
                     Task { await model.permissions.request(.microphone) }
                 }
-                .buttonStyle(FlareButtonStyle(large: false))
+                .buttonStyle(PrimaryButtonStyle(large: false))
             }
         } else if heardEnough {
-            StatusBadge(text: "Scout hears you", tone: .success)
+            StatusBadge(text: "Scout hears you", tone: .positive)
                 .transition(.rise)
         } else {
             switch transcriber.phase {
             case .idle:
                 StatusBadge(text: "Starting…", tone: .neutral)
             case .preparing(let progress):
-                StatusBadge(text: progress > 0 ? "Getting the voice model ready · \(Int(progress * 100))%" : "Getting the voice model ready", tone: .waiting)
+                StatusBadge(text: progress > 0 ? "Getting the voice model ready · \(Int(progress * 100))%" : "Getting the voice model ready", tone: .caution)
             case .listening:
-                StatusBadge(text: "Listening on \(transcriber.inputName ?? "your microphone")", tone: .success)
+                StatusBadge(text: "Listening on \(transcriber.inputName ?? "your microphone")", tone: .active)
             case .failed(let message):
                 HStack(spacing: 10) {
-                    StatusBadge(text: message, tone: .warning)
+                    StatusBadge(text: message, tone: .negative)
                     Button("Try again") { Task { await model.transcriber.start() } }
-                        .buttonStyle(GlassPillButtonStyle())
+                        .buttonStyle(SecondaryButtonStyle())
                 }
             }
         }
@@ -113,7 +113,7 @@ private struct TranscriptStage: View {
 struct LevelBars: View {
     var levels: [Float]
     var active: Bool
-    var tint: Color = Palette.mint
+    var tint: Color = .white
     var maxHeight: CGFloat = 44
     var barWidth: CGFloat = 4
 

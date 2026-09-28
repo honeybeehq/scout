@@ -24,7 +24,7 @@ struct ConnectStep: View {
             BackButton()
             Spacer()
             Button("Continue") { model.onboarding.next() }
-                .buttonStyle(FlareButtonStyle())
+                .buttonStyle(PrimaryButtonStyle())
                 .keyboardShortcut(.defaultAction)
         }
         .task {
@@ -45,7 +45,7 @@ private struct HiveCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                IconOrb(symbol: "hexagon.fill", tint: Palette.amber, size: 38, active: isConnected)
+                IconOrb(symbol: "hexagon", size: 36, active: isConnected)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("hive").font(Typography.headline)
                     Text("Agent sessions on this Mac").font(Typography.caption).foregroundStyle(Palette.textSecondary)
@@ -82,9 +82,9 @@ private struct HiveCard: View {
     @ViewBuilder
     private var badge: some View {
         switch status {
-        case .checking: StatusBadge(text: "Looking…", tone: .waiting)
-        case .connected(let count): StatusBadge(text: "\(count) active", tone: .success)
-        case .unreachable: StatusBadge(text: "Not responding", tone: .warning)
+        case .checking: StatusBadge(text: "Looking…", tone: .caution)
+        case .connected(let count): StatusBadge(text: "\(count) active", tone: .positive)
+        case .unreachable: StatusBadge(text: "Not responding", tone: .negative)
         case .missing: StatusBadge(text: "Not installed", tone: .neutral)
         }
     }
@@ -105,7 +105,7 @@ private struct SessionRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(session.isWorking ? Palette.mint : Color.white.opacity(0.25))
+                .fill(session.isWorking ? Palette.positive : Palette.textQuaternary)
                 .frame(width: 7, height: 7)
             VStack(alignment: .leading, spacing: 1) {
                 Text(session.displayTitle)
@@ -138,14 +138,14 @@ private struct ApiaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                IconOrb(symbol: "square.grid.3x3.square", tint: Palette.beam, size: 38, active: status == .running)
+                IconOrb(symbol: "square.grid.2x2", size: 36, active: status == .running)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Apiary").font(Typography.headline)
                     Text("Agent workspace").font(Typography.caption).foregroundStyle(Palette.textSecondary)
                 }
             }
             switch status {
-            case .running: StatusBadge(text: "Running", tone: .success)
+            case .running: StatusBadge(text: "Running", tone: .positive)
             case .installed: StatusBadge(text: "Installed", tone: .neutral)
             case .missing: StatusBadge(text: "Not installed", tone: .neutral)
             }

@@ -1,23 +1,26 @@
 import SwiftUI
 
-struct FlareButtonStyle: ButtonStyle {
+struct PrimaryButtonStyle: ButtonStyle {
     var large = true
 
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(large ? .system(size: 15, weight: .semibold) : .system(size: 13, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, large ? 26 : 16)
-            .frame(height: large ? 46 : 32)
+            .font(large ? .system(size: 14, weight: .semibold) : .system(size: 12.5, weight: .semibold))
+            .foregroundStyle(isEnabled ? Color.white : Palette.textTertiary)
+            .padding(.horizontal, large ? 24 : 14)
+            .frame(height: large ? 42 : 30)
             .background {
                 Capsule()
-                    .fill(isEnabled ? AnyShapeStyle(Palette.flareGradient) : AnyShapeStyle(Color.white.opacity(0.12)))
-                    .overlay(Capsule().strokeBorder(.white.opacity(isEnabled ? 0.28 : 0.08), lineWidth: 1).blendMode(.plusLighter))
-                    .shadow(color: isEnabled ? Palette.flare.opacity(configuration.isPressed ? 0.25 : 0.45) : .clear, radius: 18, y: 6)
+                    .fill(isEnabled ? AnyShapeStyle(Palette.accentGradient) : AnyShapeStyle(Palette.fillRaised))
+                    .overlay(alignment: .top) {
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(isEnabled ? 0.22 : 0), lineWidth: 1)
+                            .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .center))
+                    }
             }
-            .opacity(isEnabled ? 1 : 0.6)
+            .brightness(configuration.isPressed ? -0.06 : 0)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(Motion.snappy, value: configuration.isPressed)
             .contentShape(.capsule)
@@ -27,25 +30,23 @@ struct FlareButtonStyle: ButtonStyle {
 struct QuietButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .font(.system(size: 12.5, weight: .medium))
             .foregroundStyle(Palette.textSecondary)
             .padding(.horizontal, 12)
             .frame(height: 30)
-            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.10 : 0.001)))
+            .background(Capsule().fill(configuration.isPressed ? Palette.fillRaised : Color.white.opacity(0.001)))
             .contentShape(.capsule)
     }
 }
 
-struct GlassPillButtonStyle: ButtonStyle {
-    var tint: Color?
-
+struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .frame(height: 32)
-            .glassEffect(.regular.tint(tint).interactive(), in: .capsule)
+            .font(.system(size: 12.5, weight: .medium))
+            .foregroundStyle(Palette.text)
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .glassEffect(.regular.interactive(), in: .capsule)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(Motion.snappy, value: configuration.isPressed)
     }
@@ -58,20 +59,20 @@ struct Keycap: View {
 
     var body: some View {
         Text(symbol)
-            .font(.system(size: size * 0.44, weight: .semibold, design: .rounded))
-            .foregroundStyle(pressed ? Palette.ink : .white)
+            .font(.system(size: size * 0.42, weight: .medium, design: .rounded))
+            .foregroundStyle(pressed ? Palette.ink : Palette.text)
             .frame(minWidth: size, minHeight: size)
             .padding(.horizontal, symbol.count > 1 ? size * 0.22 : 0)
             .background {
                 RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-                    .fill(pressed ? AnyShapeStyle(Palette.flareGradient) : AnyShapeStyle(Color.white.opacity(0.08)))
+                    .fill(pressed ? Color.white : Palette.fillRaised)
                     .overlay(
                         RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-                            .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+                            .strokeBorder(Palette.stroke, lineWidth: 1)
                     )
-                    .shadow(color: .black.opacity(0.4), radius: 0, y: pressed ? 0 : 2)
+                    .shadow(color: .black.opacity(0.35), radius: 0, y: pressed ? 0 : 1.5)
             }
-            .offset(y: pressed ? 2 : 0)
+            .offset(y: pressed ? 1.5 : 0)
             .animation(Motion.snappy, value: pressed)
     }
 }
@@ -82,7 +83,7 @@ struct KeyCombo: View {
     var pressed = false
 
     var body: some View {
-        HStack(spacing: size * 0.18) {
+        HStack(spacing: size * 0.16) {
             ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
                 Keycap(symbol: symbol, size: size, pressed: pressed)
             }
@@ -90,70 +91,74 @@ struct KeyCombo: View {
     }
 }
 
-struct StatusBadge: View {
-    enum Tone {
-        case neutral, waiting, success, warning
+enum Tone {
+    case neutral, active, positive, caution, negative
 
-        var color: Color {
-            switch self {
-            case .neutral: Palette.textTertiary
-            case .waiting: Palette.amber
-            case .success: Palette.mint
-            case .warning: Palette.rose
-            }
+    var color: Color {
+        switch self {
+        case .neutral: Palette.textQuaternary
+        case .active: Palette.accent
+        case .positive: Palette.positive
+        case .caution: Palette.caution
+        case .negative: Palette.negative
         }
     }
+}
 
+struct StatusDot: View {
+    var tone: Tone
+    var size: CGFloat = 6
+
+    var body: some View {
+        Circle()
+            .fill(tone.color)
+            .frame(width: size, height: size)
+    }
+}
+
+struct StatusBadge: View {
     var text: String
     var tone: Tone
 
     var body: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(tone.color)
-                .frame(width: 6, height: 6)
-                .shadow(color: tone.color.opacity(0.8), radius: 4)
+            StatusDot(tone: tone)
             Text(text)
                 .font(Typography.caption)
-                .foregroundStyle(tone == .neutral ? Palette.textSecondary : tone.color)
+                .foregroundStyle(Palette.textSecondary)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 24)
-        .background(Capsule().fill(tone.color.opacity(0.12)))
+        .padding(.horizontal, 9)
+        .frame(height: 22)
+        .background(Capsule().fill(Palette.fill))
+        .overlay(Capsule().strokeBorder(Palette.hairline))
     }
 }
 
 struct IconOrb: View {
     var symbol: String
-    var tint: Color
-    var size: CGFloat = 44
+    var size: CGFloat = 40
     var active = false
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: size * 0.42, weight: .semibold))
-            .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(active ? tint : .white.opacity(0.85))
+            .font(.system(size: size * 0.4, weight: .medium))
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(active ? Palette.text : Palette.textSecondary)
             .frame(width: size, height: size)
-            .background {
-                Circle()
-                    .fill(tint.opacity(active ? 0.2 : 0.08))
-                    .overlay(Circle().strokeBorder(tint.opacity(active ? 0.55 : 0.12), lineWidth: 1))
-            }
-            .shadow(color: active ? tint.opacity(0.45) : .clear, radius: 12)
+            .background(Circle().fill(active ? Palette.fillStrong : Palette.fill))
+            .overlay(Circle().strokeBorder(Palette.hairline))
     }
 }
 
 struct Checkmark: View {
-    var size: CGFloat = 28
+    var size: CGFloat = 24
 
     var body: some View {
         Image(systemName: "checkmark")
-            .font(.system(size: size * 0.46, weight: .heavy))
+            .font(.system(size: size * 0.44, weight: .bold))
             .foregroundStyle(Palette.ink)
             .frame(width: size, height: size)
-            .background(Palette.mint, in: .circle)
-            .shadow(color: Palette.mint.opacity(0.5), radius: 8)
+            .background(Color.white.opacity(0.92), in: .circle)
             .transition(.iconSwap)
     }
 }

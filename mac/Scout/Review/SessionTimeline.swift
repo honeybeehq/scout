@@ -85,9 +85,8 @@ struct SessionTimeline: View {
     }
 
     private func taskColor(_ card: SnippetCard) -> Color {
-        if card.state.isFinished { return Palette.mint }
-        if card.snippet.id == review.selectedTask?.snippet.id { return Palette.flare }
-        return Palette.beam
+        if card.snippet.id == review.selectedTask?.snippet.id { return Palette.accent }
+        return Color.white.opacity(card.state.isFinished ? 0.45 : 0.75)
     }
 
     private func drawFilmstrip(in context: inout GraphicsContext, scale: TimelineScale) {
@@ -127,10 +126,12 @@ struct SessionTimeline: View {
             let shape = Path(roundedRect: rect, cornerRadius: 9, style: .continuous)
             let color = taskColor(card)
             let selected = card.snippet.id == review.selectedTask?.snippet.id
-            var band = context
-            band.clip(to: shape)
-            band.fill(Path(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: 4)), with: .color(color.opacity(selected ? 1 : 0.7)))
-            context.stroke(shape, with: .color(color.opacity(selected ? 1 : 0.5)), lineWidth: selected ? 2 : 1.25)
+            if selected {
+                var band = context
+                band.clip(to: shape)
+                band.fill(Path(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: 3)), with: .color(color))
+            }
+            context.stroke(shape, with: .color(color.opacity(selected ? 1 : 0.45)), lineWidth: selected ? 1.75 : 1)
         }
     }
 
@@ -144,8 +145,8 @@ struct SessionTimeline: View {
             if inTask {
                 context.fill(shape, with: .color(Color.white.opacity(0.32)))
             } else if review.isLeftover(utterance) {
-                context.fill(shape, with: .color(Palette.amber.opacity(0.22)))
-                context.stroke(shape, with: .color(Palette.amber.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                context.fill(shape, with: .color(Color.white.opacity(0.06)))
+                context.stroke(shape, with: .color(Color.white.opacity(0.55)), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
             } else {
                 context.fill(shape, with: .color(Color.white.opacity(0.1)))
             }
@@ -153,8 +154,8 @@ struct SessionTimeline: View {
         for mark in review.ledger.marks {
             let center = CGPoint(x: scale.x(mark.at), y: Self.speechTop + 4)
             let dot = Path(ellipseIn: CGRect(x: center.x - 4.5, y: center.y - 4.5, width: 9, height: 9))
-            context.fill(dot, with: .color(Palette.flare))
-            context.stroke(dot, with: .color(.white), lineWidth: 1.5)
+            context.fill(dot, with: .color(.white))
+            context.stroke(dot, with: .color(Palette.ink), lineWidth: 1.5)
         }
     }
 
@@ -169,10 +170,11 @@ struct SessionTimeline: View {
             context.fill(Path(CGRect(x: x - 0.5, y: 3, width: 1, height: 12)), with: .color(Color.white.opacity(0.35)))
             guard x - lastLabelX > 90 else { continue }
             lastLabelX = x
+            let nearEnd = x > scale.width - scale.inset - 90
             context.draw(
                 Text(name).font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.textTertiary),
-                at: CGPoint(x: x + 4, y: 9),
-                anchor: .leading
+                at: CGPoint(x: nearEnd ? x - 4 : x + 4, y: 9),
+                anchor: nearEnd ? .trailing : .leading
             )
         }
     }
@@ -198,9 +200,9 @@ struct SessionTimeline: View {
         let color = taskColor(card)
         return Text("\(index + 1)")
             .font(.system(size: 10.5, weight: .bold, design: .rounded))
-            .foregroundStyle(card.snippet.id == review.selectedTask?.snippet.id ? Palette.ink : .white)
+            .foregroundStyle(card.snippet.id == review.selectedTask?.snippet.id ? Color.white : Palette.textSecondary)
             .frame(minWidth: 18, minHeight: 18)
-            .background(color.opacity(card.snippet.id == review.selectedTask?.snippet.id ? 1 : 0.5), in: .circle)
+            .background(card.snippet.id == review.selectedTask?.snippet.id ? AnyShapeStyle(color) : AnyShapeStyle(Palette.ink.opacity(0.7)), in: .circle)
             .position(x: scale.x(range.start) + min(16, width / 2), y: Self.filmTop + 15)
             .opacity(width > 14 ? 1 : 0)
             .allowsHitTesting(false)

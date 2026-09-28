@@ -123,16 +123,19 @@ private struct ReviewHeader: View {
                     .font(.system(size: 12.5, weight: .medium))
             }
             .menuStyle(.button)
-            .buttonStyle(GlassPillButtonStyle())
+            .buttonStyle(SecondaryButtonStyle())
             .fixedSize()
             .onAppear { sessions = SessionLibrary.recent().filter { $0.id != review.sessionID } }
 
             if review.unsentCount > 0 {
                 let missing = review.unsentCount - sendableCount
                 if missing > 0 {
-                    Text(missing == 1 ? "1 task needs a destination" : "\(missing) tasks need a destination")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.amber)
+                    HStack(spacing: 6) {
+                        StatusDot(tone: .caution, size: 5)
+                        Text(missing == 1 ? "1 task needs a destination" : "\(missing) tasks need a destination")
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
                 }
                 if let card = review.selectedTask ?? review.tasks.first {
                     Menu {
@@ -144,7 +147,7 @@ private struct ReviewHeader: View {
                             .font(.system(size: 12.5, weight: .medium))
                     }
                     .menuStyle(.button)
-                    .buttonStyle(GlassPillButtonStyle())
+                    .buttonStyle(SecondaryButtonStyle())
                     .fixedSize()
                 }
             }
@@ -159,7 +162,7 @@ private struct ReviewHeader: View {
                     Text("⌥⌘↩").font(Typography.mono).opacity(0.7)
                 }
             }
-            .buttonStyle(FlareButtonStyle(large: false))
+            .buttonStyle(PrimaryButtonStyle(large: false))
             .disabled(sendableCount == 0)
             .keyboardShortcut(.return, modifiers: [.command, .option])
         }

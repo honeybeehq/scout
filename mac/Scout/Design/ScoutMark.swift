@@ -46,7 +46,7 @@ struct ScoutMark: View {
 
     var litArcs = 3
     var pulsing = false
-    var arcColor: Color = Palette.flare
+    var arcColor: Color = Palette.accent
     var pointerStyle: AnyShapeStyle = AnyShapeStyle(Color.white)
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -76,7 +76,7 @@ struct ScoutMark: View {
                 lit ? arcColor : Color.white.opacity(0.16),
                 style: StrokeStyle(lineWidth: side * 0.062, lineCap: .round)
             )
-            .shadow(color: lit ? arcColor.opacity(0.55) : .clear, radius: side * 0.05)
+            .shadow(color: lit ? arcColor.opacity(0.25) : .clear, radius: side * 0.04)
             .modifier(ArcPulse(active: pulsing && lit && !reduceMotion, index: index))
             .animation(Motion.bouncy.delay(Double(index) * 0.08), value: lit)
     }

@@ -13,7 +13,7 @@ struct MenuBarPanel: View {
                     Text("Scout").font(Typography.headline)
                     Text(model.isScouting ? "Scouting. Talk and point." : "Ready when you are.")
                         .font(Typography.caption)
-                        .foregroundStyle(model.isScouting ? Palette.flareSoft : Palette.textSecondary)
+                        .foregroundStyle(model.isScouting ? Palette.text : Palette.textSecondary)
                 }
                 Spacer()
             }
@@ -31,7 +31,7 @@ struct MenuBarPanel: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(FlareButtonStyle(large: false))
+            .buttonStyle(PrimaryButtonStyle(large: false))
 
             SegmentationToggle()
 
@@ -42,7 +42,7 @@ struct MenuBarPanel: View {
                     Button("Review") { model.openLatestReview() }
                         .buttonStyle(.plain)
                         .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(Palette.flareSoft)
+                        .foregroundStyle(Palette.textSecondary)
                 }
                 let recent = model.dispatcher.cards.suffix(5).reversed()
                 if recent.isEmpty {
@@ -89,17 +89,17 @@ struct MenuBarPanel: View {
     private var integrationLine: some View {
         HStack(spacing: 8) {
             switch model.integrations.hive {
-            case .connected(let count): StatusBadge(text: "hive · \(count) active", tone: .success)
-            case .checking: StatusBadge(text: "hive · checking", tone: .waiting)
-            case .unreachable: StatusBadge(text: "hive · not responding", tone: .warning)
+            case .connected(let count): StatusBadge(text: "hive · \(count) active", tone: .positive)
+            case .checking: StatusBadge(text: "hive · checking", tone: .caution)
+            case .unreachable: StatusBadge(text: "hive · not responding", tone: .negative)
             case .missing: StatusBadge(text: "hive · not installed", tone: .neutral)
             }
             if model.integrations.apiary == .running {
-                StatusBadge(text: "Apiary", tone: .success)
+                StatusBadge(text: "Apiary", tone: .positive)
             }
             let apps = model.bridge.clients.filter { $0.hello != nil }
             if !apps.isEmpty {
-                StatusBadge(text: apps.count == 1 ? "SDK · \(apps[0].name)" : "SDK · \(apps.count) apps", tone: .success)
+                StatusBadge(text: apps.count == 1 ? "SDK · \(apps[0].name)" : "SDK · \(apps.count) apps", tone: .positive)
                     .help(apps.map(\.name).joined(separator: ", "))
             }
         }
@@ -169,9 +169,9 @@ private struct RecentTaskRow: View {
 
     private var tint: Color {
         switch card.state {
-        case .sent: Palette.mint
-        case .failed: Palette.rose
-        case .needsDestination, .held: Palette.amber
+        case .sent: Palette.textTertiary
+        case .failed: Palette.negative
+        case .needsDestination, .held: Palette.textSecondary
         default: Palette.textSecondary
         }
     }

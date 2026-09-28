@@ -128,10 +128,10 @@ Until it receives `session {active:true}`, an SDK sends only `hello` and replies
 
 - **welcome**: `{type:"welcome", scout:{version}, session:{active}, capabilities:[…]}`
 - **session**: `{type:"session", active:true|false}`
-- **aim**: `{type:"aim", active:true|false}`. While active the SDK draws a beam-colored outline (`#8B96FF`) and label chip around the hovered element, in a shadow-DOM overlay that doesn't affect layout.
+- **aim**: `{type:"aim", active:true|false}`. While active the SDK draws an accent outline (`#FF6A3D`) with a dark label chip around the hovered element, in a shadow-DOM overlay that doesn't affect layout.
 - **pin**: `{type:"pin", id, at}`. The user clicked while aiming. The SDK answers `pinned` with the element that was under its pointer at `at`.
 - **resolve**: `{type:"resolve", id, point:{x,y,space:"screen"}}`. Hit-test a point, for native SDKs and Electron. Web SDKs answer `error {id, code:"unsupported"}`.
-- **highlight**: `{type:"highlight", elementId|selector, style:"beam"|"flare", durationMs}`. Used when reviewing a snippet. Works with or without an active session. `durationMs` defaults to 1500 and is clamped to 100–10000. Unknown elements are ignored.
+- **highlight**: `{type:"highlight", elementId|selector, style:"beam"|"flare", durationMs}` (`beam` draws a neutral white outline, `flare` the accent). Used when reviewing a snippet. Works with or without an active session. `durationMs` defaults to 1500 and is clamped to 100–10000. Unknown elements are ignored.
 - **error**: `{type:"error", id?, code, message}`. Codes: `unauthorized`, `invalidRequest`, `unsupported`, `tooLarge`. SDKs send the same shape back, with the request's `id`, for a request they cannot serve.
 
 ## SDK packages (planned)
