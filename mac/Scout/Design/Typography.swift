@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Typography {
+nonisolated enum Typography {
     static let hero = Font.system(size: 52, weight: .bold).width(.expanded)
     static let title = Font.system(size: 30, weight: .semibold)
     static let headline = Font.system(size: 15, weight: .semibold)

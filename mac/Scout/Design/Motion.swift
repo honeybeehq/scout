@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Motion {
+nonisolated enum Motion {
     static let snappy = Animation.spring(response: 0.32, dampingFraction: 0.86)
     static let smooth = Animation.spring(response: 0.55, dampingFraction: 0.9)
     static let bouncy = Animation.spring(response: 0.45, dampingFraction: 0.62)

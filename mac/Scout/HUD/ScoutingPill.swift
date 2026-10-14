@@ -173,7 +173,8 @@ private struct RecordingDot: View {
     var active: Bool
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20, paused: !active)) { context in
+        let active = active
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: !active)) { @Sendable context in
             let pulse = (sin(context.date.timeIntervalSinceReferenceDate * 3.2) + 1) / 2
             Circle()
                 .fill(Palette.accent)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension Color {
+nonisolated extension Color {
     init(hex: UInt32, opacity: Double = 1) {
         self.init(
             .sRGB,
@@ -12,7 +12,7 @@ extension Color {
     }
 }
 
-enum Palette {
+nonisolated enum Palette {
     static let ink = Color(hex: 0x07080D)
     static let night = Color(hex: 0x0E1020)
     static let indigo = Color(hex: 0x1C2156)

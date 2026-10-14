@@ -235,7 +235,8 @@ private struct TogglePreview: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+        let reduceMotion = reduceMotion
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { @Sendable context in
             let on = reduceMotion || context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.4) > 1.0
             HStack(spacing: 8) {
                 Text("Scout")
@@ -257,7 +258,8 @@ struct WaitingDots: View {
     var color: Color = Palette.textSecondary
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20)) { context in
+        let color = color
+        TimelineView(.animation(minimumInterval: 1 / 20)) { @Sendable context in
             let t = context.date.timeIntervalSinceReferenceDate
             HStack(spacing: 3) {
                 ForEach(0..<3) { index in

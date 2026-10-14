@@ -237,7 +237,9 @@ private struct CountdownRing: View {
     let total: TimeInterval
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+        let until = until
+        let total = total
+        TimelineView(.animation(minimumInterval: 1 / 30)) { @Sendable context in
             let remaining = max(0, until.timeIntervalSince(context.date))
             ZStack {
                 Circle().stroke(Color.white.opacity(0.15), lineWidth: 2)

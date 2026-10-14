@@ -7,16 +7,21 @@ struct Aurora: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: points(at: t),
-                colors: colors
-            )
+        let field = AuroraField(glow: glow, intensity: intensity, still: reduceMotion)
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { @Sendable context in
+            field.mesh(at: context.date)
         }
         .ignoresSafeArea()
+    }
+}
+
+nonisolated struct AuroraField: Sendable {
+    let glow: Color
+    let intensity: Double
+    let still: Bool
+
+    func mesh(at date: Date) -> MeshGradient {
+        MeshGradient(width: 3, height: 3, points: points(at: still ? 0 : date.timeIntervalSinceReferenceDate), colors: colors)
     }
 
     private var colors: [Color] {
@@ -41,7 +46,7 @@ struct Aurora: View {
 
 struct Grain: View {
     var body: some View {
-        Canvas { context, size in
+        Canvas { @Sendable context, size in
             var generator = SeededGenerator(seed: 7)
             let count = Int(size.width * size.height / 90)
             for _ in 0..<count {
@@ -56,7 +61,7 @@ struct Grain: View {
     }
 }
 
-struct SeededGenerator: RandomNumberGenerator {
+nonisolated struct SeededGenerator: RandomNumberGenerator {
     private var state: UInt64
 
     init(seed: UInt64) {

@@ -85,17 +85,23 @@ struct ScoutMark: View {
 private struct ArcPulse: ViewModifier {
     var active: Bool
     var index: Int
+    @State private var bright = false
 
     func body(content: Content) -> some View {
-        if active {
-            TimelineView(.animation) { context in
-                let period = 2.4
-                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
-                let wave = max(0, sin((phase - Double(index) * 0.12) * .pi * 2))
-                content.opacity(0.55 + 0.45 * wave)
-            }
-        } else {
-            content
+        content
+            .opacity(active ? (bright ? 1 : 0.55) : 1)
+            .onAppear { pulse(active) }
+            .onDisappear { bright = false }
+            .onChange(of: active) { _, now in pulse(now) }
+    }
+
+    private func pulse(_ on: Bool) {
+        guard on else {
+            bright = false
+            return
+        }
+        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true).delay(Double(index) * 0.29)) {
+            bright = true
         }
     }
 }

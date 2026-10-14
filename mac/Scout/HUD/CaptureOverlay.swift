@@ -215,14 +215,13 @@ private struct InkLayer: View {
     let screen: CGRect
 
     var body: some View {
+        let lines = ink.strokes.map { $0.points.map { CGPoint(x: $0.x, y: $0.y) } } + (ink.live.count > 1 ? [ink.live] : [])
+        let origin = screen.origin
+        let style = StrokeStyle(lineWidth: CaptureInk.width, lineCap: .round, lineJoin: .round)
         ZStack(alignment: .topLeading) {
-            Canvas { context, _ in
-                let style = StrokeStyle(lineWidth: CaptureInk.width, lineCap: .round, lineJoin: .round)
-                for stroke in ink.strokes {
-                    context.stroke(path(stroke.points.map { CGPoint(x: $0.x, y: $0.y) }), with: .color(Palette.accent), style: style)
-                }
-                if ink.live.count > 1 {
-                    context.stroke(path(ink.live), with: .color(Palette.accent), style: style)
+            Canvas { @Sendable context, _ in
+                for line in lines {
+                    context.stroke(InkLayer.path(line, from: origin), with: .color(Palette.accent), style: style)
                 }
             }
             PinBadge(number: 0)
@@ -237,12 +236,12 @@ private struct InkLayer: View {
         .animation(.easeOut(duration: 0.16), value: ink.pins)
     }
 
-    private func path(_ points: [CGPoint]) -> Path {
+    nonisolated static func path(_ points: [CGPoint], from origin: CGPoint) -> Path {
         var path = Path()
         guard let first = points.first else { return path }
-        path.move(to: CGPoint(x: first.x - screen.minX, y: first.y - screen.minY))
+        path.move(to: CGPoint(x: first.x - origin.x, y: first.y - origin.y))
         for point in points.dropFirst() {
-            path.addLine(to: CGPoint(x: point.x - screen.minX, y: point.y - screen.minY))
+            path.addLine(to: CGPoint(x: point.x - origin.x, y: point.y - origin.y))
         }
         return path
     }
