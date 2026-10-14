@@ -88,7 +88,15 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
       clip.mp4                 trimmed clip
       pin-<n>.png              screenshot at each pin, element outlined
   corrections.jsonl            user merges and splits, for tuning the segmenter
+  walkthroughs/<wt_ULID>/      one walkthrough.v1 bundle per hotkey recording (written as <id>.partial/, renamed when complete)
+    walkthrough.json           transcript with word timings, frames, pointers, drawings, asks, clip
+    walkthrough.md             the text an agent receives
+    frames/<ms>.png            key frames at start, pins, dwells, strokes, scope and scene changes, end (≤ 1600 px)
+    frames/thumbs/<ms>.jpg     ≤ 320 px previews
+    clip.mp4                   the session's segments joined without re-encoding
 ```
+
+A recording started with the hotkey or Start scouting ends as a walkthrough. `WalkthroughRecorder` (Session/) feeds every signal to `WalkthroughBuilder` (ScoutCore) while the session runs and writes key frames into the `.partial` folder as they happen, so finishing only adds the end frame, the clip, the JSON and the text. The bundle path goes on the clipboard as `com.trmd.scout.walkthrough`, a file URL to `walkthrough.json` and plain text. "Split into tasks" in the menu bar starts a session that ends in tasks and review, as before.
 
 Retention: when a session ends, its segments are joined into `session.mp4` (passthrough) and `media/` is deleted two minutes later, so a session keeps one copy of its video. `session.mp4` is pruned after 7 days and whole sessions after 14; `review.json` and the snippet folders of sent tasks go with the session.
 

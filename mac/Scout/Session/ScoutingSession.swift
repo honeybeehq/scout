@@ -32,6 +32,7 @@ final class ScoutingSession {
     private(set) var cards: [SnippetCard] = []
     private(set) var discardedRanges: [TimeRange] = []
     let segmentation: Segmentation
+    let walkthrough: WalkthroughRecorder?
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
     var onSnippetDiscarded: ((String) -> SnippetCard?)?
@@ -65,7 +66,7 @@ final class ScoutingSession {
 
     var startedAt: Date { clock.originDate }
 
-    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation) {
+    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation, producesWalkthrough: Bool = false) {
         self.bridge = bridge
         self.recordsScreen = recordsScreen
         self.segmentation = segmentation
@@ -77,6 +78,7 @@ final class ScoutingSession {
         segmenter = Segmenter(configuration: segmentation == .manual ? .manual : .default, idPrefix: "snippet-")
         transcriber = LiveTranscriber(clock: clock)
         aim = AimController(clock: clock)
+        walkthrough = producesWalkthrough ? WalkthroughRecorder(startedAt: clock.originDate) : nil
     }
 
     func begin() {
@@ -124,8 +126,10 @@ final class ScoutingSession {
         )
         self.contextTracker = contextTracker
         self.pointerTracker = pointerTracker
-        contextTracker.start()
-        pointerTracker.start()
+        if !SimulationMode.replaysEvents {
+            contextTracker.start()
+            pointerTracker.start()
+        }
 
         ticker = Task { [weak self] in
             while !Task.isCancelled {
@@ -210,6 +214,7 @@ final class ScoutingSession {
         }
         do {
             try await recorder.start(sessionStart: clock.originDate)
+            if let walkthrough, !walkthrough.hasMedia { walkthrough.attach(LiveWalkthroughMedia(recorder: recorder)) }
         } catch {
             self.recorder = nil
             captureProblem = error.localizedDescription
@@ -260,9 +265,14 @@ final class ScoutingSession {
         }
     }
 
+    func replay(_ signal: Signal) {
+        ingest(signal)
+    }
+
     private func ingest(_ signal: Signal) {
         log.append(signal)
         ledger.record(signal)
+        walkthrough?.record(signal)
         if case .context(let change) = signal { context = change.context }
         handle(segmenter.ingest(signal))
     }

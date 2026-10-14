@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import FoundationModels
+import ScoutCore
 
 enum SimulationMode {
     private static func argument(_ name: String) -> String? {
@@ -29,7 +30,7 @@ enum SimulationMode {
     }
 
     static var isRunning: Bool {
-        audioFile != nil || reopensLatest || deliveryCheck != nil
+        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil
     }
 
     static var deliveryCheck: URL? {
@@ -133,6 +134,89 @@ enum SimulationMode {
         if let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? data.write(to: url)
         }
+    }
+
+    static var walkthroughFixture: URL? {
+        argument("simulate-walkthrough").map { URL(fileURLWithPath: $0) }
+    }
+
+    static var replaysEvents: Bool {
+        walkthroughFixture != nil
+    }
+
+    static var fixtureVideo: URL? {
+        walkthroughFixture.flatMap { try? WalkthroughFixture.load($0) }?.video
+    }
+
+    static func runWalkthrough(model: AppModel, fixtureURL: URL) async {
+        let output = outputDirectory
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        var report: [String: Any] = ["fixture": fixtureURL.path]
+        defer {
+            if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: output.appendingPathComponent("walkthrough-report.json"))
+            }
+            NSApp.terminate(nil)
+        }
+        let fixture: WalkthroughFixture
+        do {
+            fixture = try WalkthroughFixture.load(fixtureURL)
+        } catch {
+            report["error"] = "fixture: \(error)"
+            return
+        }
+        try? await Task.sleep(for: .seconds(1))
+        var finished = false
+        model.startScouting(inputFile: fixture.audio, result: .walkthrough) { finished = true }
+        guard let session = model.session else {
+            report["error"] = "no session"
+            return
+        }
+        let deadline = Date().addingTimeInterval(180)
+        while session.transcriber.phase != .listening, Date() < deadline {
+            if case .failed(let message) = session.transcriber.phase {
+                report["transcriberFailed"] = message
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        let offset = session.clock.now
+        report["audioOffset"] = offset
+        if let video = fixture.video {
+            session.walkthrough?.attach(FixtureWalkthroughMedia(video: video, screen: fixture.screen, offset: offset))
+        }
+        for step in fixture.steps(shiftedBy: offset) {
+            let wait = step.at - session.clock.now
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+            switch step.action {
+            case .signal(let signal): session.replay(signal)
+            case .stroke(let stroke): session.walkthrough?.add(stroke)
+            case .scope(let change): session.walkthrough?.add(change)
+            }
+        }
+        while !finished, Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        try? await Task.sleep(for: .seconds(1.5))
+        model.stopScouting()
+        let stopped = Date()
+        while model.lastWalkthrough == nil, model.walkthroughProblem == nil, Date().timeIntervalSince(stopped) < 30 {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        report["problem"] = model.walkthroughProblem ?? ""
+        guard let done = model.lastWalkthrough else { return }
+        report["bundle"] = done.directory.path
+        report["timings"] = done.timings
+        report["status"] = done.walkthrough.status.rawValue
+        report["counts"] = [
+            "segments": done.walkthrough.transcript.segments.count,
+            "frames": done.walkthrough.frames.count,
+            "pointers": done.walkthrough.pointers.count,
+            "drawings": done.walkthrough.drawings.count,
+            "asks": done.walkthrough.asks.items.count,
+        ]
+        let item = NSPasteboard.general.pasteboardItems?.first
+        report["pasteboard"] = Dictionary(uniqueKeysWithValues: (item?.types ?? []).map { ($0.rawValue, item?.string(forType: $0) ?? "") })
     }
 
     static var reopensLatest: Bool {
@@ -370,6 +454,103 @@ enum SimulationMode {
         report.merge(extra) { $1 }
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: directory.appendingPathComponent("report.json"))
+        }
+    }
+}
+
+struct WalkthroughFixture: Decodable {
+    struct StrokeInput: Decodable {
+        var start: Double
+        var end: Double
+        var points: [[Double]]
+        var color: String?
+        var width: Double?
+    }
+
+    struct ScopeInput: Decodable {
+        var at: Double
+        var scope: String
+        var bounds: Rect
+        var byUser: Bool?
+    }
+
+    enum Action {
+        case signal(Signal)
+        case stroke(WalkthroughBuilder.Stroke)
+        case scope(WalkthroughBuilder.ScopeChange)
+    }
+
+    struct Step {
+        var at: Double
+        var action: Action
+    }
+
+    var audioPath: String
+    var videoPath: String?
+    var screen: Rect
+    var signals: [Signal]
+    var strokes: [StrokeInput]?
+    var scopes: [ScopeInput]?
+    var base: URL = URL(fileURLWithPath: "/")
+
+    private enum CodingKeys: String, CodingKey {
+        case audioPath = "audio"
+        case videoPath = "video"
+        case screen, signals, strokes, scopes
+    }
+
+    var audio: URL { URL(fileURLWithPath: audioPath, relativeTo: base).standardizedFileURL }
+    var video: URL? { videoPath.map { URL(fileURLWithPath: $0, relativeTo: base).standardizedFileURL } }
+
+    static func load(_ url: URL) throws -> WalkthroughFixture {
+        var fixture = try JSONDecoder().decode(WalkthroughFixture.self, from: Data(contentsOf: url))
+        fixture.base = url.deletingLastPathComponent()
+        return fixture
+    }
+
+    func steps(shiftedBy offset: Double) -> [Step] {
+        var steps = signals.map { Step(at: $0.time + offset, action: .signal($0.shifted(by: offset))) }
+        steps += (strokes ?? []).map { input in
+            let samples = input.points.compactMap { point -> WalkthroughBuilder.StrokeSample? in
+                guard point.count >= 3 else { return nil }
+                return WalkthroughBuilder.StrokeSample(point: Point(x: point[0], y: point[1]), at: point[2] + offset)
+            }
+            let stroke = WalkthroughBuilder.Stroke(range: TimeRange(start: input.start + offset, end: input.end + offset), samples: samples, color: input.color, width: input.width)
+            return Step(at: input.end + offset, action: .stroke(stroke))
+        }
+        steps += (scopes ?? []).compactMap { input in
+            guard let scope = Walkthrough.Scope(rawValue: input.scope) else { return nil }
+            return Step(at: input.at + offset, action: .scope(WalkthroughBuilder.ScopeChange(at: input.at + offset, scope: scope, bounds: input.bounds, byUser: input.byUser ?? false)))
+        }
+        return steps.sorted { $0.at < $1.at }
+    }
+}
+
+private extension Signal {
+    func shifted(by offset: Double) -> Signal {
+        func range(_ value: TimeRange) -> TimeRange { TimeRange(start: value.start + offset, end: value.end + offset) }
+        switch self {
+        case .utterance(var value):
+            value.range = range(value.range)
+            value.words = value.words.map { var word = $0; word.range = range(word.range); return word }
+            return .utterance(value)
+        case .context(var value):
+            value.at += offset
+            return .context(value)
+        case .focus(var value):
+            value.range = range(value.range)
+            return .focus(value)
+        case .mark(var value):
+            value.at += offset
+            return .mark(value)
+        case .visualChange(var value):
+            value.at += offset
+            return .visualChange(value)
+        case .command(var value):
+            value.at += offset
+            return .command(value)
+        case .clock(let time):
+            return .clock(time + offset)
         }
     }
 }

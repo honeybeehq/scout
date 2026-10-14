@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Observation
 import ScoutCore
 import ServiceManagement
@@ -14,6 +15,8 @@ final class AppModel {
     let bridge = BridgeServer()
     let preferences = Preferences()
     private(set) var session: ScoutingSession?
+    private(set) var lastWalkthrough: FinishedWalkthrough?
+    private(set) var walkthroughProblem: String?
     private(set) var review: SessionReview?
     private var reviews: [String: SessionReview] = [:]
     private var latestSessionID: String?
@@ -58,7 +61,9 @@ final class AppModel {
         if SimulationMode.reopensLatest {
             Task { await SimulationMode.reopenLatest(model: self) }
         }
-        if let audio = SimulationMode.audioFile {
+        if let fixture = SimulationMode.walkthroughFixture {
+            Task { await SimulationMode.runWalkthrough(model: self, fixtureURL: fixture) }
+        } else if let audio = SimulationMode.audioFile {
             if SimulationMode.isQuickStop {
                 Task { await SimulationMode.runQuickStop(model: self, audio: audio) }
             } else {
@@ -87,25 +92,26 @@ final class AppModel {
         isScouting ? stopScouting() : startScouting()
     }
 
-    func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, onInputFinished: (() -> Void)? = nil) {
+    func startSplitTasks() {
+        startScouting(result: .tasks)
+    }
+
+    func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, result: SessionResult = .walkthrough, onInputFinished: (() -> Void)? = nil) {
         guard !isScouting else { return }
         guard inputFile != nil || permissions.state(of: .microphone).isGranted else {
             onboarding.go(to: .access)
             openOnboarding?()
             return
         }
-        let session = ScoutingSession(bridge: bridge, recordsScreen: preferences.includeClips, segmentation: segmentation ?? preferences.segmentation)
+        let session = ScoutingSession(
+            bridge: bridge,
+            recordsScreen: preferences.includeClips && SimulationMode.fixtureVideo == nil,
+            segmentation: segmentation ?? preferences.segmentation,
+            producesWalkthrough: result == .walkthrough
+        )
         session.transcriber.inputFile = inputFile
         session.transcriber.onInputFinished = onInputFinished
-        session.onSnippetClosed = { [weak self, weak session] snippet, immediate in
-            guard let self, let session else { return }
-            session.adopt(dispatcher.accept(snippet, from: session, sendImmediately: immediate))
-        }
-        session.onSnippetDiscarded = { [weak self, weak session] snippetID in
-            guard let self, let card = session?.cards.first(where: { $0.snippet.id == snippetID }), !card.isLocked else { return nil }
-            dispatcher.withdraw(card)
-            return card
-        }
+        if result == .tasks { connectTasks(of: session) }
         self.session = session
         isScouting = true
         hud.show(model: self)
@@ -115,11 +121,27 @@ final class AppModel {
         session.begin()
     }
 
+    private func connectTasks(of session: ScoutingSession) {
+        session.onSnippetClosed = { [weak self, weak session] snippet, immediate in
+            guard let self, let session else { return }
+            session.adopt(dispatcher.accept(snippet, from: session, sendImmediately: immediate))
+        }
+        session.onSnippetDiscarded = { [weak self, weak session] snippetID in
+            guard let self, let card = session?.cards.first(where: { $0.snippet.id == snippetID }), !card.isLocked else { return nil }
+            dispatcher.withdraw(card)
+            return card
+        }
+    }
+
     func stopScouting() {
         guard isScouting, let session else { return }
         isScouting = false
         breakHotkey?.unregister()
         hud.hidePill()
+        if let walkthrough = session.walkthrough {
+            Task { await finishWalkthrough(walkthrough, of: session, pressedAt: ContinuousClock.now) }
+            return
+        }
         Task {
             await session.end()
             let review = SessionReview(session: session, dispatcher: dispatcher)
@@ -143,6 +165,54 @@ final class AppModel {
             review.videoFinished()
             removeSegments(of: session)
         }
+    }
+
+    private func finishWalkthrough(_ walkthrough: WalkthroughRecorder, of session: ScoutingSession, pressedAt: ContinuousClock.Instant) async {
+        await session.end()
+        let ended = ContinuousClock.now
+        do {
+            let outcome = try await walkthrough.finish(at: session.ledger.end, sources: walkthroughSources(of: session, recorder: walkthrough))
+            WalkthroughPasteboard.put(outcome.directory)
+            var timings = outcome.timings.mapValues { $0 + (ended - pressedAt).seconds }
+            timings["sessionEnded"] = (ended - pressedAt).seconds
+            lastWalkthrough = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings)
+            walkthroughProblem = nil
+        } catch {
+            walkthrough.discard()
+            lastWalkthrough = nil
+            walkthroughProblem = "The walkthrough couldn't be saved: \(error)"
+        }
+        stackChanged()
+        let media = session.directory.appendingPathComponent("media", isDirectory: true)
+        Task.detached(priority: .background) {
+            try? await Task.sleep(for: .seconds(120))
+            try? FileManager.default.removeItem(at: media)
+        }
+    }
+
+    private func walkthroughSources(of session: ScoutingSession, recorder: WalkthroughRecorder) -> WalkthroughRecorder.Sources {
+        let heard: Bool
+        if case .failed = session.phase { heard = false } else { heard = true }
+        let microphone = session.transcriber.inputFile != nil || permissions.state(of: .microphone).isGranted
+        let screen: Walkthrough.Grant? = recorder.hasMedia || CGPreflightScreenCaptureAccess() ? .granted : (preferences.includeClips ? .denied : nil)
+        return WalkthroughRecorder.Sources(
+            screen: screen,
+            microphone: microphone ? .granted : .denied,
+            accessibility: AXIsProcessTrusted() ? .granted : .denied,
+            transcript: heard ? .ready : .unavailable,
+            language: session.transcriber.localeIdentifier,
+            failed: session.captureProblem != nil && preferences.includeClips
+        )
+    }
+
+    func copyLastWalkthrough() {
+        guard let lastWalkthrough else { return }
+        WalkthroughPasteboard.put(lastWalkthrough.directory)
+    }
+
+    func revealLastWalkthrough() {
+        guard let lastWalkthrough else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([lastWalkthrough.directory])
     }
 
     private func shouldOpenReview(_ review: SessionReview) -> Bool {
@@ -256,4 +326,15 @@ final class AppModel {
             }
         }
     }
+}
+
+enum SessionResult {
+    case walkthrough
+    case tasks
+}
+
+struct FinishedWalkthrough {
+    let directory: URL
+    let walkthrough: Walkthrough
+    let timings: [String: Double]
 }

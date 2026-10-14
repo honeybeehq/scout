@@ -1,3 +1,4 @@
+import ScoutCore
 import SwiftUI
 
 struct MenuBarPanel: View {
@@ -32,6 +33,26 @@ struct MenuBarPanel: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(PrimaryButtonStyle(large: false))
+
+            if let walkthrough = model.lastWalkthrough {
+                LastWalkthroughRow(walkthrough: walkthrough)
+            } else if let problem = model.walkthroughProblem {
+                Text(problem)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+
+            HStack {
+                Text("Or split what you say into tasks")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                Spacer()
+                Button("Split into tasks") { model.startSplitTasks() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+                    .disabled(model.isScouting)
+            }
 
             SegmentationToggle()
 
@@ -183,5 +204,46 @@ private struct RecentTaskRow: View {
         case .needsDestination, .held: Palette.textSecondary
         default: Palette.textSecondary
         }
+    }
+}
+
+private struct LastWalkthroughRow: View {
+    @Environment(AppModel.self) private var model
+    let walkthrough: FinishedWalkthrough
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "doc.on.clipboard")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Palette.textSecondary)
+                .frame(width: 14)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(walkthrough.walkthrough.title ?? "Walkthrough")
+                    .font(.system(size: 12.5, weight: .medium))
+                    .lineLimit(1)
+                Text(summary)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+            }
+            Spacer(minLength: 4)
+            Button("Copy") { model.copyLastWalkthrough() }
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Palette.textSecondary)
+            Button {
+                model.revealLastWalkthrough()
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Palette.textSecondary)
+            .help("Show in Finder")
+        }
+    }
+
+    private var summary: String {
+        let value = walkthrough.walkthrough
+        let asks = value.asks.items.count
+        return "\(WalkthroughText.clock(value.duration)) · \(asks) \(asks == 1 ? "ask" : "asks") · copied, paste with ⌘V"
     }
 }

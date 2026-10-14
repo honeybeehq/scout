@@ -26,6 +26,7 @@ final class LiveTranscriber {
     private(set) var level: Float = 0
     private(set) var inputName: String?
     private(set) var localeName: String?
+    private(set) var localeIdentifier: String?
 
     var onUtterance: ((Utterance) -> Void)?
     var inputFile: URL?
@@ -138,6 +139,7 @@ final class LiveTranscriber {
         let fallback = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: "en-US"))
         guard let locale = preferred ?? fallback else { throw TranscriberError.unsupportedLanguage }
         localeName = Locale.current.localizedString(forIdentifier: locale.identifier)
+        localeIdentifier = locale.identifier(.bcp47)
         return SpeechTranscriber(locale: locale, preset: preset)
     }
 
