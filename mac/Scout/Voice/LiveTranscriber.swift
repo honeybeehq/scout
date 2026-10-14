@@ -28,12 +28,9 @@ final class LiveTranscriber {
     private(set) var localeName: String?
     private(set) var localeIdentifier: String?
     private(set) var failure: (message: String, at: SessionTime?)?
-    private(set) var soundedInputs = 0
+    private(set) var sound = SoundMeter()
 
-    static let soundLevel: Float = 0.4
-    static let soundedInputsForAudio = 5
-
-    var heardSound: Bool { soundedInputs >= Self.soundedInputsForAudio }
+    var heardSound: Bool { sound.heardSound }
     var faultAfter: Double?
 
     var onUtterance: ((Utterance) -> Void)?
@@ -70,7 +67,7 @@ final class LiveTranscriber {
         finalizedText = ""
         volatileText = ""
         failure = nil
-        soundedInputs = 0
+        sound = SoundMeter()
         inputName = microphone.inputName
 
         do {
@@ -86,12 +83,9 @@ final class LiveTranscriber {
             self.analyzer = analyzer
             consumeResults(of: transcriber)
 
-            let onBuffer = Self.feed(into: continuation, clock: clock, faultAfter: faultAfter)
+            let onBuffer = Self.feed(into: continuation, clock: clock, faultAfter: faultAfter, sound: sound)
             let onLevel: @Sendable (Float) -> Void = { [weak self] level in
-                Task { @MainActor in
-                    self?.level = level
-                    if level >= Self.soundLevel { self?.soundedInputs += 1 }
-                }
+                Task { @MainActor in self?.level = level }
             }
             if let inputFile {
                 try fileFeeder.start(url: inputFile, convertingTo: format, onBuffer: onBuffer, onLevel: onLevel) { [weak self] in
@@ -114,6 +108,7 @@ final class LiveTranscriber {
     }
 
     private func fail(_ error: Error) {
+        guard !(error is CancellationError) else { return }
         let message = error.localizedDescription
         phase = .failed(message)
         if failure == nil { failure = (message, clock?.now) }
@@ -145,10 +140,11 @@ final class LiveTranscriber {
         self.analyzer = nil
     }
 
-    nonisolated static func feed(into continuation: AsyncStream<AnalyzerInput>.Continuation, clock: SessionClock?, faultAfter: Double? = nil) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
+    nonisolated static func feed(into continuation: AsyncStream<AnalyzerInput>.Continuation, clock: SessionClock?, faultAfter: Double? = nil, sound: SoundMeter? = nil) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
         let timeline = clock.map(AnalyzerTimeline.init)
         let fault = faultAfter.map(AnalyzerFault.init)
         return { buffer, time in
+            sound?.measure(buffer)
             if let input = fault?.input(after: buffer) { continuation.yield(input) }
             if let timeline, time.isHostTimeValid {
                 for input in timeline.inputs(for: buffer, at: time) { continuation.yield(input) }
@@ -187,6 +183,7 @@ final class LiveTranscriber {
                     self?.apply(result)
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 self?.fail(error)
             }
         }

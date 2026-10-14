@@ -61,3 +61,51 @@ nonisolated final class AnalyzerFault: @unchecked Sendable {
         return AnalyzerInput(buffer: buffer, bufferStartTime: .zero)
     }
 }
+
+nonisolated final class SoundMeter: @unchecked Sendable {
+    static let window: Double = 0.02
+    static let threshold: Float = -37
+    static let shortestRun: Double = 0.2
+    static let needed: Double = 1.0
+
+    private let lock = NSLock()
+    private var run: Double = 0
+    private var sustained: Double = 0
+
+    var heardSound: Bool { lock.withLock { sustained + (run >= Self.shortestRun ? run : 0) >= Self.needed } }
+    var seconds: Double { lock.withLock { sustained + (run >= Self.shortestRun ? run : 0) } }
+
+    func measure(_ buffer: AVAudioPCMBuffer) {
+        let rate = buffer.format.sampleRate
+        let frames = Int(buffer.frameLength)
+        let size = max(1, Int(rate * Self.window))
+        guard frames > 0, rate > 0 else { return }
+        var loud: [Bool] = []
+        var start = 0
+        while start < frames {
+            let count = min(size, frames - start)
+            var sum: Float = 0
+            if let channel = buffer.floatChannelData?[0] {
+                for index in start..<(start + count) { sum += channel[index] * channel[index] }
+            } else if let channel = buffer.int16ChannelData?[0] {
+                for index in start..<(start + count) {
+                    let value = Float(channel[index]) / Float(Int16.max)
+                    sum += value * value
+                }
+            }
+            loud.append(20 * log10(max(sqrt(sum / Float(count)), 0.000_01)) >= Self.threshold)
+            start += count
+        }
+        let step = Double(size) / rate
+        lock.withLock {
+            for isLoud in loud {
+                if isLoud {
+                    run += step
+                } else {
+                    if run >= Self.shortestRun { sustained += run }
+                    run = 0
+                }
+            }
+        }
+    }
+}

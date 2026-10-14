@@ -224,7 +224,7 @@ enum SimulationMode {
         report["transcript"] = [
             "status": done.walkthrough.transcript.status.rawValue,
             "failure": done.walkthrough.transcript.failure.map { ["reason": $0.reason.rawValue, "message": $0.message ?? "", "t": $0.t ?? -1] } ?? [:],
-            "soundedInputs": session.transcriber.soundedInputs,
+            "soundSeconds": session.transcriber.sound.seconds,
         ]
         report["displays"] = done.walkthrough.capture.displays?.map { ["id": $0.id, "bounds": [$0.bounds.x, $0.bounds.y, $0.bounds.w, $0.bounds.h]] } ?? []
         report["counts"] = [

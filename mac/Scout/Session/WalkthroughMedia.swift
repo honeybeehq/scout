@@ -27,12 +27,14 @@ nonisolated extension CaptureDisplays {
         used.map { Walkthrough.Display(id: String($0.displayID), bounds: Walkthrough.Box(Rect($0.frame)), scale: $0.pointPixelScale) }
     }
 
-    func clipped(_ clip: Walkthrough.Clip?) -> Walkthrough.Clip? {
+    func clipped(_ clip: Walkthrough.Clip?, startingAt clipStart: SessionTime) -> Walkthrough.Clip? {
         guard var clip else { return nil }
-        let spans = spans.filter { Walkthrough.milliseconds($0.start) < max(1, clip.duration) }
-        clip.bbox = Walkthrough.Box(Rect(start.frame))
-        clip.displays = spans.count > 1
-            ? spans.map { Walkthrough.ClipDisplay(t: Walkthrough.milliseconds($0.start), display: String($0.display.displayID), bbox: Walkthrough.Box(Rect($0.display.frame))) }
+        let first = display(at: clipStart)
+        let later = spans.filter { $0.start > clipStart && Walkthrough.milliseconds($0.start - clipStart) < clip.duration }
+        let shown = [Span(start: clipStart, display: first)] + later
+        clip.bbox = Walkthrough.Box(Rect(first.frame))
+        clip.displays = shown.count > 1
+            ? shown.map { Walkthrough.ClipDisplay(t: Walkthrough.milliseconds($0.start - clipStart), display: String($0.display.displayID), bbox: Walkthrough.Box(Rect($0.display.frame))) }
             : nil
         return clip
     }
@@ -59,7 +61,7 @@ nonisolated struct LiveWalkthroughMedia: WalkthroughMedia {
     func exportClip(through end: SessionTime, to destination: URL) async -> Walkthrough.Clip? {
         guard let clip = try? await recorder.exportClip(from: 0, to: end, padding: 0, into: destination) else { return nil }
         let made = await WalkthroughImages.clip(at: clip.url, bbox: nil)
-        return recorder.displays?.clipped(made) ?? made
+        return recorder.displays?.clipped(made, startingAt: clip.range.start) ?? made
     }
 }
 
@@ -96,7 +98,7 @@ nonisolated struct FixtureWalkthroughMedia: WalkthroughMedia {
         try? FileManager.default.removeItem(at: destination)
         guard (try? await export.export(to: destination, as: .mp4)) != nil else { return nil }
         let made = await WalkthroughImages.clip(at: destination, bbox: screen)
-        return hops.map { $0.clipped(made) } ?? made
+        return hops.map { $0.clipped(made, startingAt: offset) } ?? made
     }
 }
 
