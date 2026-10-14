@@ -14,11 +14,13 @@ public struct WalkthroughBundle: Sendable {
 
     public enum WriteError: Error, CustomStringConvertible {
         case alreadyFinished(URL)
+        case mismatchedID(String)
         case sync(String, Int32)
 
         public var description: String {
             switch self {
             case .alreadyFinished(let url): "a walkthrough already exists at \(url.path)"
+            case .mismatchedID(let id): "the walkthrough \(id) doesn't belong in this bundle"
             case .sync(let path, let code): "couldn't sync \(path) (errno \(code))"
             }
         }
@@ -50,6 +52,7 @@ public struct WalkthroughBundle: Sendable {
     @discardableResult
     public func finish(_ walkthrough: Walkthrough) throws -> URL {
         let manager = FileManager.default
+        guard walkthrough.id == id else { throw WriteError.mismatchedID(walkthrough.id) }
         guard !manager.fileExists(atPath: directory.path) else { throw WriteError.alreadyFinished(directory) }
         try prepare()
         try pruneUnreferenced(walkthrough)
@@ -92,7 +95,20 @@ public struct WalkthroughBundle: Sendable {
         let descriptor = open(path, O_RDONLY)
         guard descriptor >= 0 else { throw WriteError.sync(path, errno) }
         defer { close(descriptor) }
+        #if canImport(Darwin)
+        if fcntl(descriptor, F_FULLFSYNC) == 0 { return }
+        #endif
         guard fsync(descriptor) == 0 else { throw WriteError.sync(path, errno) }
+    }
+
+    public static func sweepPartials(in root: URL = defaultRoot(), olderThan age: TimeInterval = 86_400, now: Date = Date()) {
+        let manager = FileManager.default
+        let names = (try? manager.contentsOfDirectory(atPath: root.path)) ?? []
+        for name in names where name.hasPrefix("wt_") && name.hasSuffix(partialSuffix) {
+            let folder = root.appendingPathComponent(name, isDirectory: true)
+            let modified = (try? folder.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? now
+            if now.timeIntervalSince(modified) > age { try? manager.removeItem(at: folder) }
+        }
     }
 
     public static func defaultRoot(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {

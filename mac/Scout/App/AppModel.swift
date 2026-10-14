@@ -51,7 +51,10 @@ final class AppModel {
         dispatcher.dryRun = SimulationMode.isDryRun
         dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
         bridge.start()
-        Task.detached(priority: .background) { ScoutPaths.prune() }
+        Task.detached(priority: .background) {
+            ScoutPaths.prune()
+            WalkthroughBundle.sweepPartials()
+        }
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
         }

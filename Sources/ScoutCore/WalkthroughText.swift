@@ -162,10 +162,17 @@ public enum WalkthroughText {
     }
 
     public static func truncated(_ text: String, to limit: Int) -> String {
-        let flat = oneLine(text).trimmingCharacters(in: .whitespaces)
-        guard flat.count > limit else { return flat }
-        let cut = flat.prefix(limit - 1)
-        let word = cut.lastIndex(of: " ").map { cut[..<$0] } ?? cut
+        let flat = oneLine(text).precomposedStringWithCanonicalMapping.trimmingCharacters(in: .whitespaces)
+        guard flat.unicodeScalars.count > limit else { return flat }
+        var cut = ""
+        var scalars = 0
+        for character in flat {
+            let size = character.unicodeScalars.count
+            if scalars + size > limit - 1 { break }
+            cut.append(character)
+            scalars += size
+        }
+        let word = cut.lastIndex(of: " ").map { String(cut[..<$0]) } ?? cut
         return word.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:")) + "…"
     }
 }

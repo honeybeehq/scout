@@ -251,7 +251,7 @@ enum SimulationMode {
         let output = outputDirectory
         try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         try? await Task.sleep(for: .seconds(1))
-        model.startScouting(inputFile: audio)
+        model.startScouting(inputFile: audio, result: .tasks)
         try? await Task.sleep(for: .milliseconds(250))
         model.stopScouting()
         try? await Task.sleep(for: .seconds(3))
@@ -283,7 +283,7 @@ enum SimulationMode {
         try? await Task.sleep(for: .seconds(1))
 
         var finished = false
-        model.startScouting(inputFile: audio, segmentation: segmentation) { finished = true }
+        model.startScouting(inputFile: audio, segmentation: segmentation, result: .tasks) { finished = true }
         let started = Date()
         for time in breakTimes {
             Task {

@@ -26,7 +26,9 @@ nonisolated struct LiveWalkthroughMedia: WalkthroughMedia {
     }
 
     func frame(at time: SessionTime) async -> CGImage? {
-        await recorder.snapshot(at: time)
+        let wait = time - recorder.sessionTimeNow
+        if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+        return await recorder.snapshot(at: time)
     }
 
     func exportClip(through end: SessionTime, to destination: URL) async -> Walkthrough.Clip? {

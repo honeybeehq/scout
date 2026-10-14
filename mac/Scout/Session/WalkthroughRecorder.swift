@@ -23,6 +23,7 @@ final class WalkthroughRecorder {
     private var waiting: [WalkthroughBuilder.FrameRequest] = []
     private var captures: [Task<Void, Never>] = []
     private var prepared = false
+    private var finishing = false
     private(set) var failedFrames = 0
 
     init(startedAt: Date, root: URL = WalkthroughBundle.defaultRoot()) {
@@ -37,20 +38,26 @@ final class WalkthroughRecorder {
 
     func attach(_ media: any WalkthroughMedia) {
         self.media = media
+        if builder.scopes.isEmpty, let bounds = media.bounds {
+            enqueue(builder.add(WalkthroughBuilder.ScopeChange(at: 0, scope: .screen, bounds: bounds, byUser: false)))
+        }
         let pending = waiting
         waiting.removeAll()
         pending.forEach(capture)
     }
 
     func record(_ signal: Signal) {
+        guard !finishing else { return }
         enqueue(builder.record(signal))
     }
 
     func add(_ stroke: WalkthroughBuilder.Stroke) {
+        guard !finishing else { return }
         enqueue(builder.add(stroke))
     }
 
     func add(_ change: WalkthroughBuilder.ScopeChange) {
+        guard !finishing else { return }
         enqueue(builder.add(change))
     }
 
@@ -64,6 +71,7 @@ final class WalkthroughRecorder {
         let started = ContinuousClock.now
         func mark(_ name: String) { timings[name] = (ContinuousClock.now - started).seconds }
         enqueue(builder.finish(at: end))
+        finishing = true
         if !prepared { try bundle.prepare() }
         async let clip = media?.exportClip(through: end, to: bundle.url(for: WalkthroughBundle.clipName))
         for capture in captures { await capture.value }
