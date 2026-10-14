@@ -4,43 +4,130 @@ import ScoutCore
 
 nonisolated final class ProjectResolver: @unchecked Sendable {
     private let lock = NSLock()
-    private var cache: [String: (project: ProjectReference, at: Date)] = [:]
+    private var cache: [String: (project: ProjectReference?, at: Date)] = [:]
     private static let cacheLifetime: TimeInterval = 60
 
     func resolve(_ context: AppContext?) async -> ProjectReference? {
         guard let context else { return nil }
         if let project = context.project { return project }
-        guard let location = context.location, let url = URL(string: location), let port = Self.localPort(of: url) else { return nil }
-        let key = "port:\(port)"
+        guard let location = context.location, let url = URL(string: location), url.host != nil else { return nil }
+        let key = "url:" + Self.origin(of: url)
         if let cached = cached(key) { return cached }
-        let project = await Task.detached(priority: .utility) { Self.project(listeningOn: port) }.value
-        if let project { store(project, for: key) }
+        let project = await Task.detached(priority: .utility) { Self.project(for: url) }.value
+        store(project, for: key)
         return project
     }
 
-    private func cached(_ key: String) -> ProjectReference? {
+    static func project(for url: URL) -> ProjectReference? {
+        if let nectar = nectarProject(for: url) { return nectar }
+        guard let target = localTarget(of: url) else { return nil }
+        if let listening = project(listeningOn: target.port) { return listening }
+        guard let pid = target.pid, let cwd = workingDirectory(of: pid), let root = gitRoot(containing: cwd) else { return nil }
+        return reference(root: root, branch: gitBranch(at: root))
+    }
+
+    private func cached(_ key: String) -> ProjectReference?? {
         lock.lock()
         defer { lock.unlock() }
         guard let entry = cache[key], Date().timeIntervalSince(entry.at) < Self.cacheLifetime else { return nil }
         return entry.project
     }
 
-    private func store(_ project: ProjectReference, for key: String) {
+    private func store(_ project: ProjectReference?, for key: String) {
         lock.lock()
         cache[key] = (project, Date())
         lock.unlock()
     }
 
-    static func localPort(of url: URL) -> Int? {
-        guard let host = url.host?.lowercased(),
-              host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" || host == "0.0.0.0"
-        else { return nil }
-        return url.port ?? (url.scheme == "https" ? 443 : 80)
+    static func localTarget(of url: URL) -> (port: Int, pid: pid_t?)? {
+        guard let host = url.host?.lowercased() else { return nil }
+        if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" || host == "0.0.0.0" {
+            return (url.port ?? (url.scheme == "https" ? 443 : 80), nil)
+        }
+        guard host.hasSuffix(".localhost"), let route = portlessRoute(for: host) else { return nil }
+        return (route.port, route.pid > 0 ? route.pid : nil)
+    }
+
+    struct PortlessRoute: Decodable {
+        var hostname: String
+        var port: Int
+        var pid: pid_t
+    }
+
+    static var portlessStateDirectories: [URL] {
+        if let directory = ProcessInfo.processInfo.environment["PORTLESS_STATE_DIR"] {
+            return [URL(fileURLWithPath: directory, isDirectory: true)]
+        }
+        return [
+            URL(fileURLWithPath: NSHomeDirectory() + "/.portless", isDirectory: true),
+            URL(fileURLWithPath: "/tmp/portless", isDirectory: true),
+        ]
+    }
+
+    static func portlessRoute(for host: String, in directories: [URL] = portlessStateDirectories) -> PortlessRoute? {
+        let routes = directories.flatMap { directory -> [PortlessRoute] in
+            guard let data = try? Data(contentsOf: directory.appendingPathComponent("routes.json")) else { return [] }
+            return (try? JSONDecoder().decode([PortlessRoute].self, from: data)) ?? []
+        }
+        .filter { $0.pid == 0 || kill($0.pid, 0) == 0 || errno == EPERM }
+        if let exact = routes.first(where: { $0.hostname.lowercased() == host }) { return exact }
+        return routes
+            .filter { host.hasSuffix("." + $0.hostname.lowercased()) }
+            .max { $0.hostname.count < $1.hostname.count }
+    }
+
+    struct NectarEnv: Decodable {
+        struct URLs: Decodable {
+            var local: String?
+            var mesh: String?
+            var `public`: String?
+        }
+
+        var repo: String?
+        var branch: String?
+        var worktree: String?
+        var borrowed_worktree: Bool?
+        var status: String?
+        var urls: URLs?
+    }
+
+    static var nectarEnvironments: URL {
+        let root = ProcessInfo.processInfo.environment["NECTAR_HOME"] ?? NSHomeDirectory() + "/.nectar"
+        return URL(fileURLWithPath: root, isDirectory: true).appendingPathComponent("envs", isDirectory: true)
+    }
+
+    static func nectarProject(for url: URL, in directory: URL = nectarEnvironments) -> ProjectReference? {
+        let wanted = origin(of: url)
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let env = try? JSONDecoder().decode(NectarEnv.self, from: data),
+                  env.status != "stopped", env.status != "expired",
+                  let urls = env.urls
+            else { continue }
+            let origins = [urls.local, urls.mesh, urls.public].compactMap { $0.flatMap(URL.init(string:)).map(origin(of:)) }
+            guard origins.contains(wanted) else { continue }
+            let source = env.borrowed_worktree == true ? env.worktree : env.repo
+            guard let source, let root = gitRoot(containing: source) else { continue }
+            return reference(root: root, branch: env.branch ?? gitBranch(at: root))
+        }
+        return nil
+    }
+
+    static func origin(of url: URL) -> String {
+        let scheme = url.scheme?.lowercased() ?? "http"
+        let host = url.host?.lowercased() ?? ""
+        let port = url.port ?? (scheme == "https" ? 443 : 80)
+        return "\(scheme)://\(host):\(port)"
+    }
+
+    static func reference(root: String, branch: String?) -> ProjectReference {
+        ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: branch)
     }
 
     static func project(listeningOn port: Int) -> ProjectReference? {
         guard let pid = listeningProcess(port: port), let cwd = workingDirectory(of: pid), let root = gitRoot(containing: cwd) else { return nil }
-        return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: gitBranch(at: root))
+        return reference(root: root, branch: gitBranch(at: root))
     }
 
     static func listeningProcess(port: Int) -> pid_t? {

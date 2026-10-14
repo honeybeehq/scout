@@ -24,6 +24,8 @@ nonisolated struct ReviewRecord: Codable, Sendable {
         var sentTo: String?
         var destination: Destination?
         var destinationChosenByUser: Bool?
+        var runtimeNotes: [String]?
+        var project: ProjectReference?
 
         @MainActor
         init(_ card: SnippetCard) {
@@ -37,6 +39,8 @@ nonisolated struct ReviewRecord: Codable, Sendable {
             if case .sent(let destination) = card.state { sentTo = destination }
             destination = card.destination
             destinationChosenByUser = card.destinationChosenByUser
+            runtimeNotes = card.runtimeNotes.isEmpty ? nil : card.runtimeNotes
+            project = card.project
         }
     }
 

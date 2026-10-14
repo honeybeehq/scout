@@ -10,6 +10,7 @@ struct HiveSession: Identifiable, Hashable, Sendable {
     var cwd: String?
     var lastOutputAt: Date?
     var isWorking: Bool
+    var isWaitingForYou: Bool
     var isRunning: Bool
     var workspaceTag: String?
 
@@ -103,6 +104,7 @@ nonisolated struct HiveClient: Sendable {
             cwd: bee["cwd"] as? String,
             lastOutputAt: (bee["lastOutputAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) },
             isWorking: state?["working"] as? Bool ?? false,
+            isWaitingForYou: state?["waitingForYou"] as? Bool ?? false,
             isRunning: (runtime?["state"] as? String) == "running",
             workspaceTag: tags.first { $0.hasPrefix("apiary:workspace=") }
         )

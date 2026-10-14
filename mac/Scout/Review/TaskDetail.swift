@@ -430,11 +430,12 @@ private struct HandoffBar: View {
                 DestinationPicker(card: card)
                     .frame(maxWidth: 360, alignment: .leading)
                 Spacer()
-                if case .failed(let message) = card.state {
+                if let message = card.state.problem {
                     HStack(spacing: 6) {
                         StatusDot(tone: .negative, size: 5)
-                        Text(message).lineLimit(1)
+                        Text(message).lineLimit(2)
                     }
+                    .help(message)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                 }

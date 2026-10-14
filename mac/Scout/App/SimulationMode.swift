@@ -29,7 +29,110 @@ enum SimulationMode {
     }
 
     static var isRunning: Bool {
-        audioFile != nil || reopensLatest
+        audioFile != nil || reopensLatest || deliveryCheck != nil
+    }
+
+    static var deliveryCheck: URL? {
+        argument("delivery-check").map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    static func runDeliveryCheck(model: AppModel, directory: URL) async {
+        let output = outputDirectory
+        let label = argument("delivery-label") ?? "delivery"
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        try? await Task.sleep(for: .seconds(1))
+        guard let record = ReviewRecord.read(from: directory) else {
+            writeJSON(["error": "no review.json in \(directory.path)"], to: output.appendingPathComponent("\(label).json"))
+            NSApp.terminate(nil)
+            return
+        }
+        let summary = SessionSummary(id: record.sessionID, directory: directory, startedAt: record.startedAt, duration: record.duration, taskCount: record.tasks.count, unsentCount: 0, titles: [], hasVideo: false)
+        model.openReview(summary)
+        var waited = 0
+        while waited < 40, model.review?.sessionID != record.sessionID {
+            try? await Task.sleep(for: .milliseconds(250))
+            waited += 1
+        }
+        try? await Task.sleep(for: .seconds(3))
+        guard let review = model.review, let card = review.tasks.first else {
+            writeJSON(["error": "review did not open"], to: output.appendingPathComponent("\(label).json"))
+            NSApp.terminate(nil)
+            return
+        }
+        var steps: [[String: Any]] = [describe(card, review: review, model: model, step: "opened")]
+        if let path = argument("delivery-runtime"), let text = try? String(contentsOfFile: path, encoding: .utf8) {
+            let decoder = JSONDecoder()
+            let events = text.split(separator: "\n").compactMap { try? decoder.decode(BridgeSignalMessage.self, from: Data($0.utf8)) }
+            card.runtimeNotes = events.map { Dispatcher.describe(ScoutingSession.RuntimeEvent(at: $0.at ?? card.snippet.range.start, source: "fixture-app", signal: $0)) }
+            review.edited(card)
+            steps.append(describe(card, review: review, model: model, step: "runtime notes added"))
+        }
+        if let beeID = argument("delivery-destination") {
+            model.dispatcher.choose(.session(id: beeID, title: argument("delivery-destination-title") ?? beeID, agent: "claude"), for: card)
+            steps.append(describe(card, review: review, model: model, step: "destination chosen"))
+        }
+        if ProcessInfo.processInfo.arguments.contains("--delivery-send") {
+            NSPasteboard.general.clearContents()
+            await model.dispatcher.send(card)
+            var step = describe(card, review: review, model: model, step: "sent")
+            step["pasteboard"] = NSPasteboard.general.string(forType: .string) ?? ""
+            steps.append(step)
+        }
+        review.save()
+        let readOnly = ProcessInfo.processInfo.arguments.contains("--delivery-readonly")
+        if readOnly {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: directory.path)
+            review.save()
+            steps.append(describe(card, review: review, model: model, step: "saved into a read-only folder"))
+        }
+        try? await Task.sleep(for: .seconds(1.5))
+        drawWindow(named: label, into: output)
+        if readOnly {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path)
+            review.save()
+            steps.append(describe(card, review: review, model: model, step: "folder writable again, saved"))
+        }
+        let saved = (try? String(contentsOf: directory.appendingPathComponent(ReviewRecord.fileName), encoding: .utf8)) ?? ""
+        writeJSON(["steps": steps, "reviewJSON": saved], to: output.appendingPathComponent("\(label).json"))
+        NSApp.terminate(nil)
+    }
+
+    private static func describe(_ card: SnippetCard, review: SessionReview, model: AppModel, step: String) -> [String: Any] {
+        let root = card.project?.rootPath
+        let candidates = model.dispatcher.sessions.filter { session in
+            guard let root, let cwd = session.cwd else { return false }
+            return Dispatcher.path(cwd, isInside: root)
+        }
+        return [
+            "step": step,
+            "task": card.snippet.id,
+            "location": card.snippet.primaryContext?.location ?? "",
+            "project": card.project.map { "\($0.rootPath) (\($0.gitBranch ?? "no branch"))" } ?? "none",
+            "sessionsInProject": candidates.map { session in
+                "\(session.displayTitle) id=\(session.id) waitingForYou=\(session.isWaitingForYou) working=\(session.isWorking) lastOutputAt=\(session.lastOutputAt.map { ISO8601DateFormatter().string(from: $0) } ?? "none")"
+            },
+            "destination": card.destination?.label ?? "none",
+            "destinationChosenByUser": card.destinationChosenByUser,
+            "state": String(describing: card.state),
+            "problem": card.state.problem ?? "",
+            "runtimeNotes": card.runtimeNotes,
+            "message": (try? model.dispatcher.compose(card).message) ?? "",
+            "saveError": review.saveError ?? "",
+        ]
+    }
+
+    private static func drawWindow(named name: String, into directory: URL) {
+        guard let view = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 1000 })?.contentView?.superview,
+              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+        else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try? bitmap.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name).png"))
+    }
+
+    private static func writeJSON(_ object: [String: Any], to url: URL) {
+        if let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
+            try? data.write(to: url)
+        }
     }
 
     static var reopensLatest: Bool {

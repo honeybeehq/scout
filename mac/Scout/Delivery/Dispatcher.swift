@@ -65,6 +65,7 @@ final class Dispatcher {
             return
         }
         card.state = .sending
+        let task: ComposedTask
         do {
             if card.attachments.isEmpty, preferences.includeClips {
                 let directory = card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)", isDirectory: true)
@@ -74,8 +75,14 @@ final class Dispatcher {
                     card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, video: video, display: card.sessionDisplay, into: directory)
                 }
             }
-            let task = try TaskComposer.compose(card.deliverableSnippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
-            let key = "scout:\(card.sessionID):\(card.snippet.id):\(Self.fingerprint(task.message + destination.key))"
+            task = try compose(card)
+        } catch {
+            card.state = .failed(error.localizedDescription)
+            onCardChanged?(card)
+            return
+        }
+        let key = "scout:\(card.sessionID):\(card.snippet.id):\(Self.fingerprint(task.message + destination.key))"
+        do {
             if dryRun {
                 try task.message.write(to: task.directory.appendingPathComponent("message.txt"), atomically: true, encoding: .utf8)
                 card.state = .sent("\(destination.label) (dry run)")
@@ -89,16 +96,23 @@ final class Dispatcher {
                     try await integrations.hiveClient.spawn(name: name, agent: agent, cwd: cwd, title: card.title, prompt: task.message, idempotencyKey: key)
                     card.state = .sent("new \(agent) session")
                 case .clipboard:
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.writeObjects([task.message as NSString, task.directory as NSURL])
+                    Self.copy(task)
                     card.state = .sent("clipboard")
                 }
             }
         } catch {
-            card.state = .failed(error.localizedDescription)
+            if dryRun || destination == .clipboard {
+                card.state = .failed(error.localizedDescription)
+            } else {
+                Self.copy(task)
+                card.state = .copiedInstead(error.localizedDescription)
+            }
         }
         onCardChanged?(card)
+    }
+
+    func compose(_ card: SnippetCard) throws -> ComposedTask {
+        try TaskComposer.compose(card.deliverableSnippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
     }
 
     func hold(_ card: SnippetCard) {
@@ -141,7 +155,7 @@ final class Dispatcher {
         var options: [Destination] = []
         let matching = sessions.filter { session in
             guard let root = card.project?.rootPath, let cwd = session.cwd else { return false }
-            return cwd == root || cwd.hasPrefix(root + "/")
+            return Self.path(cwd, isInside: root)
         }
         let others = sessions.filter { session in !matching.contains { $0.id == session.id } }
         options += (matching + others).prefix(8).map { .session(id: $0.id, title: $0.displayTitle, agent: $0.agent) }
@@ -163,8 +177,11 @@ final class Dispatcher {
         if card.project == nil {
             card.project = await resolver.resolve(snippet.primaryContext)
         }
-        await refreshSessions()
-        if !card.destinationChosenByUser, !card.isLocked {
+        let refreshed = await refreshSessions()
+        if refreshed, !card.destinationChosenByUser, !card.isLocked, case .session(let id, _, _) = card.destination, !sessions.contains(where: { $0.id == id }) {
+            card.destination = nil
+        }
+        if card.destination == nil, !card.destinationChosenByUser, !card.isLocked {
             card.destination = chooseDestination(for: card.project)
         }
     }
@@ -186,9 +203,11 @@ final class Dispatcher {
         await send(card)
     }
 
-    private func refreshSessions() async {
-        guard integrations.hiveClient.isInstalled else { return }
-        sessions = (try? await integrations.hiveClient.activeSessions(limit: 60)) ?? sessions
+    @discardableResult
+    private func refreshSessions() async -> Bool {
+        guard integrations.hiveClient.isInstalled, let active = try? await integrations.hiveClient.activeSessions(limit: .max) else { return false }
+        sessions = active
+        return true
     }
 
     private func chooseDestination(for project: ProjectReference?) -> Destination? {
@@ -200,17 +219,36 @@ final class Dispatcher {
             return project.map { .newSession(cwd: $0.rootPath, agent: defaultAgent) }
         case .matchProject:
             guard let project else { return nil }
-            let candidates = sessions.filter { session in
-                guard let cwd = session.cwd else { return false }
-                return cwd == project.rootPath || cwd.hasPrefix(project.rootPath + "/")
-            }
-            let best = candidates.sorted { lhs, rhs in
-                if lhs.isWorking != rhs.isWorking { return !lhs.isWorking }
-                return (lhs.lastOutputAt ?? .distantPast) > (rhs.lastOutputAt ?? .distantPast)
-            }.first
-            if let best { return .session(id: best.id, title: best.displayTitle, agent: best.agent) }
+            if let best = Self.preferredSession(among: sessions, in: project.rootPath) { return .session(id: best.id, title: best.displayTitle, agent: best.agent) }
             return .newSession(cwd: project.rootPath, agent: defaultAgent)
         }
+    }
+
+    static func preferredSession(among sessions: [HiveSession], in root: String) -> HiveSession? {
+        func rank(_ session: HiveSession) -> Int {
+            session.isWaitingForYou ? 0 : session.isWorking ? 1 : 2
+        }
+        return sessions
+            .filter { session in
+                guard let cwd = session.cwd else { return false }
+                return path(cwd, isInside: root)
+            }
+            .sorted { lhs, rhs in
+                if rank(lhs) != rank(rhs) { return rank(lhs) < rank(rhs) }
+                return (lhs.lastOutputAt ?? .distantPast) > (rhs.lastOutputAt ?? .distantPast)
+            }
+            .first
+    }
+
+    static func path(_ path: String, isInside root: String) -> Bool {
+        let path = canonical(path), root = canonical(root)
+        return path == root || path.hasPrefix(root + "/")
+    }
+
+    private static func canonical(_ path: String) -> String {
+        guard let resolved = realpath(path, nil) else { return path }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 
     private static func widened(_ snippet: Snippet) -> Snippet {
@@ -240,6 +278,12 @@ final class Dispatcher {
             let firstFrame = signal.stack?.split(separator: "\n").first { $0.contains("at ") }.map { " — " + $0.trimmingCharacters(in: .whitespaces) } ?? ""
             return "\(signal.kind): \(signal.message ?? "unknown")\(firstFrame) (\(event.source))"
         }
+    }
+
+    private static func copy(_ task: ComposedTask) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([task.message as NSString, task.directory as NSURL])
     }
 
     private static func slug(_ text: String) -> String {

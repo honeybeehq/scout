@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct PointerShape: Shape {
+nonisolated struct PointerShape: Shape {
     func path(in rect: CGRect) -> Path {
         let tip = CGPoint(x: rect.minX, y: rect.minY)
         let rightWing = CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.40)
@@ -24,7 +24,7 @@ struct PointerShape: Shape {
     }
 }
 
-struct SignalArc: Shape {
+nonisolated struct SignalArc: Shape {
     var radiusFraction: Double
 
     func path(in rect: CGRect) -> Path {

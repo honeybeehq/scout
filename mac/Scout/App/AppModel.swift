@@ -52,6 +52,9 @@ final class AppModel {
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
         }
+        if let directory = SimulationMode.deliveryCheck {
+            Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }
+        }
         if SimulationMode.reopensLatest {
             Task { await SimulationMode.reopenLatest(model: self) }
         }
@@ -194,6 +197,8 @@ final class AppModel {
                 card.restoreTitle(task.title, custom: task.titleIsCustom)
                 card.transcriptOverride = task.transcriptOverride
                 card.excludedTargetIDs = Set(task.excludedTargetIDs)
+                card.runtimeNotes = task.runtimeNotes ?? []
+                card.project = task.project
                 card.sessionVideo = video
                 card.sessionDisplay = record.display
                 card.holdRequested = true

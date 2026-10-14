@@ -37,6 +37,9 @@ private struct ReviewContent: View {
     var body: some View {
         VStack(spacing: 0) {
             ReviewHeader(review: review, player: player)
+            if let error = review.saveError {
+                SaveErrorBanner(review: review, error: error)
+            }
             HStack(spacing: 0) {
                 TaskList(review: review, player: player, onFocusRoot: { rootFocused = true })
                     .frame(width: 300)
@@ -87,6 +90,33 @@ private struct ReviewContent: View {
             player.seek(to: review.playhead)
             return .handled
         }
+    }
+}
+
+private struct SaveErrorBanner: View {
+    let review: SessionReview
+    let error: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            StatusDot(tone: .negative, size: 6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Couldn't save this session. Changes since the last save are lost if Scout quits.")
+                    .font(.system(size: 12.5, weight: .medium))
+                Text(error)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                    .lineLimit(2)
+                    .textSelection(.enabled)
+            }
+            Spacer()
+            Button("Try again") { review.save() }
+                .buttonStyle(SecondaryButtonStyle())
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.05))
+        .overlay(alignment: .bottom) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 }
 

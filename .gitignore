@@ -9,3 +9,4 @@ xcuserdata/
 mac/Scout.xcodeproj/
 .swiftpm/
 node_modules/
+.proof/

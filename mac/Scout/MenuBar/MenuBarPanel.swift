@@ -44,6 +44,14 @@ struct MenuBarPanel: View {
                         .font(.system(size: 11.5, weight: .semibold))
                         .foregroundStyle(Palette.textSecondary)
                 }
+                if model.review?.saveError != nil {
+                    HStack(spacing: 6) {
+                        StatusDot(tone: .negative, size: 5)
+                        Text("Couldn't save the last session")
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                }
                 let recent = model.dispatcher.cards.suffix(5).reversed()
                 if recent.isEmpty {
                     Text("Tasks you capture show up here.")
@@ -162,6 +170,7 @@ private struct RecentTaskRow: View {
         switch card.state {
         case .sent: "checkmark.circle.fill"
         case .failed: "exclamationmark.triangle.fill"
+        case .copiedInstead: "doc.on.clipboard.fill"
         case .needsDestination, .held: "pause.circle.fill"
         default: "arrow.up.circle"
         }
@@ -170,7 +179,7 @@ private struct RecentTaskRow: View {
     private var tint: Color {
         switch card.state {
         case .sent: Palette.textTertiary
-        case .failed: Palette.negative
+        case .failed, .copiedInstead: Palette.negative
         case .needsDestination, .held: Palette.textSecondary
         default: Palette.textSecondary
         }

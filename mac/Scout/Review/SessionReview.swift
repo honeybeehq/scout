@@ -22,6 +22,7 @@ final class SessionReview {
     private(set) var display: CaptureDisplay?
     private(set) var isFinishing: Bool
     private(set) var filmstrip: [CGImage] = []
+    private(set) var saveError: String?
     var selectedTaskID: String?
     var playhead: SessionTime = 0
     var isEditingText = false
@@ -407,7 +408,12 @@ final class SessionReview {
             discarded: discardedRanges.map { .init(start: $0.start, end: $0.end) },
             tasks: tasks.map(ReviewRecord.Task.init)
         )
-        try? ReviewRecord.write(record, to: directory)
+        do {
+            try ReviewRecord.write(record, to: directory)
+            saveError = nil
+        } catch {
+            saveError = error.localizedDescription
+        }
     }
 
     private func gap(around utterance: Utterance) -> (SessionTime, SessionTime) {

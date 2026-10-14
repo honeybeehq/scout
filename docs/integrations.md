@@ -37,24 +37,27 @@ Implementation: `mac/Scout/Integrations/HiveClient.swift`, a `nonisolated` `Netw
 
 `DeliveryRoute` (chosen in onboarding, changeable in Settings):
 
-1. **Match project** (default). Resolve the snippet's project root (see below). Pick the active session whose `cwd` is inside that root and has the latest `lastOutputAt`. Prefer sessions that are `waitingForYou` over `working`, so a task doesn't interrupt a turn in progress; `urgency: "next"` queues it anyway. With no match, `spawn` a session in the project root with the default agent, titled after the snippet.
+1. **Match project** (default). Resolve the snippet's project root (see below). Among active sessions whose `cwd` is inside that root, pick one that is `waitingForYou` first, then one that is `working`, then any other; within each group the latest `lastOutputAt` wins. Waiting sessions come first so a task doesn't interrupt a turn in progress; `urgency: "next"` queues it anyway. With no match, `spawn` a session in the project root with the default agent, titled after the snippet.
 2. **New session.** Always `spawn`.
 3. **Ask me.** The card's destination chip opens a picker; nothing is sent until the user chooses.
 
 Without hive: copy `task.md` to the pasteboard (text plus the snippet folder as a file URL) and keep the snippet folder.
+
+When a `send` or `spawn` fails (hive stopped, the session is gone, a timeout), Scout copies the task to the pasteboard the same way and marks it "Not sent, copied instead" with hive's reason. The task stays unsent, so Retry or Send still delivers it later.
+
+A chosen destination is kept with the task in `review.json`, together with the resolved project and the runtime notes from the page, so a held task reopens with the same destination and the same outgoing message. A destination Scout picked itself is picked again if that session is no longer active; one you picked always stays.
 
 ## Project resolution
 
 To send to the right repo, Scout maps what is on screen to a source tree. It tries these in order and stops at the first answer:
 
 1. **SDK hello.** SDKs report `project.root` (dev servers know their cwd) and the git branch.
-2. **nectar.** `nectar ls --json` maps preview URLs (`urls.local`, `urls.mesh`, `urls.public`) to `{repo, worktree, branch}` and even the hive bee that published them.
-3. **Dev server port.** For `localhost:<port>` or `*.localhost` URLs: listening pid (`proc_listallpids` + `proc_pidfdinfo`, or `lsof -iTCP:<port> -sTCP:LISTEN` as a fallback) → process cwd (`proc_pidinfo PROC_PIDVNODEPATHINFO`) → `git rev-parse --show-toplevel`. portless (`*.localhost` names) resolves through its route table.
-4. **Native apps.** For iOS Simulator and macOS debug builds, the app's bundle path goes through DerivedData to the `.xcodeproj` / `Package.swift` path in `info.plist` of the DerivedData folder.
-5. **pro index.** `~/Projects/_system/index.jsonl` lists every project and repo path. A window title or URL host that matches a project name or alias is a weak match.
-6. **User overrides** in Settings (app or URL pattern → repo). These always win when present.
+2. **nectar.** A page whose origin matches an env's `urls.local`, `urls.mesh` or `urls.public` resolves to that env's source repo (or its borrowed worktree) and branch. `nectar ls --json` lists only name, status and `mesh_url`, and the CLI isn't on a GUI app's `PATH`, so Scout reads the env records `ls` reads: `$NECTAR_HOME/envs/*.json`, default `~/.nectar/envs`. Stopped and expired envs are skipped.
+3. **Dev server port.** For `localhost:<port>` URLs: listening pid (`lsof -iTCP:<port> -sTCP:LISTEN`) → process cwd (`proc_pidinfo PROC_PIDVNODEPATHINFO`) → the nearest folder with `.git`. For portless names (`*.localhost`), the host goes through portless's route table (`routes.json` in `$PORTLESS_STATE_DIR`, `~/.portless` or `/tmp/portless`; exact name first, then the most specific parent) to the app's port, then the same chain. If nothing listens on that port, the route's own pid gives the cwd.
 
-The resolved `ProjectReference` is stored on the snippet's context and shown on the card, so a wrong guess is visible before sending.
+The resolved `ProjectReference` is stored on the task and shown in the review, so a wrong guess is visible before sending.
+
+Not implemented yet: native apps (iOS Simulator and macOS debug builds through DerivedData), the pro index (`~/Projects/_system/index.jsonl`) and user overrides in Settings. Tasks from those sources have no project until the SDK reports one; with "Match project" they wait for a destination.
 
 ## Apiary
 

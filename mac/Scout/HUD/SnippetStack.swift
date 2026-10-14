@@ -220,14 +220,14 @@ private struct DeliveryControl: View {
                 .help("Sent to \(destination)")
         case .withdrawn:
             EmptyView()
-        case .failed(let message):
+        case .failed, .copiedInstead:
             Button {
                 Task { await model.dispatcher.send(card) }
             } label: {
                 Label("Retry", systemImage: "arrow.clockwise")
             }
             .buttonStyle(SecondaryButtonStyle())
-            .help(message)
+            .help(card.state.problem ?? "")
         }
     }
 }

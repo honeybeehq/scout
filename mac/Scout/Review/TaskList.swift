@@ -150,6 +150,7 @@ struct StateLine: View {
         switch card.state {
         case .sent: "checkmark"
         case .failed: "exclamationmark.triangle"
+        case .copiedInstead: "doc.on.clipboard"
         case .sending: "arrow.up"
         case .countdown: "timer"
         case .needsDestination: "circle.dotted"
@@ -161,6 +162,7 @@ struct StateLine: View {
         switch card.state {
         case .sent(let destination): "Sent to \(destination)"
         case .failed: "Couldn't send"
+        case .copiedInstead: "Not sent, copied instead"
         case .sending: "Sending…"
         case .countdown: "Sending soon"
         case .needsDestination: "Choose where it goes"
@@ -172,7 +174,7 @@ struct StateLine: View {
     private var tint: Color {
         switch card.state {
         case .sent: Palette.textTertiary
-        case .failed: Palette.negative
+        case .failed, .copiedInstead: Palette.negative
         case .needsDestination: Palette.caution
         default: Palette.textTertiary
         }

@@ -34,11 +34,20 @@ final class SnippetCard: Identifiable {
         case sending
         case sent(String)
         case failed(String)
+        case copiedInstead(String)
         case withdrawn
 
         var isFinished: Bool {
             if case .sent = self { return true }
             return false
+        }
+
+        var problem: String? {
+            switch self {
+            case .failed(let message): message
+            case .copiedInstead(let reason): "Not sent, copied to the clipboard instead. hive said: \(reason)"
+            default: nil
+            }
         }
 
         var isClosed: Bool {
@@ -78,7 +87,7 @@ final class SnippetCard: Identifiable {
 
     var needsAttention: Bool {
         switch state {
-        case .needsDestination, .held, .failed: true
+        case .needsDestination, .held, .failed, .copiedInstead: true
         default: false
         }
     }
