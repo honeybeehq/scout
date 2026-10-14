@@ -76,15 +76,7 @@ final class LiveTranscriber {
             self.analyzer = analyzer
             consumeResults(of: transcriber)
 
-            let clock = clock
-            let onBuffer: @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void = { buffer, time in
-                if let clock, time.isHostTimeValid {
-                    let start = CMTime(seconds: clock.seconds(atHostTime: time.hostTime), preferredTimescale: 48_000)
-                    continuation.yield(AnalyzerInput(buffer: buffer, bufferStartTime: start))
-                } else {
-                    continuation.yield(AnalyzerInput(buffer: buffer))
-                }
-            }
+            let onBuffer = Self.feed(into: continuation, clock: clock)
             let onLevel: @Sendable (Float) -> Void = { [weak self] level in
                 Task { @MainActor in self?.level = level }
             }
@@ -132,6 +124,17 @@ final class LiveTranscriber {
             }
         }
         self.analyzer = nil
+    }
+
+    nonisolated static func feed(into continuation: AsyncStream<AnalyzerInput>.Continuation, clock: SessionClock?) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
+        let timeline = clock.map(AnalyzerTimeline.init)
+        return { buffer, time in
+            if let timeline, time.isHostTimeValid {
+                for input in timeline.inputs(for: buffer, at: time) { continuation.yield(input) }
+            } else {
+                continuation.yield(AnalyzerInput(buffer: buffer))
+            }
+        }
     }
 
     private func makeTranscriber() async throws -> SpeechTranscriber {

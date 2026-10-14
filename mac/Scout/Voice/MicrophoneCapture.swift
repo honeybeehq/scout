@@ -48,7 +48,18 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else { throw CaptureError.noInputDevice }
+        let block = try tap(from: inputFormat, convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
+        input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat, block: block)
+        engine.prepare()
+        try engine.start()
+    }
 
+    func tap(
+        from inputFormat: AVAudioFormat,
+        convertingTo targetFormat: AVAudioFormat?,
+        onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void,
+        onLevel: @escaping @Sendable (Float) -> Void
+    ) throws -> AVAudioNodeTapBlock {
         let converter: AVAudioConverter?
         if let targetFormat, targetFormat != inputFormat {
             guard let made = AVAudioConverter(from: inputFormat, to: targetFormat) else { throw CaptureError.converterUnavailable }
@@ -57,7 +68,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
             converter = nil
         }
 
-        input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { [weak self] buffer, time in
+        return { [weak self] buffer, time in
             guard let self else { return }
             onLevel(self.measureLevel(buffer))
             if let converter, let targetFormat {
@@ -68,8 +79,6 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
                 onBuffer(buffer, time)
             }
         }
-        engine.prepare()
-        try engine.start()
     }
 
     func stop() {
