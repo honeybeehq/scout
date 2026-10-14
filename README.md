@@ -48,7 +48,7 @@ cat /tmp/scout-simulation/report.json
 # manual mode with a ⌃⌥B at 11 s, plus scripted review edits and review screenshots
 open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --segmentation=manual --simulate-break=11 --simulate-review --simulate-output=/tmp/scout-manual
 
-# capture UX: hotkey, follow, keep-both, E/⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
+# capture UX: hotkey, follow, keep-both, ⌃⌥E/⌃⌥⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
 ~/Applications/Scout.app/Contents/MacOS/Scout --capture-ux-demo=$HOME/.cache/scout-capture-ux --capture-ux-audio=/tmp/narration.aiff --dry-run-delivery
 ```
 

@@ -119,8 +119,6 @@ final class ScoutingSession {
         transcriber.onUtterance = { [weak self] utterance in self?.hear(utterance) }
         aim.onPin = { [weak self] mark in self?.ingest(.mark(mark)) }
         aim.onStroke = { [weak self] stroke in self?.record(stroke) }
-        aim.onExpand = { [weak self] input in self?.follower.expand(input: input) }
-        aim.onFollow = { [weak self] input in self?.follower.follow(input: input) }
         aim.onAimChanged = { [weak self] active in self?.bridge.setAim(active: active) }
         aim.enrich = { [weak self] mark, date in
             guard let self, let reply = await self.bridge.requestPin(id: mark.id, at: date) else { return nil }
@@ -236,7 +234,7 @@ final class ScoutingSession {
         guard let video else { return }
         for card in cards {
             card.sessionVideo = video
-            card.sessionDisplay = recorder.display
+            card.sessionDisplays = recorder.displays
             card.recorder = nil
         }
         self.recorder = nil

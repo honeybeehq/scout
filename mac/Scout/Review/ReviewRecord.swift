@@ -50,6 +50,11 @@ nonisolated struct ReviewRecord: Codable, Sendable {
     var duration: Double
     var video: Video?
     var display: CaptureDisplay?
+    var displayHops: [CaptureDisplays.Hop]?
+
+    var displays: CaptureDisplays? {
+        display.map { CaptureDisplays(start: $0, hops: displayHops ?? []) }
+    }
     var discarded: [Span]?
     var tasks: [Task]
 

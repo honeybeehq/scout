@@ -87,14 +87,9 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
     }
 
     var display: CaptureDisplay? { lock.withLock { captureDisplay } }
-    var displayChanges: [(at: SessionTime, display: CaptureDisplay)] { lock.withLock { displayHops } }
-    var currentCaptureDisplay: CaptureDisplay? { lock.withLock { currentDisplay } }
 
-    var displaysUsed: [CaptureDisplay] {
-        lock.withLock {
-            var seen: Set<CGDirectDisplayID> = []
-            return ([captureDisplay].compactMap { $0 } + displayHops.map(\.display)).filter { seen.insert($0.displayID).inserted }
-        }
+    var displays: CaptureDisplays? {
+        lock.withLock { captureDisplay.map { CaptureDisplays(start: $0, hops: displayHops.map { CaptureDisplays.Hop(at: $0.at, display: $0.display) }) } }
     }
     var segments: [MediaSegment] { lock.withLock { segmentList } }
     var statistics: CaptureStatistics { lock.withLock { counters } }

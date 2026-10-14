@@ -77,7 +77,7 @@ final class SnippetCard: Identifiable {
     var runtimeNotes: [String] = []
     var recorder: SegmentedScreenRecorder?
     var sessionVideo: ExportedClip?
-    var sessionDisplay: CaptureDisplay?
+    var sessionDisplays: CaptureDisplays?
 
     var id: String { "\(sessionID)/\(snippet.id)" }
 
@@ -140,7 +140,7 @@ final class SnippetCard: Identifiable {
         destinationChosenByUser = source.destinationChosenByUser
         recorder = source.recorder
         sessionVideo = source.sessionVideo
-        sessionDisplay = source.sessionDisplay
+        sessionDisplays = source.sessionDisplays
         runtimeNotes = source.runtimeNotes
         excludedTargetIDs = source.excludedTargetIDs
         holdRequested = true

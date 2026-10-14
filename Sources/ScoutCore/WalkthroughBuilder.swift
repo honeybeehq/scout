@@ -52,6 +52,7 @@ public struct WalkthroughBuilder: Sendable {
         public var permissions: Walkthrough.Permissions
         public var displays: [Walkthrough.Display]
         public var transcript: Walkthrough.Availability
+        public var transcriptFailure: Walkthrough.TranscriptFailure?
         public var language: String?
         public var transcriptEngine: String?
         public var clip: Walkthrough.Clip?
@@ -64,6 +65,7 @@ public struct WalkthroughBuilder: Sendable {
             permissions: Walkthrough.Permissions,
             displays: [Walkthrough.Display] = [],
             transcript: Walkthrough.Availability,
+            transcriptFailure: Walkthrough.TranscriptFailure? = nil,
             language: String? = nil,
             transcriptEngine: String? = nil,
             clip: Walkthrough.Clip? = nil,
@@ -75,6 +77,7 @@ public struct WalkthroughBuilder: Sendable {
             self.permissions = permissions
             self.displays = displays
             self.transcript = transcript
+            self.transcriptFailure = transcriptFailure
             self.language = language
             self.transcriptEngine = transcriptEngine
             self.clip = clip
@@ -86,6 +89,7 @@ public struct WalkthroughBuilder: Sendable {
     private struct CapturedFrame: Sendable {
         var bbox: Rect
         var scale: Double?
+        var display: String?
     }
 
     public static let maximumFrames = 40
@@ -158,8 +162,8 @@ public struct WalkthroughBuilder: Sendable {
         return request(at: max(0, end - 0.05), reason: .end)
     }
 
-    public mutating func captured(_ request: FrameRequest, bbox: Rect, scale: Double?) {
-        captured[request.file] = CapturedFrame(bbox: bbox, scale: scale)
+    public mutating func captured(_ request: FrameRequest, bbox: Rect, scale: Double?, display: String? = nil) {
+        captured[request.file] = CapturedFrame(bbox: bbox, scale: scale, display: display)
     }
 
     private func hasFrame(near time: SessionTime, within window: SessionTime) -> Bool {
@@ -200,6 +204,7 @@ public struct WalkthroughBuilder: Sendable {
                 t: ms(request.time),
                 bbox: Walkthrough.Box(capture.bbox),
                 scale: capture.scale,
+                display: capture.display,
                 reason: request.reason
             )
         }
@@ -267,7 +272,7 @@ public struct WalkthroughBuilder: Sendable {
             segments[index].drawings = (segments[index].drawings ?? []) + [drawing.id]
         }
 
-        let transcriptReady = finish.transcript == .ready
+        let transcriptReady = finish.transcript == .ready && finish.transcriptFailure == nil
         let asks = transcriptReady
             ? Walkthrough.Asks(status: .ready, engine: AskExtractor.engine, items: AskExtractor.asks(from: segments, pointers: pointers, drawings: drawings))
             : Walkthrough.Asks(status: .unavailable, items: [])
@@ -290,10 +295,11 @@ public struct WalkthroughBuilder: Sendable {
             ),
             context: context,
             transcript: Walkthrough.Transcript(
-                status: finish.transcript,
+                status: transcriptReady ? .ready : .unavailable,
                 language: finish.language,
                 engine: finish.transcriptEngine,
-                segments: transcriptReady ? segments : []
+                failure: finish.transcriptFailure,
+                segments: transcriptReady || finish.transcriptFailure != nil ? segments : []
             ),
             frames: frames,
             pointers: pointers,

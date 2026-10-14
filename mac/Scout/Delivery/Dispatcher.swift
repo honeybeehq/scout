@@ -72,7 +72,7 @@ final class Dispatcher {
                 if let recorder = card.recorder {
                     card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, recorder: recorder, into: directory)
                 } else if let video = card.sessionVideo {
-                    card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, video: video, display: card.sessionDisplay, into: directory)
+                    card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, video: video, displays: card.sessionDisplays, into: directory)
                 }
             }
             task = try compose(card)

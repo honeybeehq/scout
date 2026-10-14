@@ -30,6 +30,9 @@ final class AppModel {
     var openReviewWindow: (() -> Void)?
     let breakShortcut = KeyShortcut.nextTask
     private var breakHotkey: GlobalHotkey?
+    let widenShortcut = KeyShortcut.widenCapture
+    let followShortcut = KeyShortcut.followPointer
+    private(set) var scopeHotkeys: (widen: GlobalHotkey, follow: GlobalHotkey)?
     private var openWindows = 0
 
     private(set) var shortcut: KeyShortcut
@@ -56,8 +59,11 @@ final class AppModel {
         dispatcher.dryRun = SimulationMode.isDryRun
         dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
         bridge.start()
-        hud.prepare(model: self)
-        picker.prepare()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            hud.prepare(model: self)
+            picker.prepare()
+        }
         picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
         picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
         Task.detached(priority: .background) {
@@ -75,6 +81,9 @@ final class AppModel {
         }
         if let output = CaptureUXDemo.outputDirectory {
             Task { await CaptureUXDemo.run(model: self, output: output) }
+        }
+        if let output = ExpandKeyCheck.outputDirectory {
+            Task { await ExpandKeyCheck.run(model: self, output: output) }
         }
         if let fixture = SimulationMode.walkthroughFixture {
             Task { await SimulationMode.runWalkthrough(model: self, fixtureURL: fixture) }
@@ -143,6 +152,7 @@ final class AppModel {
             apiary: apiary
         )
         session.transcriber.inputFile = inputFile
+        session.transcriber.faultAfter = SimulationMode.analyzerFaultAfter
         session.transcriber.onInputFinished = onInputFinished
         if result == .tasks { connectTasks(of: session) }
         onSessionCreated?(session)
@@ -164,6 +174,13 @@ final class AppModel {
         let breakHotkey = breakHotkey ?? GlobalHotkey { [weak self] in self?.session?.splitNow() }
         self.breakHotkey = breakHotkey
         breakHotkey.register(breakShortcut)
+        let scopeHotkeys = scopeHotkeys ?? (
+            widen: GlobalHotkey { [weak self] in self?.session?.follower.expand(input: GlobalHotkey.lastPressTime) },
+            follow: GlobalHotkey { [weak self] in self?.session?.follower.follow(input: GlobalHotkey.lastPressTime) }
+        )
+        self.scopeHotkeys = scopeHotkeys
+        scopeHotkeys.widen.register(widenShortcut)
+        scopeHotkeys.follow.register(followShortcut)
         session.begin()
         if result == .walkthrough {
             Task { await prefetchTargets() }
@@ -209,6 +226,8 @@ final class AppModel {
         guard isScouting, let session else { return }
         isScouting = false
         breakHotkey?.unregister()
+        scopeHotkeys?.widen.unregister()
+        scopeHotkeys?.follow.unregister()
         hud.hidePill()
         if let walkthrough = session.walkthrough {
             let pressed = ContinuousClock.now
@@ -271,16 +290,24 @@ final class AppModel {
     }
 
     private func walkthroughSources(of session: ScoutingSession, recorder: WalkthroughRecorder) -> WalkthroughRecorder.Sources {
-        let heard: Bool
-        if case .failed = session.phase { heard = false } else { heard = true }
+        let transcriber = session.transcriber
+        let failure: Walkthrough.TranscriptFailure?
+        if let failed = transcriber.failure {
+            failure = Walkthrough.TranscriptFailure(reason: .analyzerFailed, message: failed.message, t: failed.at.map(Walkthrough.milliseconds))
+        } else if session.ledger.utterances.isEmpty, transcriber.heardSound {
+            failure = Walkthrough.TranscriptFailure(reason: .noWords)
+        } else {
+            failure = nil
+        }
         let microphone = session.transcriber.inputFile != nil || permissions.state(of: .microphone).isGranted
         let screen: Walkthrough.Grant? = recorder.hasMedia || CGPreflightScreenCaptureAccess() ? .granted : (preferences.includeClips ? .denied : nil)
         return WalkthroughRecorder.Sources(
             screen: screen,
             microphone: microphone ? .granted : .denied,
             accessibility: AXIsProcessTrusted() ? .granted : .denied,
-            transcript: heard ? .ready : .unavailable,
-            language: session.transcriber.localeIdentifier,
+            transcript: failure == nil ? .ready : .unavailable,
+            transcriptFailure: failure,
+            language: transcriber.localeIdentifier,
             failed: session.captureProblem != nil && preferences.includeClips
         )
     }
@@ -449,7 +476,7 @@ final class AppModel {
                 card.runtimeNotes = task.runtimeNotes ?? []
                 card.project = task.project
                 card.sessionVideo = video
-                card.sessionDisplay = record.display
+                card.sessionDisplays = record.displays
                 card.holdRequested = true
                 if let destination = task.destination {
                     card.destination = destination

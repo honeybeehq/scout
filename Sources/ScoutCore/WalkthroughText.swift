@@ -15,7 +15,9 @@ public enum WalkthroughText {
         head.append("<walkthrough \(attributes.joined(separator: " "))>")
 
         var asks = ["Asks"]
-        if walkthrough.asks.status == .unavailable {
+        if walkthrough.transcript.failure != nil {
+            asks.append("Not summarised: the transcript is missing (see Transcript).")
+        } else if walkthrough.asks.status == .unavailable {
             asks.append("Not summarised; read the transcript.")
         } else if walkthrough.asks.items.isEmpty {
             asks.append("None found; read the transcript.")
@@ -26,8 +28,14 @@ public enum WalkthroughText {
             }
         }
 
-        let segmentLines: [String]
-        if walkthrough.transcript.status == .unavailable {
+        var segmentLines: [String]
+        if let failure = walkthrough.transcript.failure {
+            segmentLines = [missingLine(failure, heard: walkthrough.transcript.segments.count)]
+            segmentLines += walkthrough.transcript.segments.map { segment in
+                let refs = ((segment.pointers ?? []) + (segment.drawings ?? [])).map { " [\($0)]" }.joined()
+                return "\(segment.id) \(clock(segment.start))–\(clock(segment.end)) \(oneLine(segment.text))\(refs)"
+            }
+        } else if walkthrough.transcript.status == .unavailable {
             segmentLines = ["Not available: Scout had no microphone or transcription for this recording."]
         } else if walkthrough.transcript.segments.isEmpty {
             segmentLines = ["Nothing was said."]
@@ -65,11 +73,24 @@ public enum WalkthroughText {
         }
         var text = assemble(segmentLines)
         var keep = segmentLines.count
-        while text.utf8.count > inlineLimit, keep > 0, walkthrough.transcript.status == .ready, !walkthrough.transcript.segments.isEmpty {
+        let kept = walkthrough.transcript.failure == nil ? 0 : 1
+        while text.utf8.count > inlineLimit, keep > kept, walkthrough.transcript.status == .ready || kept == 1, !walkthrough.transcript.segments.isEmpty {
             keep -= 1
             text = assemble(Array(segmentLines.prefix(keep)) + ["… transcript continues in walkthrough.json (\(segmentLines.count - keep) more segments)"])
         }
         return text
+    }
+
+    static func missingLine(_ failure: Walkthrough.TranscriptFailure, heard: Int) -> String {
+        switch failure.reason {
+        case .analyzerFailed:
+            let when = failure.t.map { " at \(clock($0))" } ?? ""
+            let why = failure.message.map { " (\(oneLine($0)))" } ?? ""
+            let rest = heard > 0 ? "Only the segments below, heard before it, were transcribed; the rest is missing, not silent." : "There are no words for the audio; the transcript is missing, not empty."
+            return "Missing: transcription failed\(when)\(why). \(rest)"
+        case .noWords:
+            return "Missing: audio was recorded, but transcription produced no words. The transcript is missing, not empty."
+        }
     }
 
     static func pointerLine(_ pointer: Walkthrough.Pointer, apps: [Walkthrough.AppMoment]) -> String {

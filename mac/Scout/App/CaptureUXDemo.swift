@@ -44,18 +44,18 @@ enum CaptureUXDemo {
         try? await Task.sleep(for: .seconds(0.7))
         await pointer.glide(to: windows.point(in: .chat, at: CGPoint(x: 0.45, y: 0.6)), seconds: 0.45)
         try? await Task.sleep(for: .seconds(1.4))
-        video?.caption = "E: keep both in view"
+        video?.caption = "⌃⌥E: keep both in view"
         let suggested = model.session?.follower.suggestion != nil
-        model.session?.aim.simulate(.expand(InteractionTimings.now))
+        var scopeKeyPaths = [await pressScopeKey(model: model, follow: false)]
         try? await Task.sleep(for: .seconds(1.6))
-        video?.caption = "E again: the whole window"
-        model.session?.aim.simulate(.expand(InteractionTimings.now))
+        video?.caption = "⌃⌥E again: the whole window"
+        scopeKeyPaths.append(await pressScopeKey(model: model, follow: false))
         try? await Task.sleep(for: .seconds(1.4))
-        video?.caption = "E again: the whole screen"
-        model.session?.aim.simulate(.expand(InteractionTimings.now))
+        video?.caption = "⌃⌥E again: the whole screen"
+        scopeKeyPaths.append(await pressScopeKey(model: model, follow: false))
         try? await Task.sleep(for: .seconds(1.4))
-        video?.caption = "⇧E: follow the pointer again"
-        model.session?.aim.simulate(.follow(InteractionTimings.now))
+        video?.caption = "⌃⌥⇧E: follow the pointer again"
+        scopeKeyPaths.append(await pressScopeKey(model: model, follow: true))
         try? await Task.sleep(for: .seconds(1.2))
 
         video?.caption = "Another window: capture follows it"
@@ -85,7 +85,7 @@ enum CaptureUXDemo {
         video?.caption = nil
         try? await Task.sleep(for: .seconds(1.0))
         await video?.finish()
-        writeReport(model: model, session: session, hotkeyPath: hotkeyPath, suggested: suggested, into: output)
+        writeReport(model: model, session: session, hotkeyPath: hotkeyPath, scopeKeyPaths: scopeKeyPaths, suggested: suggested, into: output)
         windows.close()
         NSApp.terminate(nil)
     }
@@ -101,6 +101,22 @@ enum CaptureUXDemo {
         }
         model.triggerHotkey(at: InteractionTimings.now)
         return "Carbon hotkey handler called directly (posting key events needs Accessibility, which this build does not have)"
+    }
+
+    static func pressScopeKey(model: AppModel, follow: Bool) async -> String {
+        guard let hotkeys = model.scopeHotkeys else { return "no scope hotkeys" }
+        let hotkey = follow ? hotkeys.follow : hotkeys.widen
+        let shortcut = follow ? model.followShortcut : model.widenShortcut
+        let before = model.session?.capture.scopes.count ?? 0
+        if CGPreflightPostEventAccess() {
+            postKey(UInt16(shortcut.keyCode), flags: follow ? [.maskControl, .maskAlternate, .maskShift] : [.maskControl, .maskAlternate])
+            for _ in 0..<30 where (model.session?.capture.scopes.count ?? 0) == before {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+            if (model.session?.capture.scopes.count ?? 0) != before { return "posted \(shortcut.label) CGEvent, handled by the Carbon hotkey" }
+        }
+        let status = hotkey.sendPressedEvent()
+        return "\(shortcut.label) sent as a Carbon hot-key event to the app's event target (status \(status)); posting key events needs Accessibility"
     }
 
     private static func optionClick(model: AppModel, at point: CGPoint) async {
@@ -148,7 +164,7 @@ enum CaptureUXDemo {
         }
     }
 
-    private static func postKey(_ key: UInt16, flags: CGEventFlags) {
+    static func postKey(_ key: UInt16, flags: CGEventFlags) {
         let source = CGEventSource(stateID: .hidSystemState)
         let down = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: true)
         down?.flags = flags
@@ -172,6 +188,7 @@ enum CaptureUXDemo {
 
     private struct Report: Encodable {
         var hotkeyPath: String
+        var scopeKeyPaths: [String]
         var keepBothSuggestedBeforeE: Bool
         var screens: [String]
         var accessibilityTrusted: Bool
@@ -187,7 +204,7 @@ enum CaptureUXDemo {
         var reviewOpened: Bool
     }
 
-    private static func writeReport(model: AppModel, session: ScoutingSession?, hotkeyPath: String, suggested: Bool, into output: URL) {
+    private static func writeReport(model: AppModel, session: ScoutingSession?, hotkeyPath: String, scopeKeyPaths: [String], suggested: Bool, into output: URL) {
         let samples = InteractionTimings.shared.samples
         var summary: [String: Summary] = [:]
         for name in Set(samples.map(\.name)) {
@@ -209,6 +226,7 @@ enum CaptureUXDemo {
         }
         let report = Report(
             hotkeyPath: hotkeyPath,
+            scopeKeyPaths: scopeKeyPaths,
             keepBothSuggestedBeforeE: suggested,
             screens: NSScreen.screens.map { NSStringFromRect($0.frame) },
             accessibilityTrusted: AXIsProcessTrusted(),

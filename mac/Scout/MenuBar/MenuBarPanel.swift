@@ -224,6 +224,14 @@ private struct LastWalkthroughRow: View {
                 Text(summary)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textTertiary)
+                if let failure = walkthrough.walkthrough.transcript.failure {
+                    HStack(spacing: 5) {
+                        StatusDot(tone: .caution, size: 5)
+                        Text("\(TranscriptProblem.title(failure)): no transcript")
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                }
             }
             Spacer(minLength: 4)
             Button("Send…") { model.sendLastWalkthrough() }

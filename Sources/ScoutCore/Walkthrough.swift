@@ -196,16 +196,35 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         }
     }
 
+    public struct TranscriptFailure: Codable, Hashable, Sendable {
+        public enum Reason: String, Codable, Sendable {
+            case analyzerFailed
+            case noWords
+        }
+
+        public var reason: Reason
+        public var message: String?
+        public var t: Int?
+
+        public init(reason: Reason, message: String? = nil, t: Int? = nil) {
+            self.reason = reason
+            self.message = message
+            self.t = t
+        }
+    }
+
     public struct Transcript: Codable, Hashable, Sendable {
         public var status: Availability
         public var language: String?
         public var engine: String?
+        public var failure: TranscriptFailure?
         public var segments: [Segment]
 
-        public init(status: Availability, language: String? = nil, engine: String? = nil, segments: [Segment]) {
+        public init(status: Availability, language: String? = nil, engine: String? = nil, failure: TranscriptFailure? = nil, segments: [Segment]) {
             self.status = status
             self.language = language
             self.engine = engine
+            self.failure = failure
             self.segments = segments
         }
     }
@@ -227,17 +246,19 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         public var t: Int
         public var bbox: Box
         public var scale: Double?
+        public var display: String?
         public var reason: FrameReason
         public var pointers: [String]?
         public var drawings: [String]?
 
-        public init(id: String, file: String, thumb: String?, t: Int, bbox: Box, scale: Double?, reason: FrameReason, pointers: [String]? = nil, drawings: [String]? = nil) {
+        public init(id: String, file: String, thumb: String?, t: Int, bbox: Box, scale: Double?, display: String? = nil, reason: FrameReason, pointers: [String]? = nil, drawings: [String]? = nil) {
             self.id = id
             self.file = file
             self.thumb = thumb
             self.t = t
             self.bbox = bbox
             self.scale = scale
+            self.display = display
             self.reason = reason
             self.pointers = pointers
             self.drawings = drawings
@@ -406,11 +427,25 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         public var sizeBytes: Int
         public var hasAudio: Bool
         public var bbox: Box?
+        public var displays: [ClipDisplay]?
 
-        public init(duration: Int, sizeBytes: Int, hasAudio: Bool, bbox: Box? = nil) {
+        public init(duration: Int, sizeBytes: Int, hasAudio: Bool, bbox: Box? = nil, displays: [ClipDisplay]? = nil) {
             self.duration = duration
             self.sizeBytes = sizeBytes
             self.hasAudio = hasAudio
+            self.bbox = bbox
+            self.displays = displays
+        }
+    }
+
+    public struct ClipDisplay: Codable, Hashable, Sendable {
+        public var t: Int
+        public var display: String
+        public var bbox: Box
+
+        public init(t: Int, display: String, bbox: Box) {
+            self.t = t
+            self.display = display
             self.bbox = bbox
         }
     }

@@ -313,7 +313,11 @@ struct TargetPickerView: View {
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
             case .ready:
-                StatusBadge(text: "Ready", tone: .positive)
+                if model.walkthrough?.walkthrough.transcript.failure != nil {
+                    StatusBadge(text: "No transcript", tone: .caution)
+                } else {
+                    StatusBadge(text: "Ready", tone: .positive)
+                }
             case .failed:
                 StatusBadge(text: "Not saved", tone: .negative)
             }
@@ -349,7 +353,15 @@ struct TargetPickerView: View {
         case .ready:
             let items = model.walkthrough?.walkthrough.asks.items ?? []
             VStack(alignment: .leading, spacing: 3) {
-                if items.isEmpty {
+                if let failure = model.walkthrough?.walkthrough.transcript.failure {
+                    Text(TranscriptProblem.title(failure))
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Palette.text)
+                    Text(TranscriptProblem.detail(failure))
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .lineLimit(2)
+                } else if items.isEmpty {
                     Text("No asks found. The agent reads the transcript.")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textTertiary)
@@ -513,5 +525,21 @@ struct TargetPickerView: View {
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .transition(.opacity)
+    }
+}
+
+enum TranscriptProblem {
+    static func title(_ failure: Walkthrough.TranscriptFailure) -> String {
+        switch failure.reason {
+        case .analyzerFailed: "Transcription failed"
+        case .noWords: "No words were recognized"
+        }
+    }
+
+    static func detail(_ failure: Walkthrough.TranscriptFailure) -> String {
+        switch failure.reason {
+        case .analyzerFailed: "Speech wasn't transcribed. The walkthrough tells the agent the transcript is missing; pins, drawings and frames are kept."
+        case .noWords: "Audio was recorded but nothing came out. The walkthrough tells the agent the transcript is missing, not empty."
+        }
     }
 }

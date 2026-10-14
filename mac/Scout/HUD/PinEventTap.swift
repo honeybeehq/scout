@@ -1,5 +1,4 @@
 import ApplicationServices
-import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import Synchronization
@@ -11,20 +10,11 @@ nonisolated final class PinEventTap: @unchecked Sendable {
         case press(CGPoint, TimeInterval)
         case drag(CGPoint, TimeInterval)
         case release(CGPoint, TimeInterval)
-        case expand(TimeInterval)
-        case follow(TimeInterval)
     }
-
-    private static let nonTextRoles: Set<String> = [
-        "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton", "AXLink", "AXImage",
-        "AXList", "AXOutline", "AXTable", "AXRow", "AXCell", "AXScrollArea", "AXWebArea", "AXSplitGroup",
-        "AXTabGroup", "AXToolbar", "AXSlider", "AXStaticText", "AXLayoutArea", "AXDisclosureTriangle",
-    ]
 
     private let onEvent: @Sendable (Event) -> Void
     private let aiming = Atomic<Bool>(false)
     private let swallowingClick = Atomic<Bool>(false)
-    private let expandKeys = Atomic<Bool>(false)
     private var tap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var thread: Thread?
@@ -72,11 +62,7 @@ nonisolated final class PinEventTap: @unchecked Sendable {
         aiming.store(active, ordering: .releasing)
     }
 
-    func setExpandKeys(_ active: Bool) {
-        expandKeys.store(active, ordering: .releasing)
-    }
-
-    fileprivate func handle(_ type: CGEventType, _ event: CGEvent) -> Bool {
+    func handle(_ type: CGEventType, _ event: CGEvent) -> Bool {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
@@ -85,10 +71,6 @@ nonisolated final class PinEventTap: @unchecked Sendable {
             onEvent(.modifiers(event.flags))
             return false
         case .keyDown:
-            if let key = expandKey(event) {
-                onEvent(key)
-                return true
-            }
             onEvent(.keyDown)
             return false
         case .leftMouseDown:
@@ -107,41 +89,6 @@ nonisolated final class PinEventTap: @unchecked Sendable {
         default:
             return false
         }
-    }
-
-    private func expandKey(_ event: CGEvent) -> Event? {
-        guard expandKeys.load(ordering: .acquiring),
-              event.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_ANSI_E),
-              event.getIntegerValueField(.keyboardEventAutorepeat) == 0,
-              event.flags.isDisjoint(with: [.maskCommand, .maskControl, .maskAlternate, .maskSecondaryFn]),
-              Self.focusIsKnownNonText()
-        else { return nil }
-        let at = ProcessInfo.processInfo.systemUptime
-        return event.flags.contains(.maskShift) ? .follow(at) : .expand(at)
-    }
-
-    private static func focusIsKnownNonText() -> Bool {
-        guard let app = copyElement(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute) else { return false }
-        AXUIElementSetMessagingTimeout(app, 0.03)
-        guard let focused = copyElement(app, kAXFocusedUIElementAttribute) else { return false }
-        AXUIElementSetMessagingTimeout(focused, 0.03)
-        var role: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(focused, kAXRoleAttribute as CFString, &role) == .success,
-              let role = role as? String, nonTextRoles.contains(role)
-        else { return false }
-        var editable: CFTypeRef?
-        if AXUIElementCopyAttributeValue(focused, "AXEditableAncestor" as CFString, &editable) == .success, editable != nil {
-            return false
-        }
-        return true
-    }
-
-    private static func copyElement(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
-              let value, CFGetTypeID(value) == AXUIElementGetTypeID()
-        else { return nil }
-        return (value as! AXUIElement)
     }
 }
 

@@ -71,7 +71,7 @@ struct ScoutingPill: View {
                         .truncationMode(.middle)
                         .frame(maxWidth: 190, alignment: .leading)
                         .fixedSize(horizontal: true, vertical: false)
-                    KeyHint(following ? "E" : "⇧E")
+                    KeyHint(following ? model.widenShortcut.label : model.followShortcut.label)
                 }
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(Palette.text)
@@ -81,7 +81,7 @@ struct ScoutingPill: View {
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
-            .help(session?.captureProblem ?? (following ? "Widen the captured area (E). ⇧E follows the pointer again." : "Widen further (E), or follow the pointer again (⇧E)"))
+            .help(session?.captureProblem ?? (following ? "Widen the captured area (\(model.widenShortcut.label)). \(model.followShortcut.label) follows the pointer again." : "Widen further (\(model.widenShortcut.label)), or follow the pointer again (\(model.followShortcut.label))"))
 
             Button {
                 model.finishScouting(input: InteractionTimings.now)

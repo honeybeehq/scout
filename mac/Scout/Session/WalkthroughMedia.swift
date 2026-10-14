@@ -5,36 +5,61 @@ import ImageIO
 import ScoutCore
 import UniformTypeIdentifiers
 
+nonisolated struct MediaView: Sendable, Equatable {
+    let bbox: Rect
+    let display: String
+}
+
 nonisolated protocol WalkthroughMedia: Sendable {
-    var bounds: Rect? { get }
     var displays: [Walkthrough.Display] { get }
+    func view(at time: SessionTime) -> MediaView?
     func frame(at time: SessionTime) async -> CGImage?
     func exportClip(through end: SessionTime, to destination: URL) async -> Walkthrough.Clip?
+}
+
+nonisolated extension CaptureDisplays {
+    func view(at time: SessionTime) -> MediaView {
+        let display = display(at: time)
+        return MediaView(bbox: Rect(display.frame), display: String(display.displayID))
+    }
+
+    var walkthroughDisplays: [Walkthrough.Display] {
+        used.map { Walkthrough.Display(id: String($0.displayID), bounds: Walkthrough.Box(Rect($0.frame)), scale: $0.pointPixelScale) }
+    }
+
+    func clipped(_ clip: Walkthrough.Clip?) -> Walkthrough.Clip? {
+        guard var clip else { return nil }
+        let spans = spans.filter { Walkthrough.milliseconds($0.start) < max(1, clip.duration) }
+        clip.bbox = Walkthrough.Box(Rect(start.frame))
+        clip.displays = spans.count > 1
+            ? spans.map { Walkthrough.ClipDisplay(t: Walkthrough.milliseconds($0.start), display: String($0.display.displayID), bbox: Walkthrough.Box(Rect($0.display.frame))) }
+            : nil
+        return clip
+    }
 }
 
 nonisolated struct LiveWalkthroughMedia: WalkthroughMedia {
     let recorder: SegmentedScreenRecorder
 
-    var bounds: Rect? {
-        recorder.currentCaptureDisplay.map { Rect(x: $0.frame.minX, y: $0.frame.minY, width: $0.frame.width, height: $0.frame.height) }
+    var displays: [Walkthrough.Display] {
+        recorder.displays?.walkthroughDisplays ?? []
     }
 
-    var displays: [Walkthrough.Display] {
-        recorder.displaysUsed.map { display in
-            let frame = Walkthrough.Box(x: display.frame.minX, y: display.frame.minY, w: display.frame.width, h: display.frame.height)
-            return Walkthrough.Display(id: String(display.displayID), bounds: frame, scale: display.pointPixelScale)
-        }
+    func view(at time: SessionTime) -> MediaView? {
+        recorder.displays?.view(at: time)
     }
 
     func frame(at time: SessionTime) async -> CGImage? {
         let wait = time - recorder.sessionTimeNow
         if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
-        return await recorder.snapshot(at: time)
+        guard let image = await recorder.snapshot(at: time) else { return nil }
+        return recorder.displays?.display(at: time).cropped(image) ?? image
     }
 
     func exportClip(through end: SessionTime, to destination: URL) async -> Walkthrough.Clip? {
         guard let clip = try? await recorder.exportClip(from: 0, to: end, padding: 0, into: destination) else { return nil }
-        return await WalkthroughImages.clip(at: clip.url, bbox: bounds)
+        let made = await WalkthroughImages.clip(at: clip.url, bbox: nil)
+        return recorder.displays?.clipped(made) ?? made
     }
 }
 
@@ -42,11 +67,14 @@ nonisolated struct FixtureWalkthroughMedia: WalkthroughMedia {
     let video: URL
     let screen: Rect
     let offset: SessionTime
-
-    var bounds: Rect? { screen }
+    var hops: CaptureDisplays?
 
     var displays: [Walkthrough.Display] {
-        [Walkthrough.Display(id: "fixture", bounds: Walkthrough.Box(screen), scale: 1)]
+        hops?.walkthroughDisplays ?? [Walkthrough.Display(id: "fixture", bounds: Walkthrough.Box(screen), scale: 1)]
+    }
+
+    func view(at time: SessionTime) -> MediaView? {
+        hops?.view(at: time) ?? MediaView(bbox: screen, display: "fixture")
     }
 
     func frame(at time: SessionTime) async -> CGImage? {
@@ -55,7 +83,8 @@ nonisolated struct FixtureWalkthroughMedia: WalkthroughMedia {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
-        return try? await generator.image(at: CMTime(seconds: min(max(0, time - offset), max(0, duration - 0.1)), preferredTimescale: 600)).image
+        guard let image = try? await generator.image(at: CMTime(seconds: min(max(0, time - offset), max(0, duration - 0.1)), preferredTimescale: 600)).image else { return nil }
+        return hops?.display(at: time).cropped(image) ?? image
     }
 
     func exportClip(through end: SessionTime, to destination: URL) async -> Walkthrough.Clip? {
@@ -66,7 +95,8 @@ nonisolated struct FixtureWalkthroughMedia: WalkthroughMedia {
         export.timeRange = CMTimeRange(start: .zero, end: CMTime(seconds: min(duration, max(0, end - offset)), preferredTimescale: 600))
         try? FileManager.default.removeItem(at: destination)
         guard (try? await export.export(to: destination, as: .mp4)) != nil else { return nil }
-        return await WalkthroughImages.clip(at: destination, bbox: screen)
+        let made = await WalkthroughImages.clip(at: destination, bbox: screen)
+        return hops.map { $0.clipped(made) } ?? made
     }
 }
 

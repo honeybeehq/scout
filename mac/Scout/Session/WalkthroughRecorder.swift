@@ -13,6 +13,7 @@ final class WalkthroughRecorder {
         var microphone: Walkthrough.Grant
         var accessibility: Walkthrough.Grant
         var transcript: Walkthrough.Availability
+        var transcriptFailure: Walkthrough.TranscriptFailure?
         var language: String?
         var failed: Bool
     }
@@ -41,8 +42,8 @@ final class WalkthroughRecorder {
 
     func attach(_ media: any WalkthroughMedia) {
         self.media = media
-        if builder.scopes.isEmpty, let bounds = media.bounds {
-            enqueue(builder.add(WalkthroughBuilder.ScopeChange(at: 0, scope: .screen, bounds: bounds, byUser: false)))
+        if builder.scopes.isEmpty, let view = media.view(at: 0) {
+            enqueue(builder.add(WalkthroughBuilder.ScopeChange(at: 0, scope: .screen, bounds: view.bbox, byUser: false)))
         }
         let pending = waiting
         waiting.removeAll()
@@ -113,6 +114,7 @@ final class WalkthroughRecorder {
             permissions: Walkthrough.Permissions(screen: sources.screen, microphone: sources.microphone, accessibility: sources.accessibility),
             displays: media?.displays ?? [],
             transcript: sources.transcript,
+            transcriptFailure: sources.transcriptFailure,
             language: sources.language,
             transcriptEngine: "SpeechAnalyzer",
             clip: exported,
@@ -134,22 +136,24 @@ final class WalkthroughRecorder {
     }
 
     private func capture(_ request: WalkthroughBuilder.FrameRequest) {
-        guard let media, let bounds = media.bounds else { return }
+        guard let media else { return }
         let frameURL = bundle.url(for: request.file)
         let thumbURL = bundle.url(for: request.thumb)
         captures.append(Task { [weak self] in
-            let written: Int? = await Task.detached(priority: .utility) {
+            let written: (width: Int, view: MediaView)? = await Task.detached(priority: .utility) {
                 guard let image = await media.frame(at: request.time),
+                      let view = media.view(at: request.time),
                       WalkthroughImages.write(image, frame: frameURL, thumb: thumbURL)
                 else { return nil }
-                return WalkthroughImages.pixelWidth(of: image)
+                return (WalkthroughImages.pixelWidth(of: image), view)
             }.value
             guard let self else { return }
             guard let written else {
                 failedFrames += 1
                 return
             }
-            builder.captured(request, bbox: bounds, scale: bounds.width > 0 ? Double(written) / bounds.width : nil)
+            let bbox = written.view.bbox
+            builder.captured(request, bbox: bbox, scale: bbox.width > 0 ? Double(written.width) / bbox.width : nil, display: written.view.display)
         })
     }
 

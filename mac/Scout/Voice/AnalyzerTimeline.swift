@@ -41,3 +41,23 @@ nonisolated final class AnalyzerTimeline: @unchecked Sendable {
         CMTime(value: sample, timescale: CMTimeScale(rate))
     }
 }
+
+nonisolated final class AnalyzerFault: @unchecked Sendable {
+    private let after: Double
+    private let lock = NSLock()
+    private var delivered: Double = 0
+    private var fired = false
+
+    init(after: Double) {
+        self.after = after
+    }
+
+    func input(after buffer: AVAudioPCMBuffer) -> AnalyzerInput? {
+        lock.lock()
+        defer { lock.unlock() }
+        delivered += Double(buffer.frameLength) / buffer.format.sampleRate
+        guard !fired, delivered >= after else { return nil }
+        fired = true
+        return AnalyzerInput(buffer: buffer, bufferStartTime: .zero)
+    }
+}

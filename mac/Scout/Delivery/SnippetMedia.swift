@@ -12,17 +12,17 @@ enum SnippetMedia {
             attachments.append(.init(kind: .video, url: clip.url))
         }
         for (index, mark) in snippet.marks.enumerated() {
-            guard let display = recorder.display, display.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)),
+            guard let display = recorder.displays?.display(at: mark.at), display.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)),
                   let frame = await recorder.snapshot(at: mark.at)
             else { continue }
-            let image = outlined(frame, mark: mark, display: display) ?? frame
+            let image = shot(frame, mark: mark, display: display)
             let url = directory.appendingPathComponent("pin-\(index + 1).png")
             if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }
         }
         return attachments
     }
 
-    static func attachments(for snippet: Snippet, video: ExportedClip, display: CaptureDisplay?, into directory: URL) async -> [ComposedTask.Attachment] {
+    static func attachments(for snippet: Snippet, video: ExportedClip, displays: CaptureDisplays?, into directory: URL) async -> [ComposedTask.Attachment] {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var attachments: [ComposedTask.Attachment] = []
         let asset = AVURLAsset(url: video.url)
@@ -42,12 +42,18 @@ enum SnippetMedia {
         for (index, mark) in snippet.marks.enumerated() {
             let time = CMTime(seconds: max(0, mark.at - video.range.start), preferredTimescale: 600)
             guard let frame = try? await generator.image(at: time).image else { continue }
+            let display = displays?.display(at: mark.at)
             let onDisplay = display.map { $0.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)) } ?? false
-            let image = (onDisplay ? display.flatMap { outlined(frame, mark: mark, display: $0) } : nil) ?? frame
+            let image = onDisplay ? display.map { shot(frame, mark: mark, display: $0) } ?? frame : display?.cropped(frame) ?? frame
             let url = directory.appendingPathComponent("pin-\(index + 1).png")
             if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }
         }
         return attachments
+    }
+
+    private static func shot(_ frame: CGImage, mark: Mark, display: CaptureDisplay) -> CGImage {
+        let image = outlined(frame, mark: mark, display: display) ?? frame
+        return display.cropped(image) ?? image
     }
 
     private static func outlined(_ image: CGImage, mark: Mark, display: CaptureDisplay) -> CGImage? {

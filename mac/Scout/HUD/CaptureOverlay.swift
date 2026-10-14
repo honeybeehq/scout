@@ -157,7 +157,7 @@ private struct CaptureFrame: View {
     }
 }
 
-private struct Cutout: Shape {
+nonisolated private struct Cutout: Shape {
     var hole: CGRect
     var dimsOutside: Bool
 
@@ -174,7 +174,7 @@ private struct Cutout: Shape {
     }
 }
 
-private struct KeepBothBubble: View {
+struct KeepBothBubble: View {
     var body: some View {
         HStack(spacing: 6) {
             Text("You keep moving between these.")
@@ -182,7 +182,7 @@ private struct KeepBothBubble: View {
             Text("Keep both in view")
                 .fontWeight(.semibold)
                 .foregroundStyle(Palette.text)
-            KeyHint("E")
+            KeyHint(KeyShortcut.widenCapture.label)
         }
         .font(.system(size: 12))
         .padding(.horizontal, 10)

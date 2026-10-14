@@ -8,6 +8,10 @@ struct KeyShortcut: Codable, Equatable {
 
     static let startScouting = KeyShortcut(keyCode: UInt32(kVK_ANSI_S), carbonModifiers: UInt32(controlKey | optionKey), key: "S")
     static let nextTask = KeyShortcut(keyCode: UInt32(kVK_ANSI_B), carbonModifiers: UInt32(controlKey | optionKey), key: "B")
+    static let widenCapture = KeyShortcut(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(controlKey | optionKey), key: "E")
+    static let followPointer = KeyShortcut(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(controlKey | optionKey | shiftKey), key: "E")
+
+    var label: String { symbols.joined() }
 
     var symbols: [String] {
         var symbols: [String] = []
@@ -50,8 +54,11 @@ final class GlobalHotkey {
     private static var eventHandler: EventHandlerRef?
     private(set) static var lastPressTime: TimeInterval = 0
 
+    private static let signature = OSType(0x5343_5554)
     private let id: UInt32
     private var reference: EventHotKeyRef?
+
+    var isRegistered: Bool { reference != nil }
 
     init(action: @escaping () -> Void) {
         id = Self.nextID
@@ -63,9 +70,21 @@ final class GlobalHotkey {
     @discardableResult
     func register(_ shortcut: KeyShortcut) -> Bool {
         unregister()
-        let hotKeyID = EventHotKeyID(signature: OSType(0x5343_5554), id: id)
+        let hotKeyID = EventHotKeyID(signature: Self.signature, id: id)
         let status = RegisterEventHotKey(shortcut.keyCode, shortcut.carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &reference)
+        if status != noErr { reference = nil }
         return status == noErr
+    }
+
+    func sendPressedEvent() -> OSStatus {
+        var event: EventRef?
+        var status = CreateEvent(nil, OSType(kEventClassKeyboard), UInt32(kEventHotKeyPressed), GetCurrentEventTime(), EventAttributes(kEventAttributeNone), &event)
+        guard status == noErr, let event else { return status }
+        defer { ReleaseEvent(event) }
+        var hotKeyID = EventHotKeyID(signature: Self.signature, id: id)
+        status = SetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size, &hotKeyID)
+        guard status == noErr else { return status }
+        return SendEventToEventTarget(event, GetApplicationEventTarget())
     }
 
     func unregister() {

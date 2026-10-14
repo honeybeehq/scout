@@ -20,6 +20,7 @@ final class SessionReview {
     private(set) var discardedRanges: [TimeRange]
     private(set) var video: ExportedClip?
     private(set) var display: CaptureDisplay?
+    private(set) var displays: CaptureDisplays?
     private(set) var isFinishing: Bool
     private(set) var filmstrip: [CGImage] = []
     private(set) var saveError: String?
@@ -54,7 +55,9 @@ final class SessionReview {
         tasks = session.cards.filter { $0.state != .withdrawn }.sorted { $0.snippet.range.start < $1.snippet.range.start }
         discardedRanges = session.discardedRanges
         video = session.video
-        display = session.recorder?.display
+        let displays = session.recorder?.displays
+        self.displays = displays
+        display = displays?.start
         isFinishing = session.video == nil && session.recorder != nil
         self.session = session
         self.dispatcher = dispatcher
@@ -70,6 +73,7 @@ final class SessionReview {
         tasks = cards.sorted { $0.snippet.range.start < $1.snippet.range.start }
         discardedRanges = (record.discarded ?? []).map { TimeRange(start: $0.start, end: $0.end) }
         video = record.video.map { ExportedClip(url: directory.appendingPathComponent($0.file), range: TimeRange(start: $0.start, end: $0.end)) }
+        displays = record.displays
         display = record.display
         isFinishing = false
         self.dispatcher = dispatcher
@@ -118,7 +122,8 @@ final class SessionReview {
         guard let session else { return }
         ledger = session.ledger
         video = session.video ?? video
-        display = session.recorder?.display ?? display
+        displays = session.recorder?.displays ?? displays
+        display = displays?.start ?? display
         isFinishing = session.video == nil && session.recorder != nil && session.phase == .ended && isFinishing
         for card in session.cards where card.state != .withdrawn && !contains(card) {
             tasks.append(card)
@@ -126,7 +131,7 @@ final class SessionReview {
         sortTasks()
         for card in tasks {
             card.sessionVideo = card.sessionVideo ?? video
-            card.sessionDisplay = card.sessionDisplay ?? display
+            card.sessionDisplays = card.sessionDisplays ?? displays
         }
         scheduleSave()
     }
@@ -280,7 +285,7 @@ final class SessionReview {
         let card = SnippetCard(snippet: ledger.snippet(id: newTaskID(), range: range), sessionID: sessionID, sessionDirectory: directory)
         card.recorder = session?.recorder
         card.sessionVideo = video
-        card.sessionDisplay = display
+        card.sessionDisplays = displays
         card.holdRequested = true
         tasks.append(card)
         sortTasks()
@@ -404,7 +409,8 @@ final class SessionReview {
             segmentation: segmentation.rawValue,
             duration: duration,
             video: video.map { .init(file: $0.url.lastPathComponent, start: $0.range.start, end: $0.range.end) },
-            display: display,
+            display: displays?.start ?? display,
+            displayHops: displays.flatMap { $0.hops.isEmpty ? nil : $0.hops },
             discarded: discardedRanges.map { .init(start: $0.start, end: $0.end) },
             tasks: tasks.map(ReviewRecord.Task.init)
         )

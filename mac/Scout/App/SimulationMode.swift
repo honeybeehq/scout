@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Foundation
 import FoundationModels
 import ScoutCore
@@ -25,12 +26,16 @@ enum SimulationMode {
         argument("simulate-break")?.split(separator: ",").compactMap { Double($0) } ?? []
     }
 
+    static var analyzerFaultAfter: Double? {
+        argument("simulate-analyzer-fault").flatMap(Double.init)
+    }
+
     static var reviewsEdits: Bool {
         ProcessInfo.processInfo.arguments.contains("--simulate-review")
     }
 
     static var isRunning: Bool {
-        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || CaptureUXDemo.outputDirectory != nil
+        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || CaptureUXDemo.outputDirectory != nil || ExpandKeyCheck.outputDirectory != nil
     }
 
     static var panelSharing: NSWindow.SharingType {
@@ -186,8 +191,11 @@ enum SimulationMode {
         }
         let offset = session.clock.now
         report["audioOffset"] = offset
+        var hops: CaptureDisplays?
         if let video = fixture.video {
-            session.walkthrough?.attach(FixtureWalkthroughMedia(video: video, screen: fixture.screen, offset: offset))
+            let size = (try? await AVURLAsset(url: video).loadTracks(withMediaType: .video).first?.load(.naturalSize)) ?? .zero
+            hops = fixture.captureDisplays(videoSize: size, shiftedBy: offset)
+            session.walkthrough?.attach(FixtureWalkthroughMedia(video: video, screen: fixture.screen, offset: offset, hops: hops))
         }
         for step in fixture.steps(shiftedBy: offset) {
             let wait = step.at - session.clock.now
@@ -213,6 +221,12 @@ enum SimulationMode {
         report["bundle"] = done.directory.path
         report["timings"] = done.timings
         report["status"] = done.walkthrough.status.rawValue
+        report["transcript"] = [
+            "status": done.walkthrough.transcript.status.rawValue,
+            "failure": done.walkthrough.transcript.failure.map { ["reason": $0.reason.rawValue, "message": $0.message ?? "", "t": $0.t ?? -1] } ?? [:],
+            "soundedInputs": session.transcriber.soundedInputs,
+        ]
+        report["displays"] = done.walkthrough.capture.displays?.map { ["id": $0.id, "bounds": [$0.bounds.x, $0.bounds.y, $0.bounds.w, $0.bounds.h]] } ?? []
         report["counts"] = [
             "segments": done.walkthrough.transcript.segments.count,
             "frames": done.walkthrough.frames.count,
@@ -225,12 +239,46 @@ enum SimulationMode {
         report["pointing"] = ["calls": session.pointing?.calls ?? 0, "skipped": session.pointing?.skipped ?? 0]
         report["apiaryPointers"] = done.walkthrough.pointers.filter { $0.source == .apiary }.map { "\($0.id) \($0.via.rawValue) \($0.label ?? "")" }
         report["uuidv5Check"] = ScoutUUID.v5("scout:probe:send1")
+        if let hops, let video = fixture.video {
+            let size = (try? await AVURLAsset(url: video).loadTracks(withMediaType: .video).first?.load(.naturalSize)) ?? .zero
+            report["pinShots"] = await pinShots(fixture: fixture, video: video, displays: fixture.captureDisplays(videoSize: size) ?? hops, output: output)
+        }
         report["picker"] = await drivePicker(model: model, output: output)
         report["bridgeLog"] = await model.apiary.log
     }
 
+    private static func pinShots(fixture: WalkthroughFixture, video: URL, displays: CaptureDisplays, output: URL) async -> [String: Any] {
+        let ledger = SessionLedger(replaying: fixture.signals)
+        let duration = (try? await AVURLAsset(url: video).load(.duration).seconds) ?? ledger.end
+        let directory = output.appendingPathComponent("pin-shots", isDirectory: true)
+        let record = ReviewRecord(sessionID: "s7-hop", startedAt: Date(), segmentation: "manual", duration: duration, video: nil, display: displays.start, displayHops: displays.hops, discarded: nil, tasks: [])
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? ReviewRecord.write(record, to: directory)
+        let restored = ReviewRecord.read(from: directory)?.displays
+        let snippet = ledger.snippet(id: "t1", range: TimeRange(start: 0, end: duration))
+        let attachments = await SnippetMedia.attachments(for: snippet, video: ExportedClip(url: video, range: TimeRange(start: 0, end: duration)), displays: restored, into: directory)
+        let marks: [[String: Any]] = snippet.marks.map { mark in
+            let display = restored?.display(at: mark.at)
+            let video = display?.videoPoint(forScreenPoint: CGPoint(x: mark.point.x, y: mark.point.y))
+            return [
+                "mark": mark.id,
+                "at": mark.at,
+                "point": [mark.point.x, mark.point.y],
+                "display": display.map { Int($0.displayID) } ?? -1,
+                "displayBounds": display.map { [$0.frame.minX, $0.frame.minY, $0.frame.width, $0.frame.height] } ?? [],
+                "videoPoint": video.map { [$0.x, $0.y] } ?? [],
+                "contentRect": display.map { [$0.contentRect.minX, $0.contentRect.minY, $0.contentRect.width, $0.contentRect.height] } ?? [],
+            ]
+        }
+        return ["reviewRecordHops": restored?.hops.count ?? -1, "marks": marks, "files": attachments.map(\.url.path)]
+    }
+
     private static func pickerSnapshot(_ model: AppModel, _ name: String, into output: URL) {
         try? model.picker.snapshot()?.representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("picker-\(name).png"))
+        ViewShot.write(TargetPickerView().environment(model.picker.model), to: output.appendingPathComponent("picker-\(name)-rendered.png"), padding: 0)
+        if name == "1-open" {
+            ViewShot.write(MenuBarPanel().environment(model).frame(width: 360), to: output.appendingPathComponent("menu-bar.png"))
+        }
     }
 
     private static func waitFor(_ seconds: Double, _ condition: () -> Bool) async {
@@ -579,6 +627,16 @@ struct WalkthroughFixture: Decodable {
         var y: Double
     }
 
+    struct DisplayInput: Decodable {
+        var id: UInt32
+        var bounds: Rect
+    }
+
+    struct HopInput: Decodable {
+        var at: Double
+        var display: UInt32
+    }
+
     enum Action {
         case dwell(Point)
         case signal(Signal)
@@ -598,16 +656,35 @@ struct WalkthroughFixture: Decodable {
     var strokes: [StrokeInput]?
     var scopes: [ScopeInput]?
     var pointers: [PointerInput]?
+    var displays: [DisplayInput]?
+    var hops: [HopInput]?
     var base: URL = URL(fileURLWithPath: "/")
 
     private enum CodingKeys: String, CodingKey {
         case audioPath = "audio"
         case videoPath = "video"
-        case screen, signals, strokes, scopes, pointers
+        case screen, signals, strokes, scopes, pointers, displays, hops
     }
 
     var audio: URL { URL(fileURLWithPath: audioPath, relativeTo: base).standardizedFileURL }
     var video: URL? { videoPath.map { URL(fileURLWithPath: $0, relativeTo: base).standardizedFileURL } }
+
+    func captureDisplays(videoSize: CGSize, shiftedBy offset: Double = 0) -> CaptureDisplays? {
+        guard let displays, let first = displays.first else { return nil }
+        func display(_ input: DisplayInput) -> CaptureDisplay {
+            CaptureDisplay(
+                displayID: input.id,
+                frame: CGRect(x: input.bounds.x, y: input.bounds.y, width: input.bounds.width, height: input.bounds.height),
+                pointPixelScale: 1,
+                videoWidth: Int(videoSize.width),
+                videoHeight: Int(videoSize.height)
+            )
+        }
+        let hops = (hops ?? []).compactMap { hop in
+            displays.first { $0.id == hop.display }.map { CaptureDisplays.Hop(at: hop.at + offset, display: display($0)) }
+        }
+        return CaptureDisplays(start: display(first), hops: hops)
+    }
 
     static func load(_ url: URL) throws -> WalkthroughFixture {
         var fixture = try JSONDecoder().decode(WalkthroughFixture.self, from: Data(contentsOf: url))

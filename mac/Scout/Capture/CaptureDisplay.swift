@@ -2,6 +2,7 @@ import CoreGraphics
 import CoreMedia
 import CoreVideo
 import Foundation
+import ScoutCore
 @preconcurrency import ScreenCaptureKit
 
 nonisolated struct CaptureDisplay: Sendable, Hashable, Codable {
@@ -11,11 +12,66 @@ nonisolated struct CaptureDisplay: Sendable, Hashable, Codable {
     let videoWidth: Int
     let videoHeight: Int
 
+    var contentRect: CGRect {
+        let video = CGSize(width: videoWidth, height: videoHeight)
+        guard frame.width > 0, frame.height > 0 else { return CGRect(origin: .zero, size: video) }
+        let fit = min(video.width / frame.width, video.height / frame.height)
+        let size = CGSize(width: frame.width * fit, height: frame.height * fit)
+        return CGRect(x: (video.width - size.width) / 2, y: (video.height - size.height) / 2, width: size.width, height: size.height)
+    }
+
     func videoPoint(forScreenPoint point: CGPoint) -> CGPoint {
-        CGPoint(
-            x: (point.x - frame.minX) * Double(videoWidth) / frame.width,
-            y: (point.y - frame.minY) * Double(videoHeight) / frame.height
+        let content = contentRect
+        return CGPoint(
+            x: content.minX + (point.x - frame.minX) * content.width / frame.width,
+            y: content.minY + (point.y - frame.minY) * content.height / frame.height
         )
+    }
+
+    func cropped(_ image: CGImage) -> CGImage? {
+        let content = contentRect
+        let scaleX = Double(image.width) / Double(videoWidth)
+        let scaleY = Double(image.height) / Double(videoHeight)
+        let rect = CGRect(x: content.minX * scaleX, y: content.minY * scaleY, width: content.width * scaleX, height: content.height * scaleY).integral
+        guard rect.width < Double(image.width) - 1 || rect.height < Double(image.height) - 1 else { return image }
+        return image.cropping(to: rect)
+    }
+}
+
+nonisolated struct CaptureDisplays: Sendable, Hashable, Codable {
+    struct Hop: Sendable, Hashable, Codable {
+        let at: SessionTime
+        let display: CaptureDisplay
+    }
+
+    struct Span: Sendable, Hashable {
+        let start: SessionTime
+        let display: CaptureDisplay
+    }
+
+    let start: CaptureDisplay
+    let hops: [Hop]
+
+    init(start: CaptureDisplay, hops: [Hop] = []) {
+        self.start = start
+        self.hops = hops
+    }
+
+    func display(at time: SessionTime) -> CaptureDisplay {
+        hops.last { $0.at <= time }?.display ?? start
+    }
+
+    var spans: [Span] {
+        var spans = [Span(start: 0, display: start)]
+        for hop in hops where hop.display != spans.last?.display {
+            spans.append(Span(start: hop.at, display: hop.display))
+        }
+        return spans
+    }
+
+    var used: [CaptureDisplay] {
+        var seen: Set<CGDirectDisplayID> = []
+        return spans.map(\.display).filter { seen.insert($0.displayID).inserted }
     }
 }
 

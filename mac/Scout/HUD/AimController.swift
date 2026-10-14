@@ -19,8 +19,6 @@ final class AimController {
 
     var onPin: ((Mark) -> Void)?
     var onStroke: ((Stroke) -> Void)?
-    var onExpand: ((TimeInterval) -> Void)?
-    var onFollow: ((TimeInterval) -> Void)?
     var onAimChanged: ((Bool) -> Void)?
     var enrich: ((Mark, Date) async -> Target?)?
     var measure: ((String, TimeInterval) -> Void)?
@@ -53,7 +51,6 @@ final class AimController {
         }
         isAvailable = tap.start()
         self.tap = isAvailable ? tap : nil
-        self.tap?.setExpandKeys(true)
     }
 
     func simulate(_ event: PinEventTap.Event) {
@@ -86,10 +83,6 @@ final class AimController {
             drag(to: point, input: input)
         case .release(let point, let input):
             release(at: point, input: input)
-        case .expand(let input):
-            onExpand?(input)
-        case .follow(let input):
-            onFollow?(input)
         }
     }
 
