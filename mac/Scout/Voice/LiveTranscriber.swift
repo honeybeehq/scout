@@ -92,7 +92,10 @@ final class LiveTranscriber {
                     Task { @MainActor in self?.onInputFinished?() }
                 }
             } else {
-                try microphone.start(convertingTo: format, onBuffer: onBuffer, onLevel: onLevel)
+                let onFailure: @Sendable (Error) -> Void = { [weak self] error in
+                    Task { @MainActor in await self?.inputStopped(error, attempt: attempt) }
+                }
+                try microphone.start(convertingTo: format, onBuffer: onBuffer, onLevel: onLevel, onFailure: onFailure)
             }
             try await analyzer.start(inputSequence: stream)
             guard attempt == generation else {
@@ -105,6 +108,15 @@ final class LiveTranscriber {
             await teardown()
             fail(error)
         }
+    }
+
+    private func inputStopped(_ error: Error, attempt: Int) async {
+        guard attempt == generation, phase == .listening else { return }
+        generation += 1
+        await flush()
+        await teardown()
+        level = 0
+        fail(error)
     }
 
     private func fail(_ error: Error) {

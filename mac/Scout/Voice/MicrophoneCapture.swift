@@ -4,14 +4,18 @@ import Speech
 nonisolated final class MicrophoneCapture: @unchecked Sendable {
     enum CaptureError: LocalizedError {
         case noInputDevice
+        case unusableFormat
         case converterUnavailable
         case audioEngine(String)
+        case stopped(String)
 
         var errorDescription: String? {
             switch self {
             case .noInputDevice: "No microphone is available."
+            case .unusableFormat: "The microphone couldn't start (its input format isn't usable)."
             case .converterUnavailable: "The microphone format isn't supported."
             case .audioEngine(let reason): "The microphone couldn't start: \(reason)"
+            case .stopped(let reason): "The microphone stopped after an audio device change: \(reason)"
             }
         }
     }
@@ -29,13 +33,19 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     func start(
         convertingTo targetFormat: AVAudioFormat?,
         onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void,
-        onLevel: @escaping @Sendable (Float) -> Void
+        onLevel: @escaping @Sendable (Float) -> Void,
+        onFailure: @escaping @Sendable (Error) -> Void
     ) throws {
         try install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
         restart = { [weak self] in
             guard let self else { return }
-            try? Self.guarding { self.engine.inputNode.removeTap(onBus: 0) }
-            try? self.install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
+            do {
+                try Self.guarding { self.engine.inputNode.removeTap(onBus: 0) }
+                try self.install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
+            } catch {
+                try? Self.guarding { self.engine.stop() }
+                onFailure(CaptureError.stopped(error.localizedDescription))
+            }
         }
         configurationObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
             self?.restart?()
@@ -50,9 +60,10 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         let hardwareFormat = input.inputFormat(forBus: 0)
+        guard AVCaptureDevice.default(for: .audio) != nil else { throw CaptureError.noInputDevice }
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0,
               hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0
-        else { throw CaptureError.noInputDevice }
+        else { throw CaptureError.unusableFormat }
         let block = try tap(from: inputFormat, convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
         try Self.guarding {
             input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat, block: block)

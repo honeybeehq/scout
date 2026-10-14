@@ -129,7 +129,19 @@ struct ScoutingPill: View {
                 .lineLimit(1)
         case .live, .ended:
             let tail = Self.tail(of: transcriber.finalizedText, keeping: 36)
-            if session.aim.isAiming || (tail.isEmpty && transcriber.volatileText.isEmpty) {
+            if case .failed(let message) = transcriber.phase {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Palette.caution)
+                        .frame(width: 6, height: 6)
+                    Text(message)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .help(message)
+            } else if session.aim.isAiming || (tail.isEmpty && transcriber.volatileText.isEmpty) {
                 Text(hint(session))
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.textTertiary)

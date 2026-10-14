@@ -8,7 +8,10 @@ struct ScoutApp: App {
     @NSApplicationDelegateAdaptor(ScoutAppDelegate.self) private var delegate
     @State private var model = AppModel()
 
-    init() { CaptureSelfTest.startIfRequested() }
+    init() {
+        UserDefaults.standard.register(defaults: ["NSApplicationCrashOnExceptions": true])
+        CaptureSelfTest.startIfRequested()
+    }
 
     var body: some Scene {
         Window("Welcome to Scout", id: Self.onboardingWindowID) {
