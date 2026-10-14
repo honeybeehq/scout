@@ -46,6 +46,11 @@ public struct ApiaryStack: Hashable, Sendable {
         return nil
     }
 
+    public var elementBounds: Rect? {
+        guard let level = innermost, let kind = kind(level), kind == "dom" || kind == "element" else { return nil }
+        return ApiaryStack(levels: [.object(level)]).bounds
+    }
+
     public var url: String? {
         levels.reversed().lazy.compactMap(fields).first { kind($0) == "dom" }.flatMap { string($0, "url") }
     }

@@ -212,7 +212,7 @@ final class AppModel {
         hud.hidePill()
         if let walkthrough = session.walkthrough {
             let pressed = ContinuousClock.now
-            openPicker(for: nil, pressedAt: pressed)
+            openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed)
             Task { await finishWalkthrough(walkthrough, of: session, pressedAt: pressed, handedOff: handedOff) }
             return
         }
@@ -260,7 +260,7 @@ final class AppModel {
             walkthrough.discard()
             lastWalkthrough = nil
             walkthroughProblem = "The walkthrough couldn't be saved: \(error)"
-            picker.model.failed("The walkthrough couldn't be saved.")
+            if pickerWalkthroughID == walkthrough.bundle.id { picker.model.failed("The walkthrough couldn't be saved.") }
         }
         stackChanged()
         let media = session.directory.appendingPathComponent("media", isDirectory: true)
@@ -287,10 +287,14 @@ final class AppModel {
 
     func sendLastWalkthrough() {
         guard let lastWalkthrough, !isScouting else { return }
-        openPicker(for: lastWalkthrough, pressedAt: .now)
+        openPicker(for: lastWalkthrough, expecting: lastWalkthrough.walkthrough.id, pressedAt: .now)
     }
 
-    private func openPicker(for finished: FinishedWalkthrough?, pressedAt: ContinuousClock.Instant) {
+    @ObservationIgnored private var pickerWalkthroughID: String?
+
+    private func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant) {
+        pickerWalkthroughID = walkthroughID
+        chosen = nil
         finishPressedAt = pressedAt
         pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
         picker.model.reset(with: finished)
@@ -338,7 +342,7 @@ final class AppModel {
     }
 
     private func walkthroughReady(_ finished: FinishedWalkthrough) {
-        guard picker.isOpen, picker.model.confirmation == nil else { return }
+        guard picker.isOpen, picker.model.confirmation == nil, pickerWalkthroughID == finished.walkthrough.id else { return }
         picker.model.ready(finished)
         if let chosen, picker.model.queued != nil {
             deliver(finished, to: chosen.target, mode: chosen.mode)
@@ -373,6 +377,7 @@ final class AppModel {
     }
 
     private func dismissPicker() {
+        guard !picker.model.delivering else { return }
         chosen = nil
         picker.model.confirm("On the clipboard")
         picker.compact()

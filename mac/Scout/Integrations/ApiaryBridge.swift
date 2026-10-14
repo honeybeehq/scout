@@ -137,6 +137,7 @@ actor ApiaryBridge {
     private var nextID = 1
     private var quietUntil: ContinuousClock.Instant?
     private var lastUse = ContinuousClock.now
+    private var checkedAt = ContinuousClock.now
     private var idleWatch: Task<Void, Never>?
     private(set) var log: [String] = []
 
@@ -154,10 +155,11 @@ actor ApiaryBridge {
         drop(.unreachable)
     }
 
+    func apiaryPID() async -> pid_t? {
+        (try? await ensure())?.apiaryPID
+    }
+
     func pointAt(_ point: Point, reason: String, retry: Bool) async -> ApiaryPoint? {
-        guard let hello = try? await ensure(),
-              ApiaryWindows.topmostOwner(at: point) == hello.apiaryPID
-        else { return nil }
         let params: JSONValue = .object(["x": .number(point.x), "y": .number(point.y), "reason": .string(reason), "dom": .bool(true)])
         var answer = try? await call("pointAt", params, timeout: Self.pointAtBudget)
         if answer == nil, retry {
@@ -204,7 +206,13 @@ actor ApiaryBridge {
 
     private func ensure() async throws -> ApiaryHello {
         lastUse = .now
-        if let hello { return hello }
+        if let hello {
+            guard ContinuousClock.now - checkedAt > .seconds(2) else { return hello }
+            checkedAt = .now
+            if ApiaryDiscovery.read(from: discoveryPath ?? ApiaryDiscovery.path)?.instanceId == hello.instanceId { return hello }
+            note("instance changed")
+            drop(.unreachable)
+        }
         if let connecting { return try await connecting.value }
         if let quietUntil, ContinuousClock.now < quietUntil { throw ApiaryBridgeError.absent }
         let task = Task { try await self.open() }
@@ -213,6 +221,7 @@ actor ApiaryBridge {
         do {
             let hello = try await task.value
             self.hello = hello
+            checkedAt = .now
             quietUntil = nil
             watchIdle()
             return hello
@@ -235,11 +244,18 @@ actor ApiaryBridge {
         }
         Task { await self.read(from: socket) }
         let started = ContinuousClock.now
-        let answer = try await send("hello", Self.helloParams(token: discovery.token), timeout: .seconds(2))
-        guard let hello = Self.hello(from: answer, pid: discovery.pid) else {
-            drop(.unreachable)
+        let answer: JSONValue
+        do {
+            answer = try await send("hello", Self.helloParams(token: discovery.token), timeout: .seconds(2))
+        } catch {
+            drop(.unreachable, ifCurrent: socket)
+            throw error
+        }
+        guard var hello = Self.hello(from: answer, pid: discovery.pid), hello.instanceId == discovery.instanceId || hello.instanceId.isEmpty else {
+            drop(.unreachable, ifCurrent: socket)
             throw ApiaryBridgeError.unreachable
         }
+        hello.instanceId = discovery.instanceId
         note("hello \(Self.milliseconds(ContinuousClock.now - started)) ms")
         return hello
     }
@@ -293,7 +309,7 @@ actor ApiaryBridge {
             pending[id] = continuation
             socket.write(line) { [weak self] failed in
                 guard failed, let self else { return }
-                Task { await self.drop(.unreachable) }
+                Task { await self.drop(.unreachable, ifCurrent: socket) }
             }
             Task {
                 try? await Task.sleep(for: timeout)
@@ -310,7 +326,7 @@ actor ApiaryBridge {
     private func read(from socket: BridgeSocket) async {
         while true {
             guard let line = try? await socket.readLine() else {
-                if self.socket === socket { drop(.unreachable) }
+                drop(.unreachable, ifCurrent: socket)
                 return
             }
             guard let response = try? JSONDecoder().decode(Response.self, from: line), let id = response.id else { continue }
@@ -320,6 +336,14 @@ actor ApiaryBridge {
                 let code = response.error?.code ?? "internal"
                 complete(id, with: .failure(ApiaryBridgeError.refused(code: code, message: response.error?.message ?? code)))
             }
+        }
+    }
+
+    private func drop(_ error: ApiaryBridgeError, ifCurrent socket: BridgeSocket) {
+        if self.socket === socket {
+            drop(error)
+        } else {
+            socket.close()
         }
     }
 

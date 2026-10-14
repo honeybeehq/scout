@@ -42,7 +42,7 @@ struct DeliveryOutcome: Sendable {
         switch route {
         case .apiary: mode == .paste ? "Pasted into \(title)" : "Sent to \(title)"
         case .hive: deduped ? "Already sent to \(title)" : "Sent to \(title)"
-        case .clipboard: "On the clipboard. Apiary has no window open"
+        case .clipboard: "On the clipboard. Apiary isn't showing a chat"
         }
     }
 }
@@ -69,6 +69,9 @@ struct WalkthroughDelivery {
             DeliveryOutcome(route: route, mode: mode, title: title, deliveryID: deliveryID, messageID: messageID, deduped: deduped, fallbackReason: reason, roundTripMs: ApiaryBridge.milliseconds(ContinuousClock.now - started))
         }
         var reason = "apiary absent"
+        if !viaApiary, mode == .paste {
+            return outcome(.clipboard, title: target.title, reason: reason)
+        }
         if viaApiary {
             let params: JSONValue = .object([
                 "deliveryId": .string(deliveryID),

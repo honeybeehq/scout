@@ -23,6 +23,8 @@ final class WalkthroughRecorder {
     private var waiting: [WalkthroughBuilder.FrameRequest] = []
     private var captures: [Task<Void, Never>] = []
     private var semanticTasks: [Task<Void, Never>] = []
+    private var sealed = false
+    static let pointingWait: Duration = .milliseconds(130)
     private var prepared = false
     private var finishing = false
     private(set) var failedFrames = 0
@@ -66,7 +68,7 @@ final class WalkthroughRecorder {
         guard !finishing else { return }
         semanticTasks.append(Task { [weak self] in
             let answer = await query()
-            guard let self, let hit = accept(answer) else { return }
+            guard let self, !sealed, let hit = accept(answer) else { return }
             enqueue(builder.add(hit))
         })
     }
@@ -86,7 +88,19 @@ final class WalkthroughRecorder {
         enqueue(builder.finish(at: end))
         finishing = true
         if !prepared { try bundle.prepare() }
-        for task in semanticTasks { await task.value }
+        let pending = semanticTasks
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let once = OnceFlag()
+            Task {
+                for task in pending { await task.value }
+                once.run { continuation.resume() }
+            }
+            Task {
+                try? await Task.sleep(for: Self.pointingWait)
+                once.run { continuation.resume() }
+            }
+        }
+        sealed = true
         mark("pointing")
         async let clip = media?.exportClip(through: end, to: bundle.url(for: WalkthroughBundle.clipName))
         for capture in captures { await capture.value }
