@@ -135,7 +135,7 @@ final class AppModel {
 
     func record(_ request: RecordRequest) {
         if isScouting {
-            if session?.walkthrough != nil { boundTarget = request.target }
+            if session?.walkthrough != nil { boundTarget = request.target } else { NSSound.beep() }
             return
         }
         startScouting(inputFile: simulatedInput, input: InteractionTimings.now, target: request.target)

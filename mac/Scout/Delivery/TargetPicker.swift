@@ -179,9 +179,14 @@ final class TargetPickerController {
         panel.setFrame(CGRect(origin: origin, size: Self.size), display: false)
         panel.alphaValue = 1
         panel.orderFrontRegardless()
-        if takingKeys { panel.makeKey() }
         panel.displayIfNeeded()
-        if takingKeys { listen() }
+        if takingKeys {
+            panel.makeKey()
+            listen()
+        } else {
+            panel.resignKey()
+            stopListening()
+        }
     }
 
     func close(after delay: Duration = .zero) {
