@@ -111,7 +111,7 @@ final class LiveTranscriber {
     }
 
     private func inputStopped(_ error: Error, attempt: Int) async {
-        guard attempt == generation, phase == .listening else { return }
+        guard attempt == generation else { return }
         generation += 1
         await flush()
         await teardown()

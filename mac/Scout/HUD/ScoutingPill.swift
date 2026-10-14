@@ -7,6 +7,7 @@ struct ScoutingPill: View {
     var body: some View {
         let session = model.session
         let live = session?.phase == .live
+        let hearing: Bool = if case .failed = session?.transcriber.phase { false } else { live }
         let follower = session?.follower
         HStack(spacing: 10) {
             RecordingDot(active: live)
@@ -15,7 +16,7 @@ struct ScoutingPill: View {
                 .foregroundStyle(Palette.text)
                 .frame(minWidth: 34, alignment: .leading)
 
-            LevelBars(levels: levels, active: live, tint: .white, maxHeight: 16, barWidth: 2)
+            LevelBars(levels: hearing ? levels : Array(repeating: 0, count: levels.count), active: hearing, tint: .white, maxHeight: 16, barWidth: 2)
                 .frame(width: 26, height: 16)
 
             Group {
