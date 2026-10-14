@@ -5,11 +5,13 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     enum CaptureError: LocalizedError {
         case noInputDevice
         case converterUnavailable
+        case audioEngine(String)
 
         var errorDescription: String? {
             switch self {
             case .noInputDevice: "No microphone is available."
             case .converterUnavailable: "The microphone format isn't supported."
+            case .audioEngine(let reason): "The microphone couldn't start: \(reason)"
             }
         }
     }
@@ -32,7 +34,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         try install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
         restart = { [weak self] in
             guard let self else { return }
-            self.engine.inputNode.removeTap(onBus: 0)
+            try? Self.guarding { self.engine.inputNode.removeTap(onBus: 0) }
             try? self.install(convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
         }
         configurationObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
@@ -47,11 +49,20 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     ) throws {
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
-        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else { throw CaptureError.noInputDevice }
+        let hardwareFormat = input.inputFormat(forBus: 0)
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0,
+              hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0
+        else { throw CaptureError.noInputDevice }
         let block = try tap(from: inputFormat, convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
-        input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat, block: block)
-        engine.prepare()
-        try engine.start()
+        try Self.guarding {
+            input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat, block: block)
+            engine.prepare()
+        }
+        var startError: Error?
+        try Self.guarding {
+            do { try engine.start() } catch { startError = error }
+        }
+        if let startError { throw startError }
     }
 
     func tap(
@@ -81,12 +92,21 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         }
     }
 
+    private static func guarding(_ body: () -> Void) throws {
+        var error: NSError?
+        guard ScoutCatchObjCException(body, &error) else {
+            throw CaptureError.audioEngine(error?.localizedDescription ?? "unknown error")
+        }
+    }
+
     func stop() {
         if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
         configurationObserver = nil
         restart = nil
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        try? Self.guarding {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
     }
 
     private func measureLevel(_ buffer: AVAudioPCMBuffer) -> Float {
