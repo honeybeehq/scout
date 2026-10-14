@@ -23,7 +23,7 @@ nonisolated struct CaptureTarget: @unchecked Sendable {
     let display: CaptureDisplay
     let filter: SCContentFilter
 
-    static func displayUnderPointer(maxLongEdge: Int) async throws -> CaptureTarget {
+    static func displayUnderPointer(maxLongEdge: Int) async throws -> (target: CaptureTarget, content: SCShareableContent) {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         let pointer = CGEvent(source: nil)?.location ?? .zero
         let displays = content.displays
@@ -31,14 +31,17 @@ nonisolated struct CaptureTarget: @unchecked Sendable {
             ?? displays.first(where: { $0.displayID == CGMainDisplayID() })
             ?? displays.first
         else { throw ScreenCaptureError.noDisplay }
+        return (make(display: display, content: content, maxLongEdge: maxLongEdge), content)
+    }
 
+    static func make(display: SCDisplay, content: SCShareableContent, maxLongEdge: Int, videoSize fixed: (width: Int, height: Int)? = nil) -> CaptureTarget {
         let ownProcess = ProcessInfo.processInfo.processIdentifier
         let scout = content.applications.filter { $0.processID == ownProcess }
         let filter = SCContentFilter(display: display, excludingApplications: scout, exceptingWindows: [])
         let info = SCShareableContent.info(for: filter)
         let scale = Double(info.pointPixelScale)
         let pointSize = info.contentRect.size
-        let size = videoSize(pixelWidth: pointSize.width * scale, pixelHeight: pointSize.height * scale, maxLongEdge: maxLongEdge)
+        let size = fixed ?? videoSize(pixelWidth: pointSize.width * scale, pixelHeight: pointSize.height * scale, maxLongEdge: maxLongEdge)
         let captured = CaptureDisplay(
             displayID: display.displayID,
             frame: CGDisplayBounds(display.displayID),

@@ -1,3 +1,5 @@
+import ApplicationServices
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import Synchronization
@@ -6,12 +8,19 @@ nonisolated final class PinEventTap: @unchecked Sendable {
     enum Event: Sendable {
         case modifiers(CGEventFlags)
         case keyDown
-        case pin(CGPoint)
+        case press(CGPoint, TimeInterval)
+        case drag(CGPoint, TimeInterval)
+        case release(CGPoint, TimeInterval)
+        case expand(TimeInterval)
+        case follow(TimeInterval)
     }
+
+    private static let editableRoles: Set<String> = ["AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox", "AXSearchField"]
 
     private let onEvent: @Sendable (Event) -> Void
     private let aiming = Atomic<Bool>(false)
     private let swallowingClick = Atomic<Bool>(false)
+    private let expandKeys = Atomic<Bool>(false)
     private var tap: CFMachPort?
     private var runLoop: CFRunLoop?
     private var thread: Thread?
@@ -59,6 +68,10 @@ nonisolated final class PinEventTap: @unchecked Sendable {
         aiming.store(active, ordering: .releasing)
     }
 
+    func setExpandKeys(_ active: Bool) {
+        expandKeys.store(active, ordering: .releasing)
+    }
+
     fileprivate func handle(_ type: CGEventType, _ event: CGEvent) -> Bool {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
@@ -68,20 +81,60 @@ nonisolated final class PinEventTap: @unchecked Sendable {
             onEvent(.modifiers(event.flags))
             return false
         case .keyDown:
+            if let key = expandKey(event) {
+                onEvent(key)
+                return true
+            }
             onEvent(.keyDown)
             return false
         case .leftMouseDown:
             guard aiming.load(ordering: .acquiring), event.flags.contains(.maskAlternate) else { return false }
             swallowingClick.store(true, ordering: .releasing)
-            onEvent(.pin(event.location))
+            onEvent(.press(event.location, ProcessInfo.processInfo.systemUptime))
             return true
         case .leftMouseDragged:
-            return swallowingClick.load(ordering: .acquiring)
+            guard swallowingClick.load(ordering: .acquiring) else { return false }
+            onEvent(.drag(event.location, ProcessInfo.processInfo.systemUptime))
+            return true
         case .leftMouseUp:
-            return swallowingClick.exchange(false, ordering: .acquiringAndReleasing)
+            guard swallowingClick.exchange(false, ordering: .acquiringAndReleasing) else { return false }
+            onEvent(.release(event.location, ProcessInfo.processInfo.systemUptime))
+            return true
         default:
             return false
         }
+    }
+
+    private func expandKey(_ event: CGEvent) -> Event? {
+        guard expandKeys.load(ordering: .acquiring),
+              event.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_ANSI_E),
+              event.getIntegerValueField(.keyboardEventAutorepeat) == 0,
+              event.flags.isDisjoint(with: [.maskCommand, .maskControl, .maskAlternate, .maskSecondaryFn]),
+              !Self.focusIsEditable()
+        else { return nil }
+        let at = ProcessInfo.processInfo.systemUptime
+        return event.flags.contains(.maskShift) ? .follow(at) : .expand(at)
+    }
+
+    private static func focusIsEditable() -> Bool {
+        let system = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system, 0.05)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID()
+        else { return false }
+        let focused = value as! AXUIElement
+        var role: CFTypeRef?
+        if AXUIElementCopyAttributeValue(focused, kAXRoleAttribute as CFString, &role) == .success,
+           let role = role as? String, editableRoles.contains(role) {
+            return true
+        }
+        var editable: CFTypeRef?
+        if AXUIElementCopyAttributeValue(focused, "AXEditableAncestor" as CFString, &editable) == .success, editable != nil {
+            return true
+        }
+        var settable = DarwinBoolean(false)
+        return AXUIElementIsAttributeSettable(focused, kAXSelectedTextRangeAttribute as CFString, &settable) == .success && settable.boolValue
     }
 }
 

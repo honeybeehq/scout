@@ -45,12 +45,13 @@ final class AppModel {
         } else {
             shortcut = .startScouting
         }
-        let hotkey = GlobalHotkey { [weak self] in self?.toggleScouting() }
+        let hotkey = GlobalHotkey { [weak self] in self?.toggleScouting(input: GlobalHotkey.lastPressTime) }
         self.hotkey = hotkey
         shortcutRegistered = hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
         dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
         bridge.start()
+        hud.prepare(model: self)
         Task.detached(priority: .background) {
             ScoutPaths.prune()
             WalkthroughBundle.sweepPartials()
@@ -63,6 +64,9 @@ final class AppModel {
         }
         if SimulationMode.reopensLatest {
             Task { await SimulationMode.reopenLatest(model: self) }
+        }
+        if let output = CaptureUXDemo.outputDirectory {
+            Task { await CaptureUXDemo.run(model: self, output: output) }
         }
         if let fixture = SimulationMode.walkthroughFixture {
             Task { await SimulationMode.runWalkthrough(model: self, fixtureURL: fixture) }
@@ -91,21 +95,38 @@ final class AppModel {
         shortcutRegistered = hotkey?.register(shortcut) ?? false
     }
 
-    func toggleScouting() {
-        isScouting ? stopScouting() : startScouting()
+    var simulatedInput: URL?
+    var onSessionCreated: ((ScoutingSession) -> Void)?
+
+    func triggerHotkey(at time: TimeInterval) {
+        hotkey?.press(at: time)
+    }
+
+    func toggleScouting(input: TimeInterval = InteractionTimings.now) {
+        isScouting ? finishScouting(input: input) : startScouting(inputFile: simulatedInput, input: input)
+    }
+
+    func finishScouting(input: TimeInterval) {
+        guard isScouting else { return }
+        let timings = InteractionTimings.shared
+        timings.measure("finish→pill-hidden", from: input)
+        stopScouting { timings.mark("finish→handoff", from: input) }
     }
 
     func startSplitTasks() {
         startScouting(result: .tasks)
     }
 
-    func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, result: SessionResult = .walkthrough, onInputFinished: (() -> Void)? = nil) {
+    func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, result: SessionResult = .walkthrough, input: TimeInterval = InteractionTimings.now, onInputFinished: (() -> Void)? = nil) {
         guard !isScouting else { return }
         guard inputFile != nil || permissions.state(of: .microphone).isGranted else {
             onboarding.go(to: .access)
             openOnboarding?()
             return
         }
+        let timings = InteractionTimings.shared
+        hud.showPill(model: self)
+        timings.measure("hotkey→pill", from: input, committed: InteractionTimings.now)
         let session = ScoutingSession(
             bridge: bridge,
             recordsScreen: preferences.includeClips && SimulationMode.fixtureVideo == nil,
@@ -115,9 +136,21 @@ final class AppModel {
         session.transcriber.inputFile = inputFile
         session.transcriber.onInputFinished = onInputFinished
         if result == .tasks { connectTasks(of: session) }
+        onSessionCreated?(session)
         self.session = session
         isScouting = true
-        hud.show(model: self)
+        timings.log = SignalLog(url: session.directory.appendingPathComponent("timings.jsonl"))
+        session.presentScope = { [weak session] change, changeInput in
+            guard let session else { return }
+            if session.capture.scopes.count == 1 {
+                timings.measure("hotkey→recording", from: input, detail: "pill and capture frame on screen")
+            } else {
+                timings.measure(change.byUser ? "expand" : "follow", from: changeInput, detail: "\(change.scope.rawValue) \(change.region ?? "")")
+            }
+        }
+        session.aim.measure = { name, input in timings.measure(name, from: input) }
+        session.onFirstFrame = { time in timings.mark("hotkey→first-frame", from: input, at: time) }
+        hud.attach(session, model: self)
         let breakHotkey = breakHotkey ?? GlobalHotkey { [weak self] in self?.session?.splitNow() }
         self.breakHotkey = breakHotkey
         breakHotkey.register(breakShortcut)
@@ -136,24 +169,26 @@ final class AppModel {
         }
     }
 
-    func stopScouting() {
+    func stopScouting(handedOff: (() -> Void)? = nil) {
         guard isScouting, let session else { return }
         isScouting = false
         breakHotkey?.unregister()
         hud.hidePill()
         if let walkthrough = session.walkthrough {
-            Task { await finishWalkthrough(walkthrough, of: session, pressedAt: ContinuousClock.now) }
+            Task { await finishWalkthrough(walkthrough, of: session, pressedAt: ContinuousClock.now, handedOff: handedOff) }
             return
         }
         Task {
             await session.end()
             let review = SessionReview(session: session, dispatcher: dispatcher)
             guard !review.tasks.isEmpty || !review.leftoverSpeech.isEmpty else {
+                handedOff?()
                 stackChanged()
                 return
             }
             reviews[session.id] = review
             latestSessionID = session.id
+            handedOff?()
             if let first = review.tasks.first { review.select(first) }
             review.save()
             if !isScouting {
@@ -170,7 +205,7 @@ final class AppModel {
         }
     }
 
-    private func finishWalkthrough(_ walkthrough: WalkthroughRecorder, of session: ScoutingSession, pressedAt: ContinuousClock.Instant) async {
+    private func finishWalkthrough(_ walkthrough: WalkthroughRecorder, of session: ScoutingSession, pressedAt: ContinuousClock.Instant, handedOff: (() -> Void)? = nil) async {
         await session.end()
         let ended = ContinuousClock.now
         do {
@@ -180,6 +215,7 @@ final class AppModel {
             timings["sessionEnded"] = (ended - pressedAt).seconds
             lastWalkthrough = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings)
             walkthroughProblem = nil
+            handedOff?()
         } catch {
             walkthrough.discard()
             lastWalkthrough = nil

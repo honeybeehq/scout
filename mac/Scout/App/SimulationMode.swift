@@ -30,7 +30,11 @@ enum SimulationMode {
     }
 
     static var isRunning: Bool {
-        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil
+        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || CaptureUXDemo.outputDirectory != nil
+    }
+
+    static var panelSharing: NSWindow.SharingType {
+        isRunning ? .readOnly : .none
     }
 
     static var deliveryCheck: URL? {

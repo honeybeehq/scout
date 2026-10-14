@@ -18,6 +18,7 @@ final class ScoutingSession {
     let directory: URL
     let transcriber: LiveTranscriber
     let aim: AimController
+    let follower: CaptureFollower
 
     private(set) var phase: Phase = .starting
     private(set) var openSnippet: Snippet?
@@ -31,8 +32,12 @@ final class ScoutingSession {
     private(set) var video: ExportedClip?
     private(set) var cards: [SnippetCard] = []
     private(set) var discardedRanges: [TimeRange] = []
+    private(set) var capture = CaptureTimeline()
     let segmentation: Segmentation
     let walkthrough: WalkthroughRecorder?
+
+    var presentScope: ((ScopeChange, _ input: TimeInterval) -> Void)?
+    var onFirstFrame: ((TimeInterval) -> Void)?
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
     var onSnippetDiscarded: ((String) -> SnippetCard?)?
@@ -46,6 +51,7 @@ final class ScoutingSession {
 
     private var segmenter: Segmenter
     private let log: SignalLog
+    private let captureLog: SignalLog
     private var contextTracker: ContextTracker?
     private var pointerTracker: PointerTracker?
     private var ticker: Task<Void, Never>?
@@ -54,6 +60,7 @@ final class ScoutingSession {
     private var stopRequested = false
     private let bridge: BridgeServer
     private var webDwell: (target: Target, since: SessionTime)?
+    private var activity: NSObjectProtocol?
 
     private static let idFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -75,15 +82,23 @@ final class ScoutingSession {
         self.id = id
         directory = ScoutPaths.newSessionDirectory(id: id, at: started)
         log = SignalLog(url: directory.appendingPathComponent("signals.jsonl"))
+        captureLog = SignalLog(url: directory.appendingPathComponent("capture.jsonl"))
         segmenter = Segmenter(configuration: segmentation == .manual ? .manual : .default, idPrefix: "snippet-")
         transcriber = LiveTranscriber(clock: clock)
         aim = AimController(clock: clock)
         walkthrough = producesWalkthrough ? WalkthroughRecorder(startedAt: clock.originDate) : nil
+        follower = CaptureFollower(clock: clock)
     }
 
     func begin() {
         guard startTask == nil else { return }
-        startTask = Task { await start() }
+        activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical], reason: "Scouting")
+        follower.onChange = { [weak self] change, input in self?.record(change, input: input) }
+        follower.start()
+        startTask = Task {
+            await InteractionTimings.afterCommit()
+            await start()
+        }
     }
 
     func end() async {
@@ -96,6 +111,9 @@ final class ScoutingSession {
     private func start() async {
         transcriber.onUtterance = { [weak self] utterance in self?.hear(utterance) }
         aim.onPin = { [weak self] mark in self?.ingest(.mark(mark)) }
+        aim.onStroke = { [weak self] stroke in self?.record(stroke) }
+        aim.onExpand = { [weak self] input in self?.follower.expand(input: input) }
+        aim.onFollow = { [weak self] input in self?.follower.follow(input: input) }
         aim.onAimChanged = { [weak self] active in self?.bridge.setAim(active: active) }
         aim.enrich = { [weak self] mark, date in
             guard let self, let reply = await self.bridge.requestPin(id: mark.id, at: date) else { return nil }
@@ -153,6 +171,7 @@ final class ScoutingSession {
 
     private func teardown() async {
         ticker?.cancel()
+        follower.stop()
         aim.stop()
         bridge.setSession(active: false)
         bridge.onHover = nil
@@ -166,7 +185,33 @@ final class ScoutingSession {
         ledger.extend(to: end)
         handle(segmenter.finish(at: end))
         log.close()
+        captureLog.close()
+        if let activity { ProcessInfo.processInfo.endActivity(activity) }
+        activity = nil
         phase = .ended
+    }
+
+    func record(_ change: ScopeChange, input: TimeInterval) {
+        capture.scopes.append(change)
+        captureLog.append(CaptureLogEntry(scope: change))
+        if let displayID = change.displayID, let recorder {
+            Task { await recorder.show(display: displayID) }
+        }
+        presentScope?(change, input)
+        if let scope = Walkthrough.Scope(rawValue: change.scope.rawValue) {
+            walkthrough?.add(WalkthroughBuilder.ScopeChange(at: change.at, scope: scope, bounds: change.bounds, byUser: change.byUser))
+        }
+    }
+
+    func record(_ stroke: Stroke) {
+        capture.strokes.append(stroke)
+        captureLog.append(CaptureLogEntry(stroke: stroke))
+        walkthrough?.add(WalkthroughBuilder.Stroke(
+            range: TimeRange(start: stroke.start, end: stroke.end),
+            samples: stroke.points.map { WalkthroughBuilder.StrokeSample(point: Point(x: $0.x, y: $0.y), at: $0.at) },
+            color: stroke.color,
+            width: stroke.width
+        ))
     }
 
     func adopt(_ card: SnippetCard) {
@@ -211,6 +256,9 @@ final class ScoutingSession {
         }
         recorder.onError = { [weak self] error in
             Task { @MainActor in self?.captureProblem = error.localizedDescription }
+        }
+        recorder.onFirstFrame = { [weak self] uptime in
+            Task { @MainActor in self?.onFirstFrame?(uptime) }
         }
         do {
             try await recorder.start(sessionStart: clock.originDate)
@@ -299,6 +347,11 @@ final class ScoutingSession {
             }
         }
     }
+}
+
+nonisolated struct CaptureLogEntry: Encodable, Sendable {
+    var scope: ScopeChange?
+    var stroke: Stroke?
 }
 
 enum VoiceCommand: Equatable {

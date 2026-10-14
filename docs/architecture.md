@@ -61,12 +61,12 @@ Rules:
 | `Integrations/` | hive socket client, Apiary detection, routing preference | M1 |
 | `Shortcuts/` | Carbon global hotkeys (need no permission) | M0 |
 | `MenuBar/` | Menu bar icon and panel | M0 |
-| `Session/` | Scouting session: clock, signal log, segmenter, voice commands | M1 |
+| `Session/` | Scouting session: clock, signal log, segmenter, voice commands, capture timeline, interaction timings | M1 |
 | `Context/` | Frontmost app, window title, browser URL (AX `AXWebArea`/`AXURL`), pointer dwell, `TargetResolver` | M1 |
 | `Delivery/` | Project resolution, task composition, titles, routing and sending (`Dispatcher`) | M1 |
-| `HUD/` | Scouting pill, snippet stack, aim overlay and pin event tap | M1–M3 |
+| `HUD/` | Scouting pill, capture frame and ink overlay, snippet stack, aim overlay and pin event tap (pins, strokes, E/⇧E) | M1–M3 |
 | `Review/` | Session review: `SessionReview` (re-cutting, undo, persistence), player, timeline, task list and detail | M1.5 |
-| `Capture/` | ScreenCaptureKit segmented recorder, clip cutting, visual change, frame snapshots | M2 |
+| `Capture/` | ScreenCaptureKit segmented recorder (moves to the display under the captured area), region follower, clip cutting, visual change, frame snapshots | M2 |
 | `Bridge/` | SDK bridge server (see sdk-protocol.md) | M4 |
 
 Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` and strict concurrency. UI and coordination code is on the main actor by default. Realtime code opts out explicitly with `nonisolated` types (`MicrophoneCapture`, `HiveClient`, the future capture writers).
@@ -78,6 +78,8 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
   Sessions/<yyyy-mm-dd>/<session-id>/
     session.json               start time, displays, app version, settings snapshot
     signals.jsonl              every Signal, append-only; replayable with scout-segment
+    capture.jsonl              scope changes and strokes (CaptureTimeline), append-only
+    timings.jsonl              interaction timings: input → handled, committed, on screen
     session.mp4                the whole recording, joined from the segments on stop (passthrough)
     review.json                task ranges, titles, edits and delivery state; reopens the session later
     media/init.mp4             fMP4 init segment (while recording)
@@ -119,3 +121,4 @@ Signing matters for TCC. Development builds are signed with the Apple Developmen
 - `script/build_and_run.sh` builds, signs, stages and launches the app. Flags: `--build-only`, and app arguments such as `--reset-onboarding` and `--onboarding-step=<name>`.
 - `open -n ~/Applications/Scout.app --args --reset-onboarding --snapshot-dir=<dir>` walks every onboarding step and writes a PNG of each, then quits. Add `--settings-pane=general|agents|sdks` to capture a Settings pane instead. Pass values with `=`: a separate path argument is treated as a document to open, and SwiftUI then skips the default window.
 - `open -n ~/Applications/Scout.app --args --simulate-session=<audio file> --dry-run-delivery --simulate-output=<dir>` runs a real scouting session with the audio file in place of the microphone (context, pointer and aim still run live), snapshots the pill and stack, and writes `report.json` with every task, its cut reasons and its destination. `--dry-run-delivery` writes `message.txt` into each snippet folder instead of sending. Make narration with pauses using `say -o narration.aiff "First note. [[slnc 2500]] Next thing, …"`.
+- `Scout.app/Contents/MacOS/Scout --capture-ux-demo=<dir> --capture-ux-audio=<audio file> --dry-run-delivery` opens two throwaway test windows and drives the capture flow through the same handlers the hotkey and event tap use: start, follow between panes and windows, the keep-both suggestion, E three times, ⇧E, a pin, a stroke, a second pin and finish. It writes `report.json` with every interaction timing, the capture timeline and the pins, then quits. Add `--capture-ux-video` to also write `flow.mp4`, composed from Scout's own windows (no Screen Recording needed). Timings from a video run are slower, because frames are captured while it runs.

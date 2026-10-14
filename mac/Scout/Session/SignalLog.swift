@@ -17,9 +17,9 @@ nonisolated final class SignalLog: @unchecked Sendable {
         handle = try? FileHandle(forWritingTo: url)
     }
 
-    func append(_ signal: Signal) {
+    func append(_ value: some Encodable & Sendable) {
         queue.async { [encoder, handle] in
-            guard var data = try? encoder.encode(signal) else { return }
+            guard var data = try? encoder.encode(value) else { return }
             data.append(0x0A)
             try? handle?.write(contentsOf: data)
         }

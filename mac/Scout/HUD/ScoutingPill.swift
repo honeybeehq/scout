@@ -5,87 +5,107 @@ struct ScoutingPill: View {
     @State private var levels: [Float] = Array(repeating: 0, count: 7)
 
     var body: some View {
-        if let session = model.session {
-            HStack(spacing: 12) {
-                RecordingDot(active: session.phase == .live)
-                Text(Self.clock(session.elapsed))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.text)
+        let session = model.session
+        let live = session?.phase == .live
+        let follower = session?.follower
+        HStack(spacing: 10) {
+            RecordingDot(active: live)
+            Text(Self.clock(session?.elapsed ?? 0))
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(Palette.text)
+                .frame(minWidth: 34, alignment: .leading)
 
-                LevelBars(levels: levels, active: session.phase == .live, tint: .white, maxHeight: 22, barWidth: 3)
-                    .frame(width: 40, height: 22)
+            LevelBars(levels: levels, active: live, tint: .white, maxHeight: 16, barWidth: 2)
+                .frame(width: 26, height: 16)
 
-                liveText(session)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if session.segmentation == .manual {
-                    Text("Task \(session.closedCount + 1)")
-                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(Palette.textSecondary)
-                        .contentTransition(.numericText())
-                        .fixedSize()
-                    Button {
-                        session.splitNow()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text("Next")
-                            Text(model.breakShortcut.symbols.joined())
-                                .font(Typography.mono)
-                                .opacity(0.75)
-                        }
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(Palette.text)
-                        .padding(.horizontal, 10)
-                        .frame(height: 26)
-                        .background(Palette.fillStrong, in: .capsule)
-                    }
-                    .buttonStyle(.plain)
-                    .help("End this task and start the next one")
+            Group {
+                if let session {
+                    liveText(session)
                 } else {
-                    if session.closedCount > 0 {
-                        Text("\(session.closedCount)")
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Palette.text)
-                            .frame(minWidth: 22, minHeight: 22)
-                            .background(Palette.fillStrong, in: .circle)
-                            .transition(.scale.combined(with: .opacity))
-                            .help("Tasks captured")
-                    }
-
-                    Button {
-                        session.splitNow()
-                    } label: {
-                        Image(systemName: "scissors")
-                            .font(.system(size: 12, weight: .semibold))
-                            .frame(width: 28, height: 28)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Palette.textSecondary)
-                    .help("Cut here and start a new task (\(model.breakShortcut.symbols.joined()))")
+                    Text("Starting…")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.textSecondary)
                 }
+            }
+            .frame(maxWidth: 260, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
 
+            if let session, session.segmentation == .manual {
                 Button {
-                    model.toggleScouting()
+                    session.splitNow()
                 } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Palette.text)
-                        .frame(width: 28, height: 28)
-                        .background(Palette.fillStrong, in: .circle)
+                    HStack(spacing: 5) {
+                        Text("Task \(session.closedCount + 1) · Next")
+                            .contentTransition(.numericText())
+                        KeyHint(model.breakShortcut.symbols.joined())
+                    }
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(Palette.text)
+                    .padding(.horizontal, 9)
+                    .frame(height: 24)
+                    .overlay(Capsule().strokeBorder(Palette.stroke))
                 }
                 .buttonStyle(.plain)
-                .help("Stop scouting")
+                .help("End this task and start the next one")
             }
-            .padding(.leading, 16)
-            .padding(.trailing, 10)
-            .frame(width: HUDController.pillSize.width, height: HUDController.pillSize.height)
-            .glassEffect(.regular.tint(Palette.ink.opacity(0.55)), in: .capsule)
-            .animation(Motion.snappy, value: session.closedCount)
-            .onChange(of: session.transcriber.level) { _, level in
-                levels.removeFirst()
-                levels.append(level)
+
+            let following = (follower?.scope ?? .follow) == .follow
+            Button {
+                let input = InteractionTimings.now
+                if NSEvent.modifierFlags.contains(.shift) {
+                    follower?.follow(input: input)
+                } else {
+                    follower?.expand(input: input)
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: following ? "arrow.up.left.and.arrow.down.right" : "lock.fill")
+                        .font(.system(size: 9.5, weight: .semibold))
+                    Text(follower?.scopeTitle ?? "Following")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: 190, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
+                    KeyHint(following ? "E" : "⇧E")
+                }
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(Palette.text)
+                .padding(.horizontal, 9)
+                .frame(height: 24)
+                .overlay(Capsule().strokeBorder(Palette.stroke))
+                .contentShape(.capsule)
             }
+            .buttonStyle(.plain)
+            .help(following ? "Widen the captured area (E). ⇧E follows the pointer again." : "Widen further (E), or follow the pointer again (⇧E)")
+
+            Button {
+                model.finishScouting(input: InteractionTimings.now)
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Finish")
+                    KeyHint(model.shortcut.symbols.joined())
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Palette.text)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(Palette.fillStrong, in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .help("Finish and review")
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 5)
+        .frame(height: HUDController.pillHeight)
+        .glassEffect(.regular.tint(Palette.ink.opacity(0.55)), in: .capsule)
+        .overlay(Capsule().strokeBorder(Palette.hairline))
+        .fixedSize()
+        .frame(width: HUDController.pillSize.width, height: HUDController.pillSize.height, alignment: .leading)
+        .animation(Motion.snappy, value: session?.closedCount)
+        .animation(Motion.snappy, value: follower?.scopeTitle)
+        .onChange(of: session?.transcriber.level) { _, level in
+            levels.removeFirst()
+            levels.append(level ?? 0)
         }
     }
 
@@ -95,23 +115,23 @@ struct ScoutingPill: View {
         switch session.phase {
         case .starting:
             Text(startingText(transcriber.phase))
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.textSecondary)
         case .failed(let message):
             Text(message)
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(1)
         case .live, .ended:
-            let tail = Self.tail(of: transcriber.finalizedText, keeping: 44)
+            let tail = Self.tail(of: transcriber.finalizedText, keeping: 36)
             if session.aim.isAiming || (tail.isEmpty && transcriber.volatileText.isEmpty) {
                 Text(hint(session))
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundStyle(Palette.textTertiary)
                     .lineLimit(1)
             } else {
                 Text("\(Text(tail).foregroundStyle(Palette.textSecondary)) \(Text(transcriber.volatileText).foregroundStyle(Palette.text))")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.head)
             }
@@ -119,9 +139,9 @@ struct ScoutingPill: View {
     }
 
     private func hint(_ session: ScoutingSession) -> String {
-        if session.aim.isAiming { return "Click to pin · release ⌥ to stop aiming" }
+        if session.aim.isAiming { return "Click to pin · drag to draw" }
         if let target = session.hoverTarget { return "Pointing at \(target.displayName)" }
-        return "Listening. Talk about what you see."
+        return "Listening…"
     }
 
     private func startingText(_ phase: LiveTranscriber.Phase) -> String {
@@ -152,7 +172,7 @@ private struct RecordingDot: View {
             let pulse = (sin(context.date.timeIntervalSinceReferenceDate * 3.2) + 1) / 2
             Circle()
                 .fill(Palette.accent)
-                .frame(width: 8, height: 8)
+                .frame(width: 9, height: 9)
                 .opacity(active ? 0.55 + 0.45 * pulse : 0.35)
         }
     }

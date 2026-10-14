@@ -10,6 +10,7 @@ import VideoToolbox
 nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
     typealias FrameDifferenceHandler = @Sendable (_ at: SessionTime, _ magnitude: Double) -> Void
     typealias ErrorHandler = @Sendable (ScreenCaptureError) -> Void
+    typealias FirstFrameHandler = @Sendable (_ uptime: TimeInterval) -> Void
 
     static let segmentInterval = 2.0
     static let framesPerSecond: Int32 = 30
@@ -39,6 +40,10 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
     private var phase = Phase.idle
     private var sessionStartHostTime = CMTime.zero
     private var captureDisplay: CaptureDisplay?
+    private var currentDisplay: CaptureDisplay?
+    private var displayHops: [(at: SessionTime, display: CaptureDisplay)] = []
+    private var shareableContent: SCShareableContent?
+    private var firstFrameHandler: FirstFrameHandler?
     private var stream: SCStream?
     private var initSegmentURL: URL?
     private var segmentList: [MediaSegment] = []
@@ -74,7 +79,13 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
         set { lock.withLock { errorHandler = newValue } }
     }
 
+    var onFirstFrame: FirstFrameHandler? {
+        get { lock.withLock { firstFrameHandler } }
+        set { lock.withLock { firstFrameHandler = newValue } }
+    }
+
     var display: CaptureDisplay? { lock.withLock { captureDisplay } }
+    var displayChanges: [(at: SessionTime, display: CaptureDisplay)] { lock.withLock { displayHops } }
     var segments: [MediaSegment] { lock.withLock { segmentList } }
     var statistics: CaptureStatistics { lock.withLock { counters } }
 
@@ -92,7 +103,7 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
         do {
             guard CGPreflightScreenCaptureAccess() else { throw ScreenCaptureError.permissionDenied }
             try FileManager.default.createDirectory(at: mediaDirectory, withIntermediateDirectories: true)
-            let target = try await CaptureTarget.displayUnderPointer(maxLongEdge: Self.maxLongEdge)
+            let (target, content) = try await CaptureTarget.displayUnderPointer(maxLongEdge: Self.maxLongEdge)
             let configuration = target.streamConfiguration(framesPerSecond: Self.framesPerSecond)
             let stream = SCStream(filter: target.filter, configuration: configuration, delegate: self)
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
@@ -101,6 +112,8 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
             lock.withLock {
                 sessionStartHostTime = startHostTime
                 captureDisplay = target.display
+                currentDisplay = target.display
+                shareableContent = content
                 self.stream = stream
             }
             try await stream.startCapture()
@@ -120,6 +133,29 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
                 self.stream = nil
             }
             throw ScreenCaptureError.starting(error)
+        }
+    }
+
+    @concurrent func show(display displayID: CGDirectDisplayID) async {
+        let (stream, current, cached) = lock.withLock { (self.stream, currentDisplay, shareableContent) }
+        guard let stream, let current, current.displayID != displayID else { return }
+        var content = cached
+        if content?.displays.contains(where: { $0.displayID == displayID }) != true {
+            content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+        }
+        guard let content, let display = content.displays.first(where: { $0.displayID == displayID }) else { return }
+        let target = CaptureTarget.make(display: display, content: content, maxLongEdge: Self.maxLongEdge, videoSize: (current.videoWidth, current.videoHeight))
+        do {
+            try await stream.updateContentFilter(target.filter)
+        } catch {
+            report(.stopped(error))
+            return
+        }
+        let at = sessionTimeNow
+        lock.withLock {
+            shareableContent = content
+            currentDisplay = target.display
+            displayHops.append((at, target.display))
         }
     }
 
@@ -190,10 +226,13 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
 
     private func handle(_ pixelBuffer: CVPixelBuffer, at time: CMTime) {
         let frame = CapturedFrame(pixelBuffer: pixelBuffer, time: time.seconds)
-        lock.withLock {
+        let firstFrame = lock.withLock {
             latestFrame = frame
             counters.framesCaptured += 1
+            defer { if counters.framesCaptured == 1 { firstFrameHandler = nil } }
+            return counters.framesCaptured == 1 ? firstFrameHandler : nil
         }
+        firstFrame?(ProcessInfo.processInfo.systemUptime)
         guard !writerClosing else { return }
         unsampledFrame = frame
         append(pixelBuffer, at: time, repeated: false)

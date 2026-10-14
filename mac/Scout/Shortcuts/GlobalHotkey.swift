@@ -48,6 +48,7 @@ final class GlobalHotkey {
     private static var handlers: [UInt32: () -> Void] = [:]
     private static var nextID: UInt32 = 1
     private static var eventHandler: EventHandlerRef?
+    private(set) static var lastPressTime: TimeInterval = 0
 
     private let id: UInt32
     private var reference: EventHotKeyRef?
@@ -72,6 +73,11 @@ final class GlobalHotkey {
         reference = nil
     }
 
+    func press(at time: TimeInterval) {
+        Self.lastPressTime = time
+        Self.handlers[id]?()
+    }
+
     private static func installEventHandlerIfNeeded() {
         guard eventHandler == nil else { return }
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -88,7 +94,9 @@ final class GlobalHotkey {
             )
             guard status == noErr else { return status }
             let id = hotKeyID.id
+            let pressed = GetEventTime(event)
             MainActor.assumeIsolated {
+                GlobalHotkey.lastPressTime = pressed > 0 ? pressed : ProcessInfo.processInfo.systemUptime
                 GlobalHotkey.handlers[id]?()
             }
             return noErr

@@ -9,7 +9,8 @@ This is how Scout looks and behaves from the user's side. Visual rules are in [d
 | Onboarding window | One 940×640 window, dark, full-bleed | First launch, or from the menu bar via "Setup guide" |
 | Menu bar item | Pointer-and-signal glyph. Tinted with the accent while scouting | Always |
 | Menu bar panel | Start/stop, recent tasks, integration status | Click on the menu bar item |
-| Scouting pill | Floating glass capsule at the top of the active screen | While scouting |
+| Scouting pill | Floating glass capsule, first at the pointer, then docked above the captured area | While scouting |
+| Capture frame | Accent outline around the captured area, with the rest of the screen dimmed, plus pins and ink | While scouting |
 | Snippet stack | Column of task cards on the right edge | While scouting, from the first closed task |
 | Review window | Full editor for a finished session: video, timeline, tasks, hand-off | After stopping (by default when a task is waiting), from the menu bar, or for any earlier session |
 | Aim overlay | Transparent full-screen layer that highlights the element under the pointer | While the aim key is held during scouting |
@@ -40,30 +41,39 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
 
 ## Scouting
 
-**Start.** Press `⌃⌥S` from any app, or click *Start scouting* in the menu bar panel. The pill slides down from the top of the screen under the pointer. Nothing else changes: no mode picker, no region to draw.
+**Start.** Press `⌃⌥S` from any app, or click *Start scouting* in the menu bar panel. Recording starts at once: the pill appears next to the pointer and the capture frame outlines what is under it. There is no mode picker and no window or screen to choose.
 
-**The pill** (about 420×44 pt, glass capsule):
+**The pill** (36 pt high, glass capsule):
 
 ```
- ● 0:42  ▂▅▇▃▁  …and the total should be bold too            3   ■
+ ● 0:42  ▂▅▇▃▁  …and the total should be bold too   ⤢ Following · Safari — Checkout  E   Finish ⌃⌥S
 ```
 
-From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), the number of snippets so far, and a stop button. The pill never takes focus and is excluded from the recording. It can be dragged anywhere.
+From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. About 120 ms after it appears at the pointer, the pill glides to the top-left edge of the captured area and moves with it. The pill never takes focus and is excluded from the recording. It can be dragged anywhere.
+
+**What is captured.** Scout follows the pointer. The captured area is the pane under the pointer, or the window when Scout can't tell panes apart, or the screen when no window is under it. Panes are split views found through Accessibility; inside Apiary they come from the Apiary bridge. When the pointer rests in another area for 250 ms, the frame glides there (120 ms) and the recording moves to that display if it changed. Outside the frame the screen is dimmed a little, so it is always clear what the recording is about.
+
+**Expanding** is never required:
+- When the pointer goes back and forth between two areas within 6 seconds, a dashed outline around both appears with "You keep moving between these. Keep both in view **E**" for 4 seconds. Scout never expands on its own.
+- **E** keeps both recent areas in view. **E** again widens to the window, then to the screen, then back to following.
+- **⇧E** goes back to following the pointer.
+- The capture button in the pill does the same: click to widen, ⇧-click to follow.
+- E and ⇧E are only taken while no text field has focus, so typing is never swallowed. They need Accessibility; without it, use the pill.
 
 **Talking.** The user talks about whatever they are looking at. Scout splits the stream into snippets in the background (see [breakpoints.md](breakpoints.md)). When a snippet closes, its card slides into the snippet stack.
 
 **Pointing.** There are three levels:
 
 - **Hover.** Scout samples the element under the pointer about four times a second. An element the pointer rests on for 600 ms or more is attached to the current snippet, weighted by how long the pointer stayed there.
-- **Aim and pin.** Hold `⌥` for 200 ms and an accent outline follows the element under the pointer, with a dark label chip (`Button "Pay now"`, plus `Checkout.tsx:88` when an SDK is present). Clicking pins the element. The click goes to Scout, not to the app. Releasing `⌥` ends aiming. A key pressed while `⌥` is held cancels aiming, so typing `⌥`-characters on non-US layouts keeps working.
-- **Region.** Holding `⌥` and dragging pins a rectangle instead of an element.
+- **Aim and pin.** Hold `⌥` for 200 ms and an accent outline follows the element under the pointer, with a dark label chip (`Button "Pay now"`, plus `Checkout.tsx:88` when an SDK is present). Clicking pins the element and leaves a numbered badge on screen. The click goes to Scout, not to the app. Releasing `⌥` ends aiming. A key pressed while `⌥` is held cancels aiming, so typing `⌥`-characters on non-US layouts keeps working.
+- **Draw.** Hold `⌥` and drag to draw in the accent color. A drag shorter than 6 pt is a pin. Strokes stay on screen until the session ends, and every point is recorded with its time.
 
 **Voice commands.** Spoken phrases act as controls and are removed from the task text:
 - "new task" or "next task": split now.
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
 
-**Stop.** Press the shortcut again or click ■. The open snippet closes and the pill retracts. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
+**Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within a frame. Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 
 ## Automatic and manual tasks
 
