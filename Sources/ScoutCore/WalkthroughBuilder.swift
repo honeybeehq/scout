@@ -101,6 +101,7 @@ public struct WalkthroughBuilder: Sendable {
     public private(set) var ledger = SessionLedger()
     public private(set) var strokes: [Stroke] = []
     public private(set) var scopes: [ScopeChange] = []
+    public private(set) var semantics: [SemanticHit] = []
     private var requests: [FrameRequest] = []
     private var captured: [String: CapturedFrame] = [:]
     private var lastSceneAt: SessionTime = -.infinity
@@ -144,6 +145,12 @@ public struct WalkthroughBuilder: Sendable {
         scopes.append(change)
         ledger.extend(to: change.at)
         return request(at: change.at, reason: .scope)
+    }
+
+    public mutating func add(_ hit: SemanticHit) -> FrameRequest? {
+        semantics.append(hit)
+        guard hit.via == .dwell, !hasFrame(near: hit.at, within: Self.sceneSpacing) else { return nil }
+        return request(at: hit.at, reason: .scene)
     }
 
     public mutating func finish(at end: SessionTime) -> FrameRequest? {
@@ -302,10 +309,17 @@ public struct WalkthroughBuilder: Sendable {
         var via: Walkthrough.Via
         var point: Point?
         var target: Target?
+        var hit: SemanticHit?
     }
 
+    public static let semanticDwellWindow: SessionTime = 0.75
+
     private func pointerMoments() -> [PointerMoment] {
-        let pins = ledger.marks.map { PointerMoment(time: $0.at, via: .pin, point: $0.point, target: $0.target) }
+        let pinHits = semantics.filter { $0.via == .pin }
+        let pins = ledger.marks.map { mark in
+            PointerMoment(time: mark.at, via: .pin, point: mark.point, target: mark.target, hit: pinHits.first { $0.markID == mark.id })
+        }
+        var dwellHits = semantics.filter { $0.via == .dwell }.sorted { $0.at < $1.at }
         var dwells: [PointerMoment] = []
         var previous: String?
         for focus in ledger.focuses {
@@ -314,13 +328,23 @@ public struct WalkthroughBuilder: Sendable {
             let pinned = pins.contains { $0.target?.id == focus.target.id && abs($0.time - focus.range.start) <= 3 }
             guard !pinned else { continue }
             let center = Point(x: frame.x + frame.width / 2, y: frame.y + frame.height / 2)
-            dwells.append(PointerMoment(time: focus.range.start, via: .dwell, point: center, target: focus.target))
+            var moment = PointerMoment(time: focus.range.start, via: .dwell, point: center, target: focus.target)
+            if let index = dwellHits.indices.min(by: { abs(dwellHits[$0].at - focus.range.start) < abs(dwellHits[$1].at - focus.range.start) }),
+               abs(dwellHits[index].at - focus.range.start) <= Self.semanticDwellWindow {
+                moment.hit = dwellHits.remove(at: index)
+            }
+            dwells.append(moment)
+        }
+        for hit in dwellHits {
+            let pinned = pins.contains { $0.hit != nil && $0.hit?.stack.identity == hit.stack.identity && abs($0.time - hit.at) <= 3 }
+            guard !pinned else { continue }
+            dwells.append(PointerMoment(time: hit.at, via: .dwell, point: hit.point, hit: hit))
         }
         return (pins + dwells).sorted { $0.time < $1.time }
     }
 
     private static func pointer(id: String, moment: PointerMoment, context: AppContext?) -> Walkthrough.Pointer {
-        let at = moment.point ?? moment.target?.frame.map { Point(x: $0.x + $0.width / 2, y: $0.y + $0.height / 2) } ?? Point(x: 0, y: 0)
+        let at = moment.hit?.point ?? moment.point ?? moment.target?.frame.map { Point(x: $0.x + $0.width / 2, y: $0.y + $0.height / 2) } ?? Point(x: 0, y: 0)
         var pointer = Walkthrough.Pointer(
             id: id,
             t: Walkthrough.milliseconds(moment.time),
@@ -328,20 +352,27 @@ public struct WalkthroughBuilder: Sendable {
             at: Walkthrough.Spot(x: at.x, y: at.y),
             source: .none
         )
-        guard let target = moment.target else { return pointer }
-        let bounds = target.frame.map(Walkthrough.Box.init)
-        pointer.label = target.role != nil || target.label != nil || target.component != nil ? target.displayName : nil
-        switch target.provider {
-        case .accessibility:
-            pointer.source = .ax
-            pointer.ax = Walkthrough.AXElement(role: target.role, title: target.label, app: context?.app.name, bounds: bounds)
-        case .web, .native:
-            pointer.source = .sdk
-            pointer.sdk = Walkthrough.SDKElement(component: target.component, source: target.source?.description, selector: target.selector)
-            pointer.ax = bounds.map { Walkthrough.AXElement(role: target.role, title: target.label, app: context?.app.name, bounds: $0) }
-            if target.provider == .web, let location = context?.location { pointer.url = location }
-        case .region:
-            pointer.label = nil
+        if let target = moment.target {
+            let bounds = target.frame.map(Walkthrough.Box.init)
+            pointer.label = target.role != nil || target.label != nil || target.component != nil ? target.displayName : nil
+            switch target.provider {
+            case .accessibility:
+                pointer.source = .ax
+                pointer.ax = Walkthrough.AXElement(role: target.role, title: target.label, app: context?.app.name, bounds: bounds)
+            case .web, .native:
+                pointer.source = .sdk
+                pointer.sdk = Walkthrough.SDKElement(component: target.component, source: target.source?.description, selector: target.selector)
+                pointer.ax = bounds.map { Walkthrough.AXElement(role: target.role, title: target.label, app: context?.app.name, bounds: $0) }
+                if target.provider == .web, let location = context?.location { pointer.url = location }
+            case .region:
+                pointer.label = nil
+            }
+        }
+        if let hit = moment.hit, !hit.stack.levels.isEmpty {
+            pointer.source = .apiary
+            pointer.stack = hit.stack.levels
+            pointer.label = hit.stack.label ?? pointer.label
+            pointer.url = hit.stack.url ?? pointer.url
         }
         return pointer
     }

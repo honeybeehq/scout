@@ -70,12 +70,18 @@ nonisolated struct HiveClient: Sendable {
             .map { $0 }
     }
 
+    struct Receipt: Sendable {
+        var messageID: String?
+        var deduped: Bool
+    }
+
     @discardableResult
-    func send(to sessionID: String, body: String, idempotencyKey: String? = nil) async throws -> String? {
+    func send(to sessionID: String, body: String, idempotencyKey: String? = nil) async throws -> Receipt {
         var params: [String: Any] = ["beeId": sessionID, "body": body, "urgency": "next"]
         if let idempotencyKey { params["idempotencyKey"] = idempotencyKey }
         let result = try await call(verb: "send", params: params)
-        return (result["messageId"] as? Int).map(String.init) ?? result["messageId"] as? String
+        let messageID = (result["messageId"] as? Int).map(String.init) ?? result["messageId"] as? String
+        return Receipt(messageID: messageID, deduped: result["deduped"] as? Bool ?? false)
     }
 
     @discardableResult

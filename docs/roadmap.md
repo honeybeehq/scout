@@ -66,6 +66,7 @@ Done: `⌥` aim overlay, click-to-pin through a session event tap, accessibility
 ## M7: Deep hive and Apiary integration
 
 - `~/.hive/gateways/scout.json` MCP gateway: `scout_recent_snippets`, `scout_snippet`, `scout_request_feedback`.
+- Apiary bridge client ✅: semantic pointing into walkthroughs (`pointAt`), the target picker (`focusedChat`, `listTargets`), `deliver` paste/send with the hive fallback and one idempotency key.
 - Apiary recording host for Scout (the record button in Apiary starts scouting and routes results to that pane).
 - Session picker with live `watch` updates, and delivery status from hive back into the stack.
 

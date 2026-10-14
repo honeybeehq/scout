@@ -13,6 +13,11 @@ final class AppModel {
     let dispatcher: Dispatcher
     let hud = HUDController()
     let bridge = BridgeServer()
+    let apiary = ApiaryBridge()
+    let picker = TargetPickerController()
+    private(set) var lastDelivery: DeliveryOutcome?
+    private(set) var pickerTimings: [String: Double] = [:]
+    @ObservationIgnored private var finishPressedAt: ContinuousClock.Instant?
     let preferences = Preferences()
     private(set) var session: ScoutingSession?
     private(set) var lastWalkthrough: FinishedWalkthrough?
@@ -52,6 +57,9 @@ final class AppModel {
         dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
         bridge.start()
         hud.prepare(model: self)
+        picker.prepare()
+        picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
+        picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
         Task.detached(priority: .background) {
             ScoutPaths.prune()
             WalkthroughBundle.sweepPartials()
@@ -131,7 +139,8 @@ final class AppModel {
             bridge: bridge,
             recordsScreen: preferences.includeClips && SimulationMode.fixtureVideo == nil,
             segmentation: segmentation ?? preferences.segmentation,
-            producesWalkthrough: result == .walkthrough
+            producesWalkthrough: result == .walkthrough,
+            apiary: apiary
         )
         session.transcriber.inputFile = inputFile
         session.transcriber.onInputFinished = onInputFinished
@@ -156,6 +165,32 @@ final class AppModel {
         self.breakHotkey = breakHotkey
         breakHotkey.register(breakShortcut)
         session.begin()
+        if result == .walkthrough {
+            Task { await prefetchTargets() }
+        }
+    }
+
+    @ObservationIgnored private var prefetched: [ApiaryTarget] = []
+
+    private func prefetchTargets() async {
+        prefetched = []
+        guard await apiary.connect() != nil else { return }
+        async let focused = try? apiary.focusedChat()
+        async let listed = try? apiary.listTargets()
+        prefetched = Self.ordered(await listed ?? [], focused: await focused)
+    }
+
+    private static func ordered(_ listed: [ApiaryTarget], focused: ApiaryTarget?) -> [ApiaryTarget] {
+        var rows = listed
+        guard let focused else { return rows }
+        if let index = rows.firstIndex(where: { $0.kind == focused.kind && $0.id == focused.id }) {
+            var row = rows.remove(at: index)
+            row.focused = true
+            rows.insert(row, at: 0)
+        } else {
+            rows.insert(focused, at: 0)
+        }
+        return rows
     }
 
     private func connectTasks(of session: ScoutingSession) {
@@ -176,7 +211,9 @@ final class AppModel {
         breakHotkey?.unregister()
         hud.hidePill()
         if let walkthrough = session.walkthrough {
-            Task { await finishWalkthrough(walkthrough, of: session, pressedAt: ContinuousClock.now, handedOff: handedOff) }
+            let pressed = ContinuousClock.now
+            openPicker(for: nil, pressedAt: pressed)
+            Task { await finishWalkthrough(walkthrough, of: session, pressedAt: pressed, handedOff: handedOff) }
             return
         }
         Task {
@@ -214,13 +251,16 @@ final class AppModel {
             WalkthroughPasteboard.put(outcome.directory)
             var timings = outcome.timings.mapValues { $0 + (ended - pressedAt).seconds }
             timings["sessionEnded"] = (ended - pressedAt).seconds
-            lastWalkthrough = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings)
+            let finished = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings)
+            lastWalkthrough = finished
             walkthroughProblem = nil
             handedOff?()
+            walkthroughReady(finished)
         } catch {
             walkthrough.discard()
             lastWalkthrough = nil
             walkthroughProblem = "The walkthrough couldn't be saved: \(error)"
+            picker.model.failed("The walkthrough couldn't be saved.")
         }
         stackChanged()
         let media = session.directory.appendingPathComponent("media", isDirectory: true)
@@ -243,6 +283,100 @@ final class AppModel {
             language: session.transcriber.localeIdentifier,
             failed: session.captureProblem != nil && preferences.includeClips
         )
+    }
+
+    func sendLastWalkthrough() {
+        guard let lastWalkthrough, !isScouting else { return }
+        openPicker(for: lastWalkthrough, pressedAt: .now)
+    }
+
+    private func openPicker(for finished: FinishedWalkthrough?, pressedAt: ContinuousClock.Instant) {
+        finishPressedAt = pressedAt
+        pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
+        picker.model.reset(with: finished)
+        if !prefetched.isEmpty { picker.model.setTargets(prefetched, source: .apiary) }
+        picker.open(near: NSEvent.mouseLocation)
+        pickerTimings["pickerShown"] = ApiaryBridge.milliseconds(.now - pressedAt)
+        if !prefetched.isEmpty { pickerTimings["targetsListed"] = pickerTimings["pickerShown"] }
+        DispatchQueue.main.async { [weak self] in
+            self?.pickerTimings["pickerPainted"] = ApiaryBridge.milliseconds(.now - pressedAt)
+        }
+        Task { await loadTargets(pressedAt: pressedAt) }
+    }
+
+    private func loadTargets(pressedAt: ContinuousClock.Instant) async {
+        let model = picker.model
+        if await apiary.connect() != nil {
+            async let focused = try? apiary.focusedChat()
+            async let listed = try? apiary.listTargets()
+            let focus = await focused
+            let rows = Self.ordered(await listed ?? [], focused: focus)
+            if !rows.isEmpty {
+                model.setTargets(rows, source: .apiary)
+                pickerTimings["targetsRefreshed"] = ApiaryBridge.milliseconds(.now - pressedAt)
+                if pickerTimings["targetsListed"] == nil { pickerTimings["targetsListed"] = pickerTimings["targetsRefreshed"] }
+                return
+            }
+        }
+        let hive = integrations.hiveClient
+        guard hive.isInstalled, let sessions = try? await hive.activeSessions(limit: 200) else {
+            model.setTargets([], source: .none)
+            return
+        }
+        let rows = sessions.map { ApiaryTarget(kind: "session", id: $0.id, sessionID: $0.id, title: $0.displayTitle, handle: $0.handle, subtitle: $0.projectName) }
+        model.setTargets(rows, source: .hive)
+        pickerTimings["targetsListed"] = ApiaryBridge.milliseconds(.now - pressedAt)
+    }
+
+    @ObservationIgnored private var chosen: (target: ApiaryTarget, mode: DeliveryMode, at: ContinuousClock.Instant)?
+
+    private func choose(_ target: ApiaryTarget, mode: DeliveryMode) {
+        chosen = (target, mode, .now)
+        if let finishPressedAt { pickerTimings["finishToChoice"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
+        guard let finished = picker.model.walkthrough else { return }
+        deliver(finished, to: target, mode: mode)
+    }
+
+    private func walkthroughReady(_ finished: FinishedWalkthrough) {
+        guard picker.isOpen, picker.model.confirmation == nil else { return }
+        picker.model.ready(finished)
+        if let chosen, picker.model.queued != nil {
+            deliver(finished, to: chosen.target, mode: chosen.mode)
+        }
+    }
+
+    private func deliver(_ finished: FinishedWalkthrough, to target: ApiaryTarget, mode: DeliveryMode) {
+        let model = picker.model
+        model.began()
+        let viaApiary = model.source == .apiary
+        let delivery = WalkthroughDelivery(apiary: apiary, hive: integrations.hiveClient)
+        let started = ContinuousClock.now
+        pickerTimings["deliverStartEpochMs"] = (Date().timeIntervalSince1970 * 1000).rounded()
+        Task {
+            do {
+                let outcome = try await delivery.deliver(bundle: finished.directory, walkthrough: finished.walkthrough.id, to: target, mode: mode, viaApiary: viaApiary)
+                lastDelivery = outcome
+                pickerTimings["deliverRoundTrip"] = ApiaryBridge.milliseconds(.now - started)
+                if let chosenAt = chosen?.at { pickerTimings["chooseToDelivered"] = ApiaryBridge.milliseconds(.now - chosenAt) }
+                if let finishPressedAt { pickerTimings["finishToDelivered"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
+                chosen = nil
+                model.confirm(outcome.confirmation)
+                picker.compact()
+                picker.close(after: .milliseconds(1400))
+            } catch {
+                model.refuse(error.localizedDescription)
+                if (error as? WalkthroughDelivery.Failure)?.code == "targetGone", let finishPressedAt {
+                    await loadTargets(pressedAt: finishPressedAt)
+                }
+            }
+        }
+    }
+
+    private func dismissPicker() {
+        chosen = nil
+        picker.model.confirm("On the clipboard")
+        picker.compact()
+        picker.close(after: .milliseconds(700))
     }
 
     func copyLastWalkthrough() {

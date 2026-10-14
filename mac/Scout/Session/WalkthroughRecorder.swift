@@ -22,6 +22,7 @@ final class WalkthroughRecorder {
     private var media: (any WalkthroughMedia)?
     private var waiting: [WalkthroughBuilder.FrameRequest] = []
     private var captures: [Task<Void, Never>] = []
+    private var semanticTasks: [Task<Void, Never>] = []
     private var prepared = false
     private var finishing = false
     private(set) var failedFrames = 0
@@ -61,8 +62,20 @@ final class WalkthroughRecorder {
         enqueue(builder.add(change))
     }
 
+    func resolve(query: @escaping @Sendable () async -> ApiaryPoint?, accept: @escaping @MainActor (ApiaryPoint?) -> SemanticHit?) {
+        guard !finishing else { return }
+        semanticTasks.append(Task { [weak self] in
+            let answer = await query()
+            guard let self, let hit = accept(answer) else { return }
+            enqueue(builder.add(hit))
+        })
+    }
+
+    var semantics: [SemanticHit] { builder.semantics }
+
     func discard() {
         captures.forEach { $0.cancel() }
+        semanticTasks.forEach { $0.cancel() }
         bundle.discard()
     }
 
@@ -73,6 +86,8 @@ final class WalkthroughRecorder {
         enqueue(builder.finish(at: end))
         finishing = true
         if !prepared { try bundle.prepare() }
+        for task in semanticTasks { await task.value }
+        mark("pointing")
         async let clip = media?.exportClip(through: end, to: bundle.url(for: WalkthroughBundle.clipName))
         for capture in captures { await capture.value }
         mark("frames")

@@ -196,6 +196,7 @@ enum SimulationMode {
             case .signal(let signal): session.replay(signal)
             case .stroke(let stroke): session.walkthrough?.add(stroke)
             case .scope(let change): session.walkthrough?.add(change)
+            case .dwell(let point): session.pointing?.dwell(at: point, time: step.at)
             }
         }
         while !finished, Date() < deadline {
@@ -221,6 +222,100 @@ enum SimulationMode {
         ]
         let item = NSPasteboard.general.pasteboardItems?.first
         report["pasteboard"] = Dictionary(uniqueKeysWithValues: (item?.types ?? []).map { ($0.rawValue, item?.string(forType: $0) ?? "") })
+        report["pointing"] = ["calls": session.pointing?.calls ?? 0, "skipped": session.pointing?.skipped ?? 0]
+        report["apiaryPointers"] = done.walkthrough.pointers.filter { $0.source == .apiary }.map { "\($0.id) \($0.via.rawValue) \($0.label ?? "")" }
+        report["uuidv5Check"] = ScoutUUID.v5("scout:probe:send1")
+        report["picker"] = await drivePicker(model: model, output: output)
+        report["bridgeLog"] = await model.apiary.log
+    }
+
+    private static func pickerSnapshot(_ model: AppModel, _ name: String, into output: URL) {
+        try? model.picker.snapshot()?.representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("picker-\(name).png"))
+    }
+
+    private static func waitFor(_ seconds: Double, _ condition: () -> Bool) async {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !condition(), Date() < deadline { try? await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    private static func drivePicker(model: AppModel, output: URL) async -> [String: Any] {
+        var result: [String: Any] = [:]
+        let picker = model.picker
+        func state() -> [String: Any] {
+            [
+                "source": String(describing: picker.model.source),
+                "phase": String(describing: picker.model.phase),
+                "query": picker.model.query,
+                "rows": picker.model.filtered.prefix(8).map { "\($0.kind):\($0.title)\($0.focused ? " (focused)" : "")" },
+                "selected": picker.model.selected.map { "\($0.kind):\($0.id):\($0.title)" } ?? "",
+            ]
+        }
+        await waitFor(3) { picker.model.source != .loading }
+        result["opened"] = state()
+        pickerSnapshot(model, "1-open", into: output)
+        guard let key = argument("pick-key") else {
+            result["timings"] = model.pickerTimings
+            return result
+        }
+        for character in argument("pick") ?? "" {
+            picker.post(.character(character))
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+        for _ in 0..<(Int(argument("pick-down") ?? "0") ?? 0) {
+            picker.post(.down)
+            try? await Task.sleep(for: .milliseconds(40))
+        }
+        try? await Task.sleep(for: .milliseconds(150))
+        result["filtered"] = state()
+        pickerSnapshot(model, "2-filtered", into: output)
+        switch key {
+        case "send": picker.post(.commandEnter)
+        case "escape": picker.post(.escape)
+        default: picker.post(.enter)
+        }
+        await waitFor(10) { picker.model.confirmation != nil || picker.model.problem != nil }
+        result["confirmation"] = picker.model.confirmation ?? ""
+        result["problem"] = picker.model.problem ?? ""
+        pickerSnapshot(model, "3-confirmed", into: output)
+        result["delivery"] = deliveryReport(model.lastDelivery)
+        result["timings"] = model.pickerTimings
+        if ProcessInfo.processInfo.arguments.contains("--pick-repeat") {
+            await waitFor(3) { !picker.isOpen }
+            if let gate = argument("repeat-gate") {
+                let first = try? JSONSerialization.data(withJSONObject: deliveryReport(model.lastDelivery))
+                try? first?.write(to: output.appendingPathComponent("first-delivery.json"))
+                await waitFor(180) { FileManager.default.fileExists(atPath: gate) }
+            }
+            let first = model.lastDelivery?.deliveryID
+            model.sendLastWalkthrough()
+            await waitFor(3) { picker.model.source != .loading }
+            for character in argument("pick") ?? "" {
+                picker.post(.character(character))
+                try? await Task.sleep(for: .milliseconds(40))
+            }
+            try? await Task.sleep(for: .milliseconds(150))
+            picker.post(key == "send" ? .commandEnter : .enter)
+            await waitFor(10) { (picker.model.confirmation != nil && model.lastDelivery?.deliveryID == first) || picker.model.problem != nil }
+            try? await Task.sleep(for: .milliseconds(100))
+            result["repeat"] = ["delivery": deliveryReport(model.lastDelivery), "confirmation": picker.model.confirmation ?? "", "problem": picker.model.problem ?? "", "timings": model.pickerTimings]
+            pickerSnapshot(model, "4-repeat", into: output)
+        }
+        try? await Task.sleep(for: .milliseconds(1800))
+        return result
+    }
+
+    private static func deliveryReport(_ outcome: DeliveryOutcome?) -> [String: Any] {
+        guard let outcome else { return [:] }
+        return [
+            "route": outcome.route.rawValue,
+            "mode": outcome.mode.rawValue,
+            "title": outcome.title,
+            "deliveryId": outcome.deliveryID,
+            "messageId": outcome.messageID,
+            "deduped": outcome.deduped,
+            "fallbackReason": outcome.fallbackReason ?? "",
+            "roundTripMs": outcome.roundTripMs,
+        ]
     }
 
     static var reopensLatest: Bool {
@@ -478,7 +573,14 @@ struct WalkthroughFixture: Decodable {
         var byUser: Bool?
     }
 
+    struct PointerInput: Decodable {
+        var at: Double
+        var x: Double
+        var y: Double
+    }
+
     enum Action {
+        case dwell(Point)
         case signal(Signal)
         case stroke(WalkthroughBuilder.Stroke)
         case scope(WalkthroughBuilder.ScopeChange)
@@ -495,12 +597,13 @@ struct WalkthroughFixture: Decodable {
     var signals: [Signal]
     var strokes: [StrokeInput]?
     var scopes: [ScopeInput]?
+    var pointers: [PointerInput]?
     var base: URL = URL(fileURLWithPath: "/")
 
     private enum CodingKeys: String, CodingKey {
         case audioPath = "audio"
         case videoPath = "video"
-        case screen, signals, strokes, scopes
+        case screen, signals, strokes, scopes, pointers
     }
 
     var audio: URL { URL(fileURLWithPath: audioPath, relativeTo: base).standardizedFileURL }
@@ -526,6 +629,7 @@ struct WalkthroughFixture: Decodable {
             guard let scope = Walkthrough.Scope(rawValue: input.scope) else { return nil }
             return Step(at: input.at + offset, action: .scope(WalkthroughBuilder.ScopeChange(at: input.at + offset, scope: scope, bounds: input.bounds, byUser: input.byUser ?? false)))
         }
+        steps += (pointers ?? []).map { Step(at: $0.at + offset, action: .dwell(Point(x: $0.x, y: $0.y))) }
         return steps.sorted { $0.at < $1.at }
     }
 }

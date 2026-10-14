@@ -226,6 +226,11 @@ private struct LastWalkthroughRow: View {
                     .foregroundStyle(Palette.textTertiary)
             }
             Spacer(minLength: 4)
+            Button("Send…") { model.sendLastWalkthrough() }
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Palette.textSecondary)
+                .disabled(model.isScouting)
             Button("Copy") { model.copyLastWalkthrough() }
                 .buttonStyle(.plain)
                 .font(.system(size: 11.5, weight: .semibold))

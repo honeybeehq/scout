@@ -58,12 +58,12 @@ Rules:
 | `Onboarding/` | Six-step onboarding and its persisted progress | M0 |
 | `Permissions/` | Live permission states, requests, the System Settings guide, relaunch | M0 |
 | `Voice/` | Microphone (or audio file) capture and live on-device transcription with word timings | M1 |
-| `Integrations/` | hive socket client, Apiary detection, routing preference | M1 |
+| `Integrations/` | hive socket client, Apiary detection and bridge client (`ApiaryBridge`), routing preference | M1, M7 |
 | `Shortcuts/` | Carbon global hotkeys (need no permission) | M0 |
 | `MenuBar/` | Menu bar icon and panel | M0 |
 | `Session/` | Scouting session: clock, signal log, segmenter, voice commands, capture timeline, interaction timings | M1 |
 | `Context/` | Frontmost app, window title, browser URL (AX `AXWebArea`/`AXURL`), pointer dwell, `TargetResolver` | M1 |
-| `Delivery/` | Project resolution, task composition, titles, routing and sending (`Dispatcher`) | M1 |
+| `Delivery/` | Project resolution, task composition, titles, routing and sending (`Dispatcher`); the walkthrough target picker and delivery (`TargetPicker`, `WalkthroughDelivery`) | M1, M7 |
 | `HUD/` | Scouting pill, capture frame and ink overlay, snippet stack, aim overlay and pin event tap (pins, strokes, E/⇧E) | M1–M3 |
 | `Review/` | Session review: `SessionReview` (re-cutting, undo, persistence), player, timeline, task list and detail | M1.5 |
 | `Capture/` | ScreenCaptureKit segmented recorder (moves to the display under the captured area), region follower, clip cutting, visual change, frame snapshots | M2 |

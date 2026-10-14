@@ -76,6 +76,7 @@ public enum WalkthroughText {
         var parts: [String] = []
         if let stack = pointer.stack, !stack.isEmpty {
             parts.append(stackPath(stack))
+            parts += domDetails(stack)
         } else if pointer.source == .none && pointer.label == nil {
             let app = apps.last { $0.t <= pointer.t }?.name ?? apps.first?.name
             parts.append([app, "at \(Int(pointer.at.x.rounded())),\(Int(pointer.at.y.rounded())) (no element)"].compactMap { $0 }.joined(separator: " › "))
@@ -87,7 +88,11 @@ public enum WalkthroughText {
         if let selector = pointer.sdk?.selector, !selector.isEmpty { parts.append("selector `\(selector)`") }
         if let source = pointer.sdk?.source, !source.isEmpty { parts.append("source \(source)") }
         if let url = pointer.url, !url.isEmpty { parts.append("url \(url)") }
-        if let bounds = pointer.ax?.bounds { parts.append("bbox \(box(bounds))") }
+        if let bounds = pointer.ax?.bounds {
+            parts.append("bbox \(box(bounds))")
+        } else if let stack = pointer.stack, let bounds = ApiaryStack(levels: stack).bounds {
+            parts.append("bbox \(box(Walkthrough.Box(bounds)))")
+        }
         if let frame = pointer.frame { parts.append("frame \(frame)") }
         return "\(pointer.id) \(clock(pointer.t)) \(pointer.via.rawValue) · " + parts.map(oneLine).joined(separator: " · ")
     }
@@ -96,6 +101,25 @@ public enum WalkthroughText {
         let kind = pointer.sdk?.component ?? pointer.ax?.role ?? "element"
         guard let title = pointer.ax?.title, !title.isEmpty else { return pointer.label ?? kind }
         return "\(kind) \"\(truncated(title, to: 80))\""
+    }
+
+    static func domDetails(_ stack: [JSONValue]) -> [String] {
+        guard let dom = stack.last(where: { if case .object(let fields) = $0, case .string("dom")? = fields["level"] { return true } else { return false } }),
+              case .object(let fields) = dom
+        else { return [] }
+        var parts: [String] = []
+        if case .array(let hops)? = fields["framePath"], !hops.isEmpty {
+            let path = hops.compactMap { hop -> String? in
+                guard case .object(let frame) = hop, case .string(let selector)? = frame["selector"] else { return nil }
+                if case .string(let origin)? = frame["origin"], !origin.isEmpty { return "`\(selector)` (\(origin))" }
+                return "`\(selector)`"
+            }
+            parts.append("in iframe " + path.joined(separator: " › "))
+        }
+        if case .bool(true)? = fields["framePathTruncated"] { parts.append("frame path truncated") }
+        if case .string(let selector)? = fields["selector"], !selector.isEmpty { parts.append("selector `\(selector)`") }
+        if case .string(let frameURL)? = fields["frameUrl"], case .string(let url)? = fields["url"], frameURL != url { parts.append("frame url \(frameURL)") }
+        return parts
     }
 
     static func stackPath(_ stack: [JSONValue]) -> String {

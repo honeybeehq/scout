@@ -35,6 +35,7 @@ final class ScoutingSession {
     private(set) var capture = CaptureTimeline()
     let segmentation: Segmentation
     let walkthrough: WalkthroughRecorder?
+    @ObservationIgnored private(set) var pointing: ApiaryPointing?
 
     var presentScope: ((ScopeChange, _ input: TimeInterval) -> Void)?
     var onFirstFrame: ((TimeInterval) -> Void)?
@@ -74,7 +75,7 @@ final class ScoutingSession {
 
     var startedAt: Date { clock.originDate }
 
-    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation, producesWalkthrough: Bool = false) {
+    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation, producesWalkthrough: Bool = false, apiary: ApiaryBridge? = nil) {
         self.bridge = bridge
         self.recordsScreen = recordsScreen
         self.segmentation = segmentation
@@ -89,6 +90,7 @@ final class ScoutingSession {
         aim = AimController(clock: clock)
         walkthrough = producesWalkthrough ? WalkthroughRecorder(startedAt: clock.originDate) : nil
         follower = CaptureFollower(clock: clock)
+        if let walkthrough, let apiary { pointing = ApiaryPointing(bridge: apiary, clock: clock, recorder: walkthrough) }
     }
 
     func begin() {
@@ -125,6 +127,7 @@ final class ScoutingSession {
             return reply.element.target(clientID: reply.client.id, viewport: reply.viewport)
         }
         aim.start()
+        pointing?.start(watchesPointer: !SimulationMode.replaysEvents)
         bridge.onHover = { [weak self] client, element, viewport, date in
             self?.webHover(element.target(clientID: client.id, viewport: viewport), at: date)
         }
@@ -177,6 +180,7 @@ final class ScoutingSession {
         ticker?.cancel()
         follower.stop()
         aim.stop()
+        pointing?.stop()
         bridge.setSession(active: false)
         bridge.onHover = nil
         bridge.onSignal = nil
@@ -325,6 +329,7 @@ final class ScoutingSession {
         log.append(signal)
         ledger.record(signal)
         walkthrough?.record(signal)
+        if case .mark(let mark) = signal { pointing?.pin(mark) }
         if case .context(let change) = signal { context = change.context }
         handle(segmenter.ingest(signal))
     }

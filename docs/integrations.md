@@ -65,13 +65,20 @@ Not implemented yet: native apps (iOS Simulator and macOS debug builds through D
 
 **Today.** Delivery to Apiary panes works through hive (above). Apiary's attachment convention makes clips and images show up in the conversation.
 
+**Bridge client (walkthroughs).** A hotkey recording talks to Apiary's Scout bridge (contract: the Project's contracts.md §2 with revisions 4–7). `ApiaryBridge` (`mac/Scout/Integrations/ApiaryBridge.swift`) reads the discovery file, connects to its Unix socket, sends `hello` with the token and Scout's pid, and keeps one NDJSON connection that closes 30 s after the last request. A missing or dead Apiary costs one file read and a 1 s quiet period; nothing else changes.
+
+- **Discovery:** `--apiary-bridge=<file>`, else `SCOUT_APIARY_BRIDGE`, else `$APIARY_HOME_DIR/scout-bridge.json`, else `~/.apiary/scout-bridge.json`. A dev Apiary writes `<userData>/scout/scout-bridge.json`.
+- **Pointing:** each pin and each dwell (the pointer still for 0.6 s, sampled every 100 ms off the main thread) calls `pointAt` from a detached task, never on the capture or main thread. Scout asks only when the topmost on-screen window at the point belongs to Apiary's pid (`CGWindowList`, no permission needed). A dwell inside the bounds of the last answer, or one with the same innermost identity, is skipped. Budget 30 ms; a pin retries once with 100 ms. The answer's `stack` is stored verbatim on the pointer (`source: "apiary"`), and finishing waits for answers still in flight.
+- **Target picker:** finishing opens a sheet near the cursor at once; the bundle finishes behind it and the asks appear when ready. Rows come from `focusedChat` and `listTargets` (prefetched when recording starts and refreshed on open), or from `hive list` when Apiary is absent. Enter pastes into the chosen chat, ⌘↩ sends, Esc leaves the walkthrough on the clipboard only. A choice made before the bundle is ready waits for it ("Sends when ready"). The menu bar's **Send…** reopens the sheet for the last walkthrough.
+- **Delivery:** `deliver` with `deliveryId = scout:<walkthrough>:<kind>:<id>:<mode>`. When Apiary is absent, times out or answers `noRenderer`/`notReady`, a send goes through the hive socket with the same `messageId = uuidv5(deliveryId)` as the idempotency key, so a retry or a bridge send followed by the fallback reaches the session once. A paste with no renderer stays on the clipboard. The sheet shrinks to a one-line confirmation and fades.
+
 **Next (M7):**
 
 - **Scout gateway for bees.** Write `~/.hive/gateways/scout.json` (`protocol:"mcp"`, `gatewayRev:1`, `socketPath`, `pid`, `shim.command`). hive then adds Scout's MCP tools to every bee:
   - `scout_recent_snippets`: list recent snippets.
   - `scout_snippet(id)`: fetch one snippet with its clip, pins and transcript.
   - `scout_request_feedback(prompt)`: ask the human to scout something and return the result to this bee.
-- **Recording bridge.** Apiary already has a record button that speaks Syn's WebSocket protocol (`hello`, `startRecording{mode, token, windowId, rect}`, `stopRecording`, `packetReady{path, token}`). Scout will offer the same flow under a new versioned endpoint and ask Apiary to add a `scout` host next to `synHost`, keeping Syn's port (47845) free so both can run during the transition.
+- **Recording host.** Apiary already has a record button that speaks Syn's WebSocket protocol (`hello`, `startRecording{mode, token, windowId, rect}`, `stopRecording`, `packetReady{path, token}`). Scout will offer the same flow under a new versioned endpoint and ask Apiary to add a `scout` host next to `synHost`, keeping Syn's port (47845) free so both can run during the transition.
 - **Quick compose.** `apiary://compose?text=…` (≤ 32 KB, text only) is a zero-integration fallback for "Ask me" routing.
 
 ## Pollinate and nectar
