@@ -57,6 +57,7 @@ final class ScoutingSession {
     private var ticker: Task<Void, Never>?
     private var sendNextClosedImmediately = false
     private var startTask: Task<Void, Never>?
+    private var recorderStart: Task<Void, Never>?
     private var stopRequested = false
     private let bridge: BridgeServer
     private var webDwell: (target: Target, since: SessionTime)?
@@ -95,6 +96,10 @@ final class ScoutingSession {
         activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical], reason: "Scouting")
         follower.onChange = { [weak self] change, input in self?.record(change, input: input) }
         follower.start()
+        recorderStart = Task {
+            await InteractionTimings.afterCommit()
+            await startRecorder()
+        }
         startTask = Task {
             await InteractionTimings.afterCommit()
             await start()
@@ -158,9 +163,8 @@ final class ScoutingSession {
             }
         }
 
-        async let screen: Void = startRecorder()
         await transcriber.start()
-        await screen
+        await recorderStart?.value
         guard !stopRequested else { return }
         if case .failed(let message) = transcriber.phase {
             phase = .failed(message)

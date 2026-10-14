@@ -61,6 +61,9 @@ final class AimController {
     }
 
     func stop() {
+        if press != nil {
+            release(at: strokePoints.last.map { CGPoint(x: $0.x, y: $0.y) } ?? .zero, input: InteractionTimings.now)
+        }
         deactivate()
         tap?.stop()
         tap = nil

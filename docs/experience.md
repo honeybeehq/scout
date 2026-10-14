@@ -51,14 +51,14 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
 
 From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. About 120 ms after it appears at the pointer, the pill glides to the top-left edge of the captured area and moves with it. The pill never takes focus and is excluded from the recording. It can be dragged anywhere.
 
-**What is captured.** Scout follows the pointer. The captured area is the pane under the pointer, or the window when Scout can't tell panes apart, or the screen when no window is under it. Panes are split views found through Accessibility; inside Apiary they come from the Apiary bridge. When the pointer rests in another area for 250 ms, the frame glides there (120 ms) and the recording moves to that display if it changed. Outside the frame the screen is dimmed a little, so it is always clear what the recording is about.
+**What is captured.** Scout follows the pointer. The captured area is the pane under the pointer, or the window when Scout can't tell panes apart, or the screen when no window is under it. Panes are split views found through Accessibility; inside Apiary they come from the Apiary bridge. At the shortcut, the frame starts on the window under the pointer and narrows to the pane as soon as it is known. When the pointer rests in another area for 250 ms, the frame glides there (120 ms) and the recording moves to that display if it changed. Outside the frame the screen is dimmed a little, so it is always clear what the recording is about.
 
 **Expanding** is never required:
 - When the pointer goes back and forth between two areas within 6 seconds, a dashed outline around both appears with "You keep moving between these. Keep both in view **E**" for 4 seconds. Scout never expands on its own.
 - **E** keeps both recent areas in view. **E** again widens to the window, then to the screen, then back to following.
 - **⇧E** goes back to following the pointer.
 - The capture button in the pill does the same: click to widen, ⇧-click to follow.
-- E and ⇧E are only taken while no text field has focus, so typing is never swallowed. They need Accessibility; without it, use the pill.
+- E and ⇧E are taken only when the focused element is one Scout knows doesn't take text (a button, list, table, page or similar). Anywhere else the key goes to the app: text fields, terminals, editors without accessibility support, and anything Scout can't read in time. They need Accessibility. Without it, or when E goes to the app, use the pill.
 
 **Talking.** The user talks about whatever they are looking at. Scout splits the stream into snippets in the background (see [breakpoints.md](breakpoints.md)). When a snippet closes, its card slides into the snippet stack.
 
@@ -73,7 +73,7 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
 
-**Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within a frame. Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
+**Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within about two frames (≈30 ms at 60 Hz). Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 
 ## Automatic and manual tasks
 

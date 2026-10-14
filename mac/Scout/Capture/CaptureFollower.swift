@@ -49,7 +49,7 @@ final class CaptureFollower {
         let point = pointerSource?() ?? Self.pointer()
         lastPoint = point
         lastResolve = InteractionTimings.now
-        let change = machine.pointer(over: resolver.region(at: point), at: clock.now)
+        let change = machine.pointer(over: resolver.region(at: point, panes: false), at: clock.now)
         publish()
         if let change { onChange?(change, lastResolve) }
         let timer = DispatchSource.makeTimerSource(flags: .strict, queue: .main)

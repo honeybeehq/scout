@@ -21,6 +21,7 @@ final class InteractionTimings {
         "hotkey→recording": 150,
         "hotkey→first-frame": 150,
         "follow": 16,
+        "refine": 150,
         "expand": 16,
         "pin": 16,
         "stroke": 16,
@@ -36,12 +37,20 @@ final class InteractionTimings {
     }
 
     private(set) var samples: [InteractionSample] = []
-    var log: SignalLog?
+    private var log: SignalLog?
     private var awaitingCommit: [Pending] = []
     private var observer: CFRunLoopObserver?
     private let frames = FrameClock()
 
     static var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    static let quiet: Set<String> = ["stroke"]
+
+    func begin(logging url: URL) {
+        log?.close()
+        log = SignalLog(url: url)
+        samples = []
+    }
 
     static func afterCommit() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -101,6 +110,7 @@ final class InteractionTimings {
         )
         samples.append(sample)
         log?.append(sample)
+        guard !Self.quiet.contains(pending.name) else { return }
         let committedText = sample.committedMs.map { String(format: ", committed %.1f ms", $0) } ?? ""
         let paintedText = sample.paintedMs.map { String(format: ", on screen %.1f ms", $0) } ?? ""
         NSLog("[scout-timing] %@ handled %.1f ms%@%@ (budget %.0f ms)%@", pending.name, sample.handledMs, committedText, paintedText, sample.budgetMs, pending.detail.map { " · \($0)" } ?? "")

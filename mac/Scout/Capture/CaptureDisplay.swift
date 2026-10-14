@@ -60,6 +60,7 @@ nonisolated struct CaptureTarget: @unchecked Sendable {
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         configuration.colorMatrix = CGDisplayStream.yCbCrMatrix_ITU_R_709_2
         configuration.colorSpaceName = CGColorSpace.sRGB
+        configuration.preservesAspectRatio = true
         configuration.showsCursor = true
         configuration.capturesAudio = false
         configuration.queueDepth = 6

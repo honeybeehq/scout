@@ -25,11 +25,15 @@ nonisolated final class RegionResolver: @unchecked Sendable {
     typealias PaneProvider = @Sendable (CGPoint, WindowInfo) -> Pane?
 
     static let minimumPaneSize = CGSize(width: 160, height: 120)
+    static let paneWalkDepth = 16
+    static let paneWalkBudget: TimeInterval = 0.03
+    static let paneWalkInterval: TimeInterval = 0.1
 
     private let lock = NSLock()
     private var provider: PaneProvider?
     private var includedWindows: Set<CGWindowID> = []
     private var cachedPane: (windowID: CGWindowID, pane: Pane)?
+    private var lastWalk: (windowID: CGWindowID, at: TimeInterval)?
     private let ownProcessID = ProcessInfo.processInfo.processIdentifier
 
     var paneProvider: PaneProvider? {
@@ -41,14 +45,14 @@ nonisolated final class RegionResolver: @unchecked Sendable {
         lock.withLock { _ = includedWindows.insert(windowID) }
     }
 
-    func region(at point: CGPoint) -> CaptureRegion? {
+    func region(at point: CGPoint, panes: Bool = true) -> CaptureRegion? {
         guard let display = Self.display(at: point) else { return nil }
         let displayBounds = Rect(display.bounds)
         guard let window = window(at: point) else {
             return CaptureRegion(id: "d\(display.id)", kind: .display, bounds: displayBounds, label: "Screen", displayID: display.id, displayBounds: displayBounds)
         }
         let windowBounds = Rect(window.bounds)
-        if let pane = pane(at: point, in: window) {
+        if panes, let pane = pane(at: point, in: window) {
             return CaptureRegion(id: "w\(window.id)/\(pane.id)", kind: .pane, bounds: Rect(pane.bounds), label: pane.label, displayID: display.id, displayBounds: displayBounds, windowBounds: windowBounds)
         }
         return CaptureRegion(id: "w\(window.id)", kind: .window, bounds: windowBounds, label: window.label, displayID: display.id, displayBounds: displayBounds, windowBounds: windowBounds)
@@ -97,17 +101,25 @@ nonisolated final class RegionResolver: @unchecked Sendable {
         if let cached, cached.windowID == window.id, cached.pane.bounds.contains(point) {
             return cached.pane
         }
-        guard AXIsProcessTrusted(), let pane = Self.splitPane(at: point, in: window) else {
-            lock.withLock { cachedPane = nil }
-            return nil
+        let now = ProcessInfo.processInfo.systemUptime
+        let recent = lock.withLock { lastWalk.map { $0.windowID == window.id && now - $0.at < Self.paneWalkInterval } ?? false }
+        guard AXIsProcessTrusted(), !recent else { return nil }
+        let pane = Self.splitPane(at: point, in: window)
+        lock.withLock {
+            lastWalk = (window.id, now)
+            cachedPane = pane.map { (window.id, $0) }
         }
-        lock.withLock { cachedPane = (window.id, pane) }
         return pane
     }
 
     private static func splitPane(at point: CGPoint, in window: WindowInfo) -> Pane? {
-        guard var element = AXElement.application(window.processID).element(at: point) else { return nil }
-        for _ in 0..<40 {
+        let app = AXUIElementCreateApplication(window.processID)
+        AXUIElementSetMessagingTimeout(app, 0.02)
+        guard var element = AXElement(element: app).element(at: point) else { return nil }
+        let deadline = ProcessInfo.processInfo.systemUptime + paneWalkBudget
+        for _ in 0..<paneWalkDepth {
+            guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
+            AXUIElementSetMessagingTimeout(element.element, 0.02)
             guard let parent = element.parent, let role = parent.role else { return nil }
             if role == "AXWindow" || role == "AXApplication" { return nil }
             if role == "AXSplitGroup", let frame = element.frame,

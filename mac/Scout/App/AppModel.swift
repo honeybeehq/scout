@@ -139,13 +139,14 @@ final class AppModel {
         onSessionCreated?(session)
         self.session = session
         isScouting = true
-        timings.log = SignalLog(url: session.directory.appendingPathComponent("timings.jsonl"))
+        timings.begin(logging: session.directory.appendingPathComponent("timings.jsonl"))
         session.presentScope = { [weak session] change, changeInput in
             guard let session else { return }
             if session.capture.scopes.count == 1 {
                 timings.measure("hotkey→recording", from: input, detail: "pill and capture frame on screen")
             } else {
-                timings.measure(change.byUser ? "expand" : "follow", from: changeInput, detail: "\(change.scope.rawValue) \(change.region ?? "")")
+                let name = change.byUser ? "expand" : change.refined ? "refine" : "follow"
+                timings.measure(name, from: changeInput, detail: "\(change.scope.rawValue) \(change.region ?? "")")
             }
         }
         session.aim.measure = { name, input in timings.measure(name, from: input) }

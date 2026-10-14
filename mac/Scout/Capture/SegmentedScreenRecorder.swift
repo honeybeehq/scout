@@ -43,6 +43,8 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
     private var currentDisplay: CaptureDisplay?
     private var displayHops: [(at: SessionTime, display: CaptureDisplay)] = []
     private var shareableContent: SCShareableContent?
+    private var requestedDisplay: CGDirectDisplayID?
+    private var switchingDisplay = false
     private var firstFrameHandler: FirstFrameHandler?
     private var stream: SCStream?
     private var initSegmentURL: URL?
@@ -86,6 +88,14 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
 
     var display: CaptureDisplay? { lock.withLock { captureDisplay } }
     var displayChanges: [(at: SessionTime, display: CaptureDisplay)] { lock.withLock { displayHops } }
+    var currentCaptureDisplay: CaptureDisplay? { lock.withLock { currentDisplay } }
+
+    var displaysUsed: [CaptureDisplay] {
+        lock.withLock {
+            var seen: Set<CGDirectDisplayID> = []
+            return ([captureDisplay].compactMap { $0 } + displayHops.map(\.display)).filter { seen.insert($0.displayID).inserted }
+        }
+    }
     var segments: [MediaSegment] { lock.withLock { segmentList } }
     var statistics: CaptureStatistics { lock.withLock { counters } }
 
@@ -137,26 +147,36 @@ nonisolated final class SegmentedScreenRecorder: NSObject, @unchecked Sendable {
     }
 
     @concurrent func show(display displayID: CGDirectDisplayID) async {
-        let (stream, current, cached) = lock.withLock { (self.stream, currentDisplay, shareableContent) }
-        guard let stream, let current, current.displayID != displayID else { return }
-        var content = cached
-        if content?.displays.contains(where: { $0.displayID == displayID }) != true {
-            content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+        let claimed = lock.withLock {
+            requestedDisplay = displayID
+            guard !switchingDisplay else { return false }
+            switchingDisplay = true
+            return true
         }
-        guard let content, let display = content.displays.first(where: { $0.displayID == displayID }) else { return }
-        let target = CaptureTarget.make(display: display, content: content, maxLongEdge: Self.maxLongEdge, videoSize: (current.videoWidth, current.videoHeight))
-        do {
-            try await stream.updateContentFilter(target.filter)
-        } catch {
-            report(.stopped(error))
-            return
+        guard claimed else { return }
+        while true {
+            let (stream, current, cached, wanted) = lock.withLock { (self.stream, currentDisplay, shareableContent, requestedDisplay) }
+            guard let stream, let current, let wanted, current.displayID != wanted else { break }
+            var content = cached
+            if content?.displays.contains(where: { $0.displayID == wanted }) != true {
+                content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+            }
+            guard let content, let display = content.displays.first(where: { $0.displayID == wanted }) else { break }
+            let target = CaptureTarget.make(display: display, content: content, maxLongEdge: Self.maxLongEdge, videoSize: (current.videoWidth, current.videoHeight))
+            do {
+                try await stream.updateContentFilter(target.filter)
+            } catch {
+                report(.stopped(error))
+                break
+            }
+            let at = sessionTimeNow
+            lock.withLock {
+                shareableContent = content
+                currentDisplay = target.display
+                displayHops.append((at, target.display))
+            }
         }
-        let at = sessionTimeNow
-        lock.withLock {
-            shareableContent = content
-            currentDisplay = target.display
-            displayHops.append((at, target.display))
-        }
+        lock.withLock { switchingDisplay = false }
     }
 
     @concurrent func stop() async {

@@ -35,14 +35,16 @@ public struct ScopeChange: Codable, Hashable, Sendable {
     public var displayID: UInt32?
     public var region: String?
     public var byUser: Bool
+    public var refined: Bool
 
-    public init(at: SessionTime, scope: CaptureScope, bounds: Rect, displayID: UInt32?, region: String?, byUser: Bool) {
+    public init(at: SessionTime, scope: CaptureScope, bounds: Rect, displayID: UInt32?, region: String?, byUser: Bool, refined: Bool = false) {
         self.at = at
         self.scope = scope
         self.bounds = bounds
         self.displayID = displayID
         self.region = region
         self.byUser = byUser
+        self.refined = refined
     }
 }
 
@@ -130,6 +132,9 @@ public struct ScopeMachine: Sendable {
         switch scope {
         case .follow:
             guard let followed else { return settle(on: region, at: now) }
+            if followed.kind == .window, region.kind == .pane, region.id.hasPrefix(followed.id + "/") {
+                return refine(to: region, at: now)
+            }
             if followed.id == region.id {
                 pending = nil
                 return followed.bounds == region.bounds ? nil : settle(on: region, at: now)
@@ -219,6 +224,17 @@ public struct ScopeMachine: Sendable {
         followed = region
         noteVisit(region, at: now)
         return apply(.follow, bounds: region.bounds, displayID: region.displayID, region: region.label, at: now, byUser: false)
+    }
+
+    private mutating func refine(to region: CaptureRegion, at now: SessionTime) -> ScopeChange? {
+        pending = nil
+        if let followed, let last = visits.indices.last, visits[last].id == followed.id {
+            visits[last].id = region.id
+        }
+        followed = region
+        var change = apply(.follow, bounds: region.bounds, displayID: region.displayID, region: region.label, at: now, byUser: false)
+        change?.refined = true
+        return change
     }
 
     private mutating func noteVisit(_ region: CaptureRegion, at now: SessionTime) {

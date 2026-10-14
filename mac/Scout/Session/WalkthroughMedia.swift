@@ -16,13 +16,14 @@ nonisolated struct LiveWalkthroughMedia: WalkthroughMedia {
     let recorder: SegmentedScreenRecorder
 
     var bounds: Rect? {
-        recorder.display.map { Rect(x: $0.frame.minX, y: $0.frame.minY, width: $0.frame.width, height: $0.frame.height) }
+        recorder.currentCaptureDisplay.map { Rect(x: $0.frame.minX, y: $0.frame.minY, width: $0.frame.width, height: $0.frame.height) }
     }
 
     var displays: [Walkthrough.Display] {
-        guard let display = recorder.display else { return [] }
-        let frame = Walkthrough.Box(x: display.frame.minX, y: display.frame.minY, w: display.frame.width, h: display.frame.height)
-        return [Walkthrough.Display(id: String(display.displayID), bounds: frame, scale: display.pointPixelScale)]
+        recorder.displaysUsed.map { display in
+            let frame = Walkthrough.Box(x: display.frame.minX, y: display.frame.minY, w: display.frame.width, h: display.frame.height)
+            return Walkthrough.Display(id: String(display.displayID), bounds: frame, scale: display.pointPixelScale)
+        }
     }
 
     func frame(at time: SessionTime) async -> CGImage? {

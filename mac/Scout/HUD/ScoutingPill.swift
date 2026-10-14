@@ -59,6 +59,11 @@ struct ScoutingPill: View {
                 }
             } label: {
                 HStack(spacing: 5) {
+                    if session?.captureProblem != nil {
+                        Circle()
+                            .fill(Palette.caution)
+                            .frame(width: 6, height: 6)
+                    }
                     Image(systemName: following ? "arrow.up.left.and.arrow.down.right" : "lock.fill")
                         .font(.system(size: 9.5, weight: .semibold))
                     Text(follower?.scopeTitle ?? "Following")
@@ -76,7 +81,7 @@ struct ScoutingPill: View {
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
-            .help(following ? "Widen the captured area (E). ⇧E follows the pointer again." : "Widen further (E), or follow the pointer again (⇧E)")
+            .help(session?.captureProblem ?? (following ? "Widen the captured area (E). ⇧E follows the pointer again." : "Widen further (E), or follow the pointer again (⇧E)"))
 
             Button {
                 model.finishScouting(input: InteractionTimings.now)

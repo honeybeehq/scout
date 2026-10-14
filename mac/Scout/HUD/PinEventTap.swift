@@ -15,7 +15,11 @@ nonisolated final class PinEventTap: @unchecked Sendable {
         case follow(TimeInterval)
     }
 
-    private static let editableRoles: Set<String> = ["AXTextField", "AXTextArea", "AXSecureTextField", "AXComboBox", "AXSearchField"]
+    private static let nonTextRoles: Set<String> = [
+        "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton", "AXLink", "AXImage",
+        "AXList", "AXOutline", "AXTable", "AXRow", "AXCell", "AXScrollArea", "AXWebArea", "AXSplitGroup",
+        "AXTabGroup", "AXToolbar", "AXSlider", "AXStaticText", "AXLayoutArea", "AXDisclosureTriangle",
+    ]
 
     private let onEvent: @Sendable (Event) -> Void
     private let aiming = Atomic<Bool>(false)
@@ -110,31 +114,34 @@ nonisolated final class PinEventTap: @unchecked Sendable {
               event.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_ANSI_E),
               event.getIntegerValueField(.keyboardEventAutorepeat) == 0,
               event.flags.isDisjoint(with: [.maskCommand, .maskControl, .maskAlternate, .maskSecondaryFn]),
-              !Self.focusIsEditable()
+              Self.focusIsKnownNonText()
         else { return nil }
         let at = ProcessInfo.processInfo.systemUptime
         return event.flags.contains(.maskShift) ? .follow(at) : .expand(at)
     }
 
-    private static func focusIsEditable() -> Bool {
-        let system = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(system, 0.05)
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
-              let value, CFGetTypeID(value) == AXUIElementGetTypeID()
-        else { return false }
-        let focused = value as! AXUIElement
+    private static func focusIsKnownNonText() -> Bool {
+        guard let app = copyElement(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute) else { return false }
+        AXUIElementSetMessagingTimeout(app, 0.03)
+        guard let focused = copyElement(app, kAXFocusedUIElementAttribute) else { return false }
+        AXUIElementSetMessagingTimeout(focused, 0.03)
         var role: CFTypeRef?
-        if AXUIElementCopyAttributeValue(focused, kAXRoleAttribute as CFString, &role) == .success,
-           let role = role as? String, editableRoles.contains(role) {
-            return true
-        }
+        guard AXUIElementCopyAttributeValue(focused, kAXRoleAttribute as CFString, &role) == .success,
+              let role = role as? String, nonTextRoles.contains(role)
+        else { return false }
         var editable: CFTypeRef?
         if AXUIElementCopyAttributeValue(focused, "AXEditableAncestor" as CFString, &editable) == .success, editable != nil {
-            return true
+            return false
         }
-        var settable = DarwinBoolean(false)
-        return AXUIElementIsAttributeSettable(focused, kAXSelectedTextRangeAttribute as CFString, &settable) == .success && settable.boolValue
+        return true
+    }
+
+    private static func copyElement(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID()
+        else { return nil }
+        return (value as! AXUIElement)
     }
 }
 
