@@ -24,6 +24,9 @@ targets:
         CFBundleDisplayName: Scout
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: Scout recording
+            CFBundleURLSchemes: [scout]
         LSApplicationCategoryType: public.app-category.developer-tools
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSUIElement: true

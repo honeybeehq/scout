@@ -5,6 +5,7 @@ struct ScoutApp: App {
     static let onboardingWindowID = "onboarding"
     static let reviewWindowID = "review"
 
+    @NSApplicationDelegateAdaptor(ScoutAppDelegate.self) private var delegate
     @State private var model = AppModel()
 
     init() { CaptureSelfTest.startIfRequested() }

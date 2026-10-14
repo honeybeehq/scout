@@ -16,6 +16,8 @@ final class AppModel {
     let apiary = ApiaryBridge()
     let picker = TargetPickerController()
     private(set) var lastDelivery: DeliveryOutcome?
+    private(set) var lastDeliveryLine: String?
+    private(set) var boundTarget: ApiaryTarget?
     private(set) var pickerTimings: [String: Double] = [:]
     @ObservationIgnored private var finishPressedAt: ContinuousClock.Instant?
     let preferences = Preferences()
@@ -66,6 +68,7 @@ final class AppModel {
         }
         picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
         picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
+        ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
         Task.detached(priority: .background) {
             ScoutPaths.prune()
             WalkthroughBundle.sweepPartials()
@@ -130,11 +133,19 @@ final class AppModel {
         stopScouting { timings.mark("finish→handoff", from: input) }
     }
 
+    func record(_ request: RecordRequest) {
+        if isScouting {
+            if session?.walkthrough != nil { boundTarget = request.target }
+            return
+        }
+        startScouting(inputFile: simulatedInput, input: InteractionTimings.now, target: request.target)
+    }
+
     func startSplitTasks() {
         startScouting(result: .tasks)
     }
 
-    func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, result: SessionResult = .walkthrough, input: TimeInterval = InteractionTimings.now, onInputFinished: (() -> Void)? = nil) {
+    func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, result: SessionResult = .walkthrough, input: TimeInterval = InteractionTimings.now, target: ApiaryTarget? = nil, onInputFinished: (() -> Void)? = nil) {
         guard !isScouting else { return }
         guard inputFile != nil || permissions.state(of: .microphone).isGranted else {
             onboarding.go(to: .access)
@@ -158,6 +169,7 @@ final class AppModel {
         onSessionCreated?(session)
         self.session = session
         isScouting = true
+        boundTarget = result == .walkthrough ? target : nil
         timings.begin(logging: session.directory.appendingPathComponent("timings.jsonl"))
         session.presentScope = { [weak session] change, changeInput in
             guard let session else { return }
@@ -182,7 +194,7 @@ final class AppModel {
         scopeHotkeys.widen.register(widenShortcut)
         scopeHotkeys.follow.register(followShortcut)
         session.begin()
-        if result == .walkthrough {
+        if result == .walkthrough, boundTarget == nil {
             Task { await prefetchTargets() }
         }
     }
@@ -231,7 +243,12 @@ final class AppModel {
         hud.hidePill()
         if let walkthrough = session.walkthrough {
             let pressed = ContinuousClock.now
-            openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed)
+            if let target = boundTarget {
+                boundTarget = nil
+                openBound(target, expecting: walkthrough.bundle.id, pressedAt: pressed)
+            } else {
+                openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed)
+            }
             Task { await finishWalkthrough(walkthrough, of: session, pressedAt: pressed, handedOff: handedOff) }
             return
         }
@@ -279,7 +296,14 @@ final class AppModel {
             walkthrough.discard()
             lastWalkthrough = nil
             walkthroughProblem = "The walkthrough couldn't be saved: \(error)"
-            if pickerWalkthroughID == walkthrough.bundle.id { picker.model.failed("The walkthrough couldn't be saved.") }
+            if pickerWalkthroughID == walkthrough.bundle.id {
+                picker.model.failed("The walkthrough couldn't be saved.")
+                if picker.model.isBound {
+                    lastDeliveryLine = "The walkthrough couldn't be saved, so nothing was added to the review."
+                    picker.model.confirm(lastDeliveryLine ?? "", caution: true)
+                    picker.close(after: .seconds(4))
+                }
+            }
         }
         stackChanged()
         let media = session.directory.appendingPathComponent("media", isDirectory: true)
@@ -335,6 +359,19 @@ final class AppModel {
         Task { await loadTargets(pressedAt: pressedAt) }
     }
 
+    private func openBound(_ target: ApiaryTarget, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant) {
+        pickerWalkthroughID = walkthroughID
+        chosen = (target, .paste, pressedAt)
+        finishPressedAt = pressedAt
+        lastDeliveryLine = nil
+        pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
+        picker.model.reset()
+        picker.model.bind(target, saying: "Adding to the proof review…")
+        picker.open(near: NSEvent.mouseLocation, takingKeys: false)
+        picker.compact()
+        pickerTimings["pickerShown"] = ApiaryBridge.milliseconds(.now - pressedAt)
+    }
+
     private func loadTargets(pressedAt: ContinuousClock.Instant) async {
         let model = picker.model
         if await apiary.connect() != nil {
@@ -380,6 +417,7 @@ final class AppModel {
         let model = picker.model
         model.began()
         let viaApiary = model.source == .apiary
+        let bound = model.isBound
         let delivery = WalkthroughDelivery(apiary: apiary, hive: integrations.hiveClient)
         let started = ContinuousClock.now
         pickerTimings["deliverStartEpochMs"] = (Date().timeIntervalSince1970 * 1000).rounded()
@@ -391,15 +429,54 @@ final class AppModel {
                 if let chosenAt = chosen?.at { pickerTimings["chooseToDelivered"] = ApiaryBridge.milliseconds(.now - chosenAt) }
                 if let finishPressedAt { pickerTimings["finishToDelivered"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
                 chosen = nil
+                if bound {
+                    let line = Self.boundLine(outcome)
+                    lastDeliveryLine = line
+                    model.confirm(line, caution: outcome.route != .apiary)
+                    picker.close(after: outcome.route == .apiary ? .milliseconds(1400) : .seconds(4))
+                    return
+                }
                 model.confirm(outcome.confirmation)
                 picker.compact()
                 picker.close(after: .milliseconds(1400))
             } catch {
+                if bound {
+                    chosen = nil
+                    let line = "On the clipboard: \(Self.boundReason(error))."
+                    lastDeliveryLine = line
+                    model.confirm(line, caution: true)
+                    picker.close(after: .seconds(4))
+                    return
+                }
                 model.refuse(error.localizedDescription)
                 if (error as? WalkthroughDelivery.Failure)?.code == "targetGone", let finishPressedAt {
                     await loadTargets(pressedAt: finishPressedAt)
                 }
             }
+        }
+    }
+
+    private static func boundLine(_ outcome: DeliveryOutcome) -> String {
+        switch outcome.route {
+        case .apiary:
+            return "In the review: \(outcome.title)"
+        case .hive, .clipboard:
+            let reason = switch outcome.fallbackReason {
+            case "absent": "Apiary isn't running"
+            case "noRenderer": "no Apiary window is open"
+            default: "Apiary didn't answer in time"
+            }
+            return "On the clipboard: \(reason)."
+        }
+    }
+
+    private static func boundReason(_ error: Error) -> String {
+        let message = (error as? WalkthroughDelivery.Failure)?.message ?? error.localizedDescription
+        let trimmed = message.trimmingCharacters(in: CharacterSet(charactersIn: ". \n"))
+        switch (error as? WalkthroughDelivery.Failure)?.code {
+        case "targetGone": return "the proof was decided or is gone"
+        case "badRequest": return "Apiary refused it (\(trimmed))"
+        default: return trimmed
         }
     }
 

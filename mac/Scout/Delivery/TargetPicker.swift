@@ -30,6 +30,8 @@ final class TargetPickerModel {
     private(set) var delivering = false
     private(set) var confirmation: String?
     private(set) var problem: String?
+    private(set) var progress: String?
+    private(set) var caution = false
     var focusToken = 0
 
     var onChoose: ((ApiaryTarget, DeliveryMode) -> Void)?
@@ -51,6 +53,10 @@ final class TargetPickerModel {
 
     var canPaste: Bool { source == .apiary }
 
+    var isCompact: Bool { confirmation != nil || progress != nil }
+
+    var isBound: Bool { progress != nil }
+
     func reset(with walkthrough: FinishedWalkthrough? = nil) {
         phase = walkthrough == nil ? .finishing : .ready
         self.walkthrough = walkthrough
@@ -62,7 +68,16 @@ final class TargetPickerModel {
         delivering = false
         confirmation = nil
         problem = nil
+        progress = nil
+        caution = false
         focusToken += 1
+    }
+
+    func bind(_ target: ApiaryTarget, saying text: String) {
+        targets = [target]
+        source = .apiary
+        queued = .paste
+        progress = text
     }
 
     func ready(_ walkthrough: FinishedWalkthrough) {
@@ -104,10 +119,11 @@ final class TargetPickerModel {
         problem = nil
     }
 
-    func confirm(_ text: String) {
+    func confirm(_ text: String, caution: Bool = false) {
         delivering = false
         queued = nil
         confirmation = text
+        self.caution = caution
     }
 
     func refuse(_ message: String) {
@@ -151,7 +167,7 @@ final class TargetPickerController {
         self.panel = panel
     }
 
-    func open(near cursor: CGPoint) {
+    func open(near cursor: CGPoint, takingKeys: Bool = true) {
         prepare()
         guard let panel else { return }
         closing?.cancel()
@@ -163,9 +179,9 @@ final class TargetPickerController {
         panel.setFrame(CGRect(origin: origin, size: Self.size), display: false)
         panel.alphaValue = 1
         panel.orderFrontRegardless()
-        panel.makeKey()
+        if takingKeys { panel.makeKey() }
         panel.displayIfNeeded()
-        listen()
+        if takingKeys { listen() }
     }
 
     func close(after delay: Duration = .zero) {
@@ -275,8 +291,8 @@ struct TargetPickerView: View {
     var body: some View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 0) {
-            if let confirmation = model.confirmation {
-                confirmed(confirmation)
+            if let line = model.confirmation ?? model.progress {
+                confirmed(line)
             } else {
                 header
                 asks
@@ -287,7 +303,7 @@ struct TargetPickerView: View {
                 footer
             }
         }
-        .frame(width: TargetPickerController.size.width, height: model.confirmation == nil ? TargetPickerController.size.height : 52, alignment: .topLeading)
+        .frame(width: TargetPickerController.size.width, height: model.isCompact ? 52 : TargetPickerController.size.height, alignment: .topLeading)
         .background(Palette.night.opacity(0.94), in: .rect(cornerRadius: 20, style: .continuous))
         .glassEffect(.regular.tint(Palette.night.opacity(0.3)), in: .rect(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Palette.stroke, lineWidth: 1))
@@ -516,10 +532,14 @@ struct TargetPickerView: View {
 
     private func confirmed(_ text: String) -> some View {
         HStack(spacing: 8) {
-            StatusDot(tone: .positive)
+            if model.confirmation == nil {
+                ProgressView().controlSize(.mini)
+            } else {
+                StatusDot(tone: model.caution ? .caution : .positive)
+            }
             Text(text)
                 .font(.system(size: 13, weight: .medium))
-                .lineLimit(1)
+                .lineLimit(2)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 18)

@@ -176,7 +176,15 @@ enum SimulationMode {
         }
         try? await Task.sleep(for: .seconds(1))
         var finished = false
-        model.startScouting(inputFile: fixture.audio, result: .walkthrough) { finished = true }
+        if awaitsRecordURL {
+            model.simulatedInput = fixture.audio
+            model.onSessionCreated = { session in session.transcriber.onInputFinished = { finished = true } }
+            try? "waiting".write(to: output.appendingPathComponent("awaiting-url"), atomically: true, encoding: .utf8)
+            await waitFor(300) { model.session != nil }
+            report["recordURL"] = model.boundTarget.map { "\($0.kind):\($0.id)" } ?? ""
+        } else {
+            model.startScouting(inputFile: fixture.audio, result: .walkthrough) { finished = true }
+        }
         guard let session = model.session else {
             report["error"] = "no session"
             return
@@ -211,6 +219,7 @@ enum SimulationMode {
             try? await Task.sleep(for: .milliseconds(100))
         }
         try? await Task.sleep(for: .seconds(1.5))
+        let bound = model.boundTarget != nil
         model.stopScouting()
         let stopped = Date()
         while model.lastWalkthrough == nil, model.walkthroughProblem == nil, Date().timeIntervalSince(stopped) < 30 {
@@ -243,7 +252,7 @@ enum SimulationMode {
             let size = (try? await AVURLAsset(url: video).loadTracks(withMediaType: .video).first?.load(.naturalSize)) ?? .zero
             report["pinShots"] = await pinShots(fixture: fixture, video: video, displays: fixture.captureDisplays(videoSize: size) ?? hops, output: output)
         }
-        report["picker"] = await drivePicker(model: model, output: output)
+        report["picker"] = bound ? await boundReport(model: model, output: output) : await drivePicker(model: model, output: output)
         report["bridgeLog"] = await model.apiary.log
     }
 
@@ -348,6 +357,24 @@ enum SimulationMode {
             result["repeat"] = ["delivery": deliveryReport(model.lastDelivery), "confirmation": picker.model.confirmation ?? "", "problem": picker.model.problem ?? "", "timings": model.pickerTimings]
             pickerSnapshot(model, "4-repeat", into: output)
         }
+        try? await Task.sleep(for: .milliseconds(1800))
+        return result
+    }
+
+    static var awaitsRecordURL: Bool {
+        ProcessInfo.processInfo.arguments.contains("--await-record-url")
+    }
+
+    private static func boundReport(model: AppModel, output: URL) async -> [String: Any] {
+        await waitFor(15) { model.lastDeliveryLine != nil }
+        try? await Task.sleep(for: .milliseconds(300))
+        pickerSnapshot(model, "bound", into: output)
+        let result: [String: Any] = [
+            "line": model.lastDeliveryLine ?? "",
+            "delivery": deliveryReport(model.lastDelivery),
+            "timings": model.pickerTimings,
+            "pasteboardTypes": NSPasteboard.general.pasteboardItems?.first?.types.map(\.rawValue) ?? [],
+        ]
         try? await Task.sleep(for: .milliseconds(1800))
         return result
     }
