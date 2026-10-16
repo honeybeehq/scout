@@ -102,15 +102,41 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         }
     }
 
+    public struct Microphone: Codable, Hashable, Sendable {
+        public var device: String?
+        public var sampleRate: Double?
+        public var channels: Int?
+        public var buffers: Int
+        public var peakDb: Double?
+        public var restarts: Int
+        public var retries: Int
+        public var channelMode: String?
+        public var channelSwitches: Int?
+
+        public init(device: String? = nil, sampleRate: Double? = nil, channels: Int? = nil, buffers: Int, peakDb: Double? = nil, restarts: Int = 0, retries: Int = 0, channelMode: String? = nil, channelSwitches: Int? = nil) {
+            self.device = device
+            self.sampleRate = sampleRate
+            self.channels = channels
+            self.buffers = buffers
+            self.peakDb = peakDb
+            self.restarts = restarts
+            self.retries = retries
+            self.channelMode = channelMode
+            self.channelSwitches = channelSwitches
+        }
+    }
+
     public struct Capture: Codable, Hashable, Sendable {
         public var permissions: Permissions
         public var displays: [Display]?
         public var scopes: [ScopeChange]
+        public var microphone: Microphone?
 
-        public init(permissions: Permissions, displays: [Display]? = nil, scopes: [ScopeChange] = []) {
+        public init(permissions: Permissions, displays: [Display]? = nil, scopes: [ScopeChange] = [], microphone: Microphone? = nil) {
             self.permissions = permissions
             self.displays = displays
             self.scopes = scopes
+            self.microphone = microphone
         }
     }
 
@@ -200,6 +226,8 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         public enum Reason: String, Codable, Sendable {
             case analyzerFailed
             case noWords
+            case noAudio
+            case micStopped
         }
 
         public var reason: Reason

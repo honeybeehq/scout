@@ -163,6 +163,13 @@ final class AppModel {
             apiary: apiary
         )
         session.transcriber.inputFile = inputFile
+        if let scenario = SimulationMode.microphoneScenario, let inputFile {
+            let transcriber = session.transcriber
+            if let route = try? SimulatedRoute(scenario: scenario, audio: inputFile, onFinish: { Task { @MainActor in transcriber.onInputFinished?() } }) {
+                transcriber.microphone = MicrophoneCapture(simulated: true, device: route.makeDevice)
+                transcriber.inputFile = nil
+            }
+        }
         session.transcriber.faultAfter = SimulationMode.analyzerFaultAfter
         session.transcriber.onInputFinished = onInputFinished
         if result == .tasks { connectTasks(of: session) }
@@ -315,24 +322,34 @@ final class AppModel {
 
     private func walkthroughSources(of session: ScoutingSession, recorder: WalkthroughRecorder) -> WalkthroughRecorder.Sources {
         let transcriber = session.transcriber
+        let microphone = transcriber.microphoneSummary
         let failure: Walkthrough.TranscriptFailure?
-        if let failed = transcriber.failure {
+        if let failed = transcriber.failure, let reason = failed.microphone, let microphone {
+            failure = microphone.buffers == 0
+                ? Walkthrough.TranscriptFailure(reason: .noAudio, message: reason)
+                : Walkthrough.TranscriptFailure(reason: .micStopped, message: reason, t: failed.at.map(Walkthrough.milliseconds))
+        } else if let failed = transcriber.failure {
             failure = Walkthrough.TranscriptFailure(reason: .analyzerFailed, message: failed.message, t: failed.at.map(Walkthrough.milliseconds))
+        } else if let microphone, microphone.buffers == 0 {
+            failure = Walkthrough.TranscriptFailure(reason: .noAudio, message: "\(microphone.device ?? "the microphone") sent no audio")
         } else if session.ledger.utterances.isEmpty, transcriber.heardSound {
             failure = Walkthrough.TranscriptFailure(reason: .noWords)
         } else {
             failure = nil
         }
-        let microphone = session.transcriber.inputFile != nil || permissions.state(of: .microphone).isGranted
+        let granted = session.transcriber.inputFile != nil || session.transcriber.microphone.isSimulated || permissions.state(of: .microphone).isGranted
         let screen: Walkthrough.Grant? = recorder.hasMedia || CGPreflightScreenCaptureAccess() ? .granted : (preferences.includeClips ? .denied : nil)
         return WalkthroughRecorder.Sources(
             screen: screen,
-            microphone: microphone ? .granted : .denied,
+            microphone: granted ? .granted : .denied,
             accessibility: AXIsProcessTrusted() ? .granted : .denied,
             transcript: failure == nil ? .ready : .unavailable,
             transcriptFailure: failure,
             language: transcriber.localeIdentifier,
-            failed: session.captureProblem != nil && preferences.includeClips
+            failed: session.captureProblem != nil && preferences.includeClips,
+            microphoneSummary: microphone.map {
+                Walkthrough.Microphone(device: $0.device, sampleRate: $0.sampleRate, channels: $0.channels, buffers: $0.buffers, peakDb: $0.peakDecibels, restarts: $0.restarts, retries: $0.retries, channelMode: $0.channelMode, channelSwitches: ($0.channels ?? 1) > 1 ? $0.channelSwitches : nil)
+            }
         )
     }
 

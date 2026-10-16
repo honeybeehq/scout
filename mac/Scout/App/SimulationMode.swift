@@ -30,6 +30,10 @@ enum SimulationMode {
         argument("simulate-analyzer-fault").flatMap(Double.init)
     }
 
+    static var microphoneScenario: SimulatedRoute.Scenario? {
+        argument("simulate-mic").flatMap(SimulatedRoute.Scenario.init(rawValue:))
+    }
+
     static var reviewsEdits: Bool {
         ProcessInfo.processInfo.arguments.contains("--simulate-review")
     }
@@ -215,10 +219,18 @@ enum SimulationMode {
             case .dwell(let point): session.pointing?.dwell(at: point, time: step.at)
             }
         }
+        var pillText = ""
         while !finished, Date() < deadline {
+            if pillText.isEmpty, case .failed(let message) = session.transcriber.phase {
+                pillText = message
+                ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill.png"), padding: 12)
+            }
             try? await Task.sleep(for: .milliseconds(100))
         }
         try? await Task.sleep(for: .seconds(1.5))
+        if pillText.isEmpty, microphoneScenario != nil {
+            ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill.png"), padding: 12)
+        }
         let bound = model.boundTarget != nil
         model.stopScouting()
         let stopped = Date()
@@ -235,6 +247,11 @@ enum SimulationMode {
             "failure": done.walkthrough.transcript.failure.map { ["reason": $0.reason.rawValue, "message": $0.message ?? "", "t": $0.t ?? -1] } ?? [:],
             "soundSeconds": session.transcriber.sound.seconds,
         ]
+        if let microphone = done.walkthrough.capture.microphone, let data = try? JSONEncoder().encode(microphone) {
+            report["microphone"] = try? JSONSerialization.jsonObject(with: data)
+        }
+        report["transcriptText"] = (try? String(contentsOf: done.directory.appendingPathComponent(WalkthroughBundle.textName), encoding: .utf8)) ?? ""
+        report["pillDuringRecording"] = pillText
         report["displays"] = done.walkthrough.capture.displays?.map { ["id": $0.id, "bounds": [$0.bounds.x, $0.bounds.y, $0.bounds.w, $0.bounds.h]] } ?? []
         report["counts"] = [
             "segments": done.walkthrough.transcript.segments.count,

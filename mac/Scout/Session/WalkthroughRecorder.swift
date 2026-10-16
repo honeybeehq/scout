@@ -16,6 +16,7 @@ final class WalkthroughRecorder {
         var transcriptFailure: Walkthrough.TranscriptFailure?
         var language: String?
         var failed: Bool
+        var microphoneSummary: Walkthrough.Microphone?
     }
 
     let bundle: WalkthroughBundle
@@ -118,7 +119,8 @@ final class WalkthroughRecorder {
             language: sources.language,
             transcriptEngine: "SpeechAnalyzer",
             clip: exported,
-            sourceFailed: sources.failed || (media != nil && exported == nil)
+            sourceFailed: sources.failed || (media != nil && exported == nil),
+            microphone: sources.microphoneSummary
         ))
         mark("build")
         let directory = try bundle.finish(walkthrough)
