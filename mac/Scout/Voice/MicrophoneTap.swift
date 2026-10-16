@@ -1,5 +1,4 @@
 @preconcurrency import AVFoundation
-import ObjectiveC
 import Synchronization
 
 nonisolated final class MicrophoneTap: @unchecked Sendable {
@@ -7,7 +6,7 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         var peak: Float
         var mode: String
         var switches: Int
-        var slowCalls: Int
+        var unknownClass: Int
         var dropped: Int
     }
 
@@ -19,7 +18,7 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
 
     let received = Atomic<Int>(0)
     let dropped = Atomic<Int>(0)
-    let slowCalls = Atomic<Int>(0)
+    let unknownClass = Atomic<Int>(0)
 
     private struct Entry {
         var start = 0
@@ -30,46 +29,53 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
     }
 
     private struct Getters {
-        typealias ChannelData = @convention(c) (AnyObject, Selector) -> UnsafePointer<UnsafeMutablePointer<Float>>?
+        typealias BufferList = @convention(c) (AnyObject, Selector) -> UnsafePointer<AudioBufferList>?
         typealias Frames = @convention(c) (AnyObject, Selector) -> AVAudioFrameCount
         typealias HostTime = @convention(c) (AnyObject, Selector) -> UInt64
         typealias Valid = @convention(c) (AnyObject, Selector) -> Bool
         typealias SampleTime = @convention(c) (AnyObject, Selector) -> AVAudioFramePosition
 
-        static let channelDataSelector = Selector(("floatChannelData"))
-        static let framesSelector = Selector(("frameLength"))
-        static let hostTimeSelector = Selector(("hostTime"))
-        static let validSelector = Selector(("isHostTimeValid"))
-        static let sampleTimeSelector = Selector(("sampleTime"))
-
-        let buffer: ObjectIdentifier
-        let time: ObjectIdentifier
-        let channelData: ChannelData
+        let buffer: UnsafeRawPointer
+        let time: UnsafeRawPointer
+        let bufferListSelector = Selector(("audioBufferList"))
+        let framesSelector = Selector(("frameLength"))
+        let hostTimeSelector = Selector(("hostTime"))
+        let validSelector = Selector(("isHostTimeValid"))
+        let sampleTimeSelector = Selector(("sampleTime"))
+        let bufferList: BufferList
         let frames: Frames
         let hostTime: HostTime
         let valid: Valid
         let sampleTime: SampleTime
 
-        init?() {
-            let bufferClass: AnyClass = AVAudioPCMBuffer.self
-            let timeClass: AnyClass = AVAudioTime.self
-            guard let channelData = class_getMethodImplementation(bufferClass, Self.channelDataSelector),
-                  let frames = class_getMethodImplementation(bufferClass, Self.framesSelector),
-                  let hostTime = class_getMethodImplementation(timeClass, Self.hostTimeSelector),
-                  let valid = class_getMethodImplementation(timeClass, Self.validSelector),
-                  let sampleTime = class_getMethodImplementation(timeClass, Self.sampleTimeSelector)
+        init?(buffer: UnsafeRawPointer, time: UnsafeRawPointer) {
+            self.buffer = buffer
+            self.time = time
+            guard let bufferList = ScoutMethod(buffer, bufferListSelector),
+                  let frames = ScoutMethod(buffer, framesSelector),
+                  let hostTime = ScoutMethod(time, hostTimeSelector),
+                  let valid = ScoutMethod(time, validSelector),
+                  let sampleTime = ScoutMethod(time, sampleTimeSelector)
             else { return nil }
-            buffer = ObjectIdentifier(bufferClass)
-            time = ObjectIdentifier(timeClass)
-            self.channelData = unsafeBitCast(channelData, to: ChannelData.self)
+            self.bufferList = unsafeBitCast(bufferList, to: BufferList.self)
             self.frames = unsafeBitCast(frames, to: Frames.self)
             self.hostTime = unsafeBitCast(hostTime, to: HostTime.self)
             self.valid = unsafeBitCast(valid, to: Valid.self)
             self.sampleTime = unsafeBitCast(sampleTime, to: SampleTime.self)
         }
+
+        func matches(_ buffer: UnsafeRawPointer, _ time: UnsafeRawPointer) -> Bool {
+            buffer == self.buffer && time == self.time
+        }
     }
 
-    private let getters = Getters()
+    private let bufferListOffset = MemoryLayout<AudioBufferList>.offset(of: \AudioBufferList.mBuffers) ?? 16
+    private let known: Getters?
+    private let learned: UnsafeMutablePointer<Getters?>
+    private let learnedReady = Atomic<Bool>(false)
+    private let pending = Atomic<Bool>(false)
+    private let pendingBuffer = Atomic<UInt>(0)
+    private let pendingTime = Atomic<UInt>(0)
     private let channels: Int
     private let rate: Double
     private let capacity: Int
@@ -127,6 +133,15 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         entries = .allocate(capacity: entryCapacity)
         entries.initialize(repeating: Entry(), count: entryCapacity)
         power = Array(repeating: 0, count: channels)
+        let sample = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1)
+        let stamp = AVAudioTime(hostTime: mach_absolute_time())
+        if let sample, let buffer = ScoutClassOf(sample), let time = ScoutClassOf(stamp) {
+            known = Getters(buffer: buffer, time: time)
+        } else {
+            known = nil
+        }
+        learned = .allocate(capacity: 1)
+        learned.initialize(to: nil)
         self.onBuffer = onBuffer
         self.onLevel = onLevel
         self.onDelivery = onDelivery
@@ -136,6 +151,8 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         timer?.cancel()
         samples.deallocate()
         entries.deallocate()
+        learned.deinitialize(count: 1)
+        learned.deallocate()
     }
 
     var block: AVAudioNodeTapBlock {
@@ -144,29 +161,35 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
 
     @inline(never)
     func write(_ buffer: AVAudioPCMBuffer, _ time: AVAudioTime) {
-        let data: UnsafePointer<UnsafeMutablePointer<Float>>?
-        let length: AVAudioFrameCount
-        let hostTime: UInt64
-        let valid: Bool
-        let sampleTime: AVAudioFramePosition
-        if let getters, object_getClass(buffer).map(ObjectIdentifier.init) == getters.buffer, object_getClass(time).map(ObjectIdentifier.init) == getters.time {
-            data = getters.channelData(buffer, Getters.channelDataSelector)
-            length = getters.frames(buffer, Getters.framesSelector)
-            hostTime = getters.hostTime(time, Getters.hostTimeSelector)
-            valid = getters.valid(time, Getters.validSelector)
-            sampleTime = getters.sampleTime(time, Getters.sampleTimeSelector)
-        } else {
-            slowCalls.wrappingAdd(1, ordering: .relaxed)
-            data = buffer.floatChannelData
-            length = buffer.frameLength
-            hostTime = time.hostTime
-            valid = time.isHostTimeValid
-            sampleTime = time.sampleTime
-        }
-        guard let data else {
+        guard let bufferClass = ScoutClassOf(buffer), let timeClass = ScoutClassOf(time) else {
             dropped.wrappingAdd(1, ordering: .relaxed)
             return
         }
+        let getters: Getters
+        if let known, known.matches(bufferClass, timeClass) {
+            getters = known
+        } else if learnedReady.load(ordering: .acquiring), let learned = learned.pointee, learned.matches(bufferClass, timeClass) {
+            getters = learned
+        } else {
+            unknownClass.wrappingAdd(1, ordering: .relaxed)
+            dropped.wrappingAdd(1, ordering: .relaxed)
+            if !pending.load(ordering: .relaxed) {
+                pendingBuffer.store(UInt(bitPattern: bufferClass), ordering: .relaxed)
+                pendingTime.store(UInt(bitPattern: timeClass), ordering: .relaxed)
+                pending.store(true, ordering: .releasing)
+            }
+            return
+        }
+        let list = getters.bufferList(buffer, getters.bufferListSelector)
+        let length = getters.frames(buffer, getters.framesSelector)
+        let hostTime = getters.hostTime(time, getters.hostTimeSelector)
+        let valid = getters.valid(time, getters.validSelector)
+        let sampleTime = getters.sampleTime(time, getters.sampleTimeSelector)
+        guard let list, Int(list.pointee.mNumberBuffers) >= channels else {
+            dropped.wrappingAdd(1, ordering: .relaxed)
+            return
+        }
+        let buffers = (UnsafeRawPointer(list) + bufferListOffset).assumingMemoryBound(to: AudioBuffer.self)
         let frames = Int(length)
         let index = entryWrite.load(ordering: .relaxed)
         guard frames > 0, frames <= capacity,
@@ -179,9 +202,10 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         let offset = sampleWrite & mask
         let first = min(frames, capacity - offset)
         for channel in 0..<channels {
+            guard let source = buffers[channel].mData?.assumingMemoryBound(to: Float.self) else { continue }
             let ring = samples + channel * capacity
-            (ring + offset).update(from: data[channel], count: first)
-            if first < frames { ring.update(from: data[channel] + first, count: frames - first) }
+            (ring + offset).update(from: source, count: first)
+            if first < frames { ring.update(from: source + first, count: frames - first) }
         }
         entries[index & (entryCapacity - 1)] = Entry(start: sampleWrite, frames: frames, hostTime: hostTime, hostTimeValid: valid, sampleTime: sampleTime)
         sampleWrite += frames
@@ -205,7 +229,18 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         }
     }
 
+    private func learn() {
+        guard pending.load(ordering: .acquiring), !learnedReady.load(ordering: .relaxed),
+              let buffer = UnsafeRawPointer(bitPattern: pendingBuffer.load(ordering: .relaxed)),
+              let time = UnsafeRawPointer(bitPattern: pendingTime.load(ordering: .relaxed)),
+              let getters = Getters(buffer: buffer, time: time)
+        else { return }
+        learned.pointee = getters
+        learnedReady.store(true, ordering: .releasing)
+    }
+
     private func drain() {
+        learn()
         var read = entryRead.load(ordering: .relaxed)
         let written = entryWrite.load(ordering: .acquiring)
         while read < written {
@@ -256,7 +291,7 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         } else {
             onBuffer(output, time)
         }
-        return Delivery(peak: peak, mode: mode, switches: switches, slowCalls: slowCalls.load(ordering: .relaxed), dropped: dropped.load(ordering: .relaxed))
+        return Delivery(peak: peak, mode: mode, switches: switches, unknownClass: unknownClass.load(ordering: .relaxed), dropped: dropped.load(ordering: .relaxed))
     }
 
     var mode: String {
@@ -269,11 +304,6 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         let decibels = power.map { 10 * log10(max($0, 1e-12)) }
         let loudest = decibels.indices.max { decibels[$0] < decibels[$1] } ?? 0
         let margin = decibels.indices.filter { $0 != loudest }.map { decibels[loudest] - decibels[$0] }.min() ?? 0
-        guard decibels[loudest] >= Self.floor else {
-            candidate = nil
-            held = 0
-            return
-        }
         if let current = selected {
             let others = decibels.indices.filter { $0 != current }.map { decibels[current] - decibels[$0] }.min() ?? 0
             if others < Self.leaveMargin {
@@ -286,7 +316,7 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
             } else {
                 held = 0
             }
-        } else if margin >= Self.enterMargin {
+        } else if margin >= Self.enterMargin, decibels[loudest] >= Self.floor {
             if candidate == loudest {
                 held += seconds
             } else {

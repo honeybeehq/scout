@@ -52,7 +52,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         var retries = 0
         var channelMode: String?
         var channelSwitches = 0
-        var tapSlowCalls = 0
+        var tapUnknownClass = 0
         var tapDropped = 0
     }
 
@@ -129,8 +129,8 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     func stop() {
         queue.sync {
             running = false
-            advance()
             teardown()
+            advance()
             onBuffer = nil
             onLevel = nil
             onFailure = nil
@@ -178,7 +178,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         let first = lock.withLock {
             stats.buffers += 1
             peak = max(peak, delivery.peak)
-            stats.tapSlowCalls = max(stats.tapSlowCalls, delivery.slowCalls)
+            stats.tapUnknownClass = max(stats.tapUnknownClass, delivery.unknownClass)
             stats.tapDropped = max(stats.tapDropped, delivery.dropped)
             guard current == generation else { return false }
             stats.channelMode = delivery.mode
