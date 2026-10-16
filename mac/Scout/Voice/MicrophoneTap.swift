@@ -6,8 +6,6 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         var peak: Float
         var mode: String
         var switches: Int
-        var unknownClass: Int
-        var dropped: Int
     }
 
     static let pollInterval: Double = 0.01
@@ -19,6 +17,8 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
     let received = Atomic<Int>(0)
     let dropped = Atomic<Int>(0)
     let unknownClass = Atomic<Int>(0)
+    let unlearned = Atomic<Int>(0)
+    static let slots = 4
 
     private struct Entry {
         var start = 0
@@ -72,7 +72,8 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
     private let bufferListOffset = MemoryLayout<AudioBufferList>.offset(of: \AudioBufferList.mBuffers) ?? 16
     private let known: Getters?
     private let learned: UnsafeMutablePointer<Getters?>
-    private let learnedReady = Atomic<Bool>(false)
+    private let learnedCount = Atomic<Int>(0)
+    private var refused: Set<[UInt]> = []
     private let pending = Atomic<Bool>(false)
     private let pendingBuffer = Atomic<UInt>(0)
     private let pendingTime = Atomic<UInt>(0)
@@ -140,8 +141,8 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         } else {
             known = nil
         }
-        learned = .allocate(capacity: 1)
-        learned.initialize(to: nil)
+        learned = .allocate(capacity: Self.slots)
+        learned.initialize(repeating: nil, count: Self.slots)
         self.onBuffer = onBuffer
         self.onLevel = onLevel
         self.onDelivery = onDelivery
@@ -151,7 +152,7 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         timer?.cancel()
         samples.deallocate()
         entries.deallocate()
-        learned.deinitialize(count: 1)
+        learned.deinitialize(count: Self.slots)
         learned.deallocate()
     }
 
@@ -165,12 +166,18 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
             dropped.wrappingAdd(1, ordering: .relaxed)
             return
         }
-        let getters: Getters
+        var found: Getters?
         if let known, known.matches(bufferClass, timeClass) {
-            getters = known
-        } else if learnedReady.load(ordering: .acquiring), let learned = learned.pointee, learned.matches(bufferClass, timeClass) {
-            getters = learned
+            found = known
         } else {
+            let count = learnedCount.load(ordering: .acquiring)
+            var slot = 0
+            while found == nil, slot < count {
+                if let candidate = learned[slot], candidate.matches(bufferClass, timeClass) { found = candidate }
+                slot += 1
+            }
+        }
+        guard let getters = found else {
             unknownClass.wrappingAdd(1, ordering: .relaxed)
             dropped.wrappingAdd(1, ordering: .relaxed)
             if !pending.load(ordering: .relaxed) {
@@ -230,13 +237,21 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
     }
 
     private func learn() {
-        guard pending.load(ordering: .acquiring), !learnedReady.load(ordering: .relaxed),
-              let buffer = UnsafeRawPointer(bitPattern: pendingBuffer.load(ordering: .relaxed)),
-              let time = UnsafeRawPointer(bitPattern: pendingTime.load(ordering: .relaxed)),
-              let getters = Getters(buffer: buffer, time: time)
-        else { return }
-        learned.pointee = getters
-        learnedReady.store(true, ordering: .releasing)
+        guard pending.load(ordering: .acquiring) else { return }
+        let buffer = UnsafeRawPointer(bitPattern: pendingBuffer.load(ordering: .relaxed))
+        let time = UnsafeRawPointer(bitPattern: pendingTime.load(ordering: .relaxed))
+        pending.store(false, ordering: .releasing)
+        guard let buffer, let time else { return }
+        let key = [UInt(bitPattern: buffer), UInt(bitPattern: time)]
+        let count = learnedCount.load(ordering: .relaxed)
+        guard !refused.contains(key), !(0..<count).contains(where: { learned[$0]?.matches(buffer, time) == true }) else { return }
+        guard count < Self.slots, let getters = Getters(buffer: buffer, time: time) else {
+            refused.insert(key)
+            unlearned.wrappingAdd(1, ordering: .relaxed)
+            return
+        }
+        learned[count] = getters
+        learnedCount.store(count + 1, ordering: .releasing)
     }
 
     private func drain() {
@@ -291,7 +306,7 @@ nonisolated final class MicrophoneTap: @unchecked Sendable {
         } else {
             onBuffer(output, time)
         }
-        return Delivery(peak: peak, mode: mode, switches: switches, unknownClass: unknownClass.load(ordering: .relaxed), dropped: dropped.load(ordering: .relaxed))
+        return Delivery(peak: peak, mode: mode, switches: switches)
     }
 
     var mode: String {
