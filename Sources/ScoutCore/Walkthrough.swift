@@ -110,8 +110,10 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         public var peakDb: Double?
         public var restarts: Int
         public var retries: Int
+        public var channelMode: String?
+        public var channelSwitches: Int?
 
-        public init(device: String? = nil, sampleRate: Double? = nil, channels: Int? = nil, buffers: Int, peakDb: Double? = nil, restarts: Int = 0, retries: Int = 0) {
+        public init(device: String? = nil, sampleRate: Double? = nil, channels: Int? = nil, buffers: Int, peakDb: Double? = nil, restarts: Int = 0, retries: Int = 0, channelMode: String? = nil, channelSwitches: Int? = nil) {
             self.device = device
             self.sampleRate = sampleRate
             self.channels = channels
@@ -119,6 +121,8 @@ public struct Walkthrough: Codable, Hashable, Sendable {
             self.peakDb = peakDb
             self.restarts = restarts
             self.retries = retries
+            self.channelMode = channelMode
+            self.channelSwitches = channelSwitches
         }
     }
 

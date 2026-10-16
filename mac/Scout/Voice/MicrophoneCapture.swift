@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import Speech
+import Synchronization
 
 nonisolated protocol MicrophoneDevice: AnyObject, Sendable {
     var name: String? { get }
@@ -49,6 +50,10 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         var peakDecibels: Double?
         var restarts = 0
         var retries = 0
+        var channelMode: String?
+        var channelSwitches = 0
+        var tapSlowCalls = 0
+        var tapDropped = 0
     }
 
     static let retryDelays: [Double] = [0.1, 0.2, 0.4, 0.6, 0.7]
@@ -58,15 +63,16 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     private let makeDevice: @Sendable () -> any MicrophoneDevice
     private let queue = DispatchQueue(label: "scout.microphone")
     private let lock = NSLock()
-    private var smoothedLevel: Float = 0
     private var device: (any MicrophoneDevice)?
+    private var tap: MicrophoneTap?
     private var generation = 0
     private var running = false
     private var failedTries = 0
     private var lastError: Error?
-    private var buffersSinceInstall = 0
     private var stats = Summary()
     private var peak: Float = 0
+    private var flowing = false
+    private var deliveredSwitches = 0
     private var targetFormat: AVAudioFormat?
     private var onBuffer: (@Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void)?
     private var onLevel: (@Sendable (Float) -> Void)?
@@ -149,14 +155,15 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
             stats.channels = Int(hardware.channelCount)
         }
         guard let onBuffer, let onLevel else { return }
-        let block = try tap(from: format, convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel)
-        try device.installTap(bufferSize: Self.bufferSize, format: format) { [weak self] buffer, time in
-            self?.received(buffer, generation: current)
-            block(buffer, time)
+        let tap = try MicrophoneTap(format: format, convertingTo: targetFormat, onBuffer: onBuffer, onLevel: onLevel) { [weak self] delivery in
+            self?.delivered(delivery, generation: current)
         }
+        self.tap = tap
+        try device.installTap(bufferSize: Self.bufferSize, format: format, block: tap.block)
         try device.start()
+        tap.start()
         queue.asyncAfter(deadline: .now() + Self.firstBufferWait) { [weak self] in
-            guard let self, running, current == generation, lock.withLock({ buffersSinceInstall == 0 }) else { return }
+            guard let self, running, current == generation, tap.received.load(ordering: .relaxed) == 0 else { return }
             retry(after: CaptureError.silentTap)
         }
     }
@@ -167,14 +174,19 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         return AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, interleaved: false, channelLayout: layout)
     }
 
-    private func received(_ buffer: AVAudioPCMBuffer, generation current: Int) {
-        let loudest = Self.peak(of: buffer)
+    private func delivered(_ delivery: MicrophoneTap.Delivery, generation current: Int) {
         let first = lock.withLock {
             stats.buffers += 1
-            peak = max(peak, loudest)
+            peak = max(peak, delivery.peak)
+            stats.tapSlowCalls = max(stats.tapSlowCalls, delivery.slowCalls)
+            stats.tapDropped = max(stats.tapDropped, delivery.dropped)
             guard current == generation else { return false }
-            buffersSinceInstall += 1
-            return buffersSinceInstall == 1
+            stats.channelMode = delivery.mode
+            stats.channelSwitches += delivery.switches - deliveredSwitches
+            deliveredSwitches = delivery.switches
+            guard !flowing else { return false }
+            flowing = true
+            return true
         }
         if first {
             queue.async { [weak self] in
@@ -186,10 +198,8 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
 
     private func configurationChanged(_ current: Int) {
         guard running, current == generation else { return }
-        let silent = lock.withLock {
-            stats.restarts += 1
-            return buffersSinceInstall == 0
-        }
+        lock.withLock { stats.restarts += 1 }
+        let silent = (tap?.received.load(ordering: .relaxed) ?? 0) == 0
         if silent {
             retry(after: lastError ?? CaptureError.silentTap)
         } else {
@@ -216,7 +226,8 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     private func advance() -> Int {
         lock.withLock {
             generation += 1
-            buffersSinceInstall = 0
+            flowing = false
+            deliveredSwitches = 0
             return generation
         }
     }
@@ -261,36 +272,8 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     private func teardown() {
         device?.stop()
         device = nil
-    }
-
-    func tap(
-        from inputFormat: AVAudioFormat,
-        convertingTo targetFormat: AVAudioFormat?,
-        onBuffer: @escaping @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void,
-        onLevel: @escaping @Sendable (Float) -> Void
-    ) throws -> AVAudioNodeTapBlock {
-        let converter: AVAudioConverter?
-        if let targetFormat, targetFormat != inputFormat {
-            guard let made = AVAudioConverter(from: inputFormat, to: targetFormat) else { throw CaptureError.converterUnavailable }
-            if inputFormat.channelCount > 2, inputFormat.channelCount > targetFormat.channelCount {
-                made.channelMap = (0..<Int(targetFormat.channelCount)).map { NSNumber(value: $0) }
-            }
-            converter = made
-        } else {
-            converter = nil
-        }
-
-        return { [weak self] buffer, time in
-            guard let self else { return }
-            onLevel(self.measureLevel(buffer))
-            if let converter, let targetFormat {
-                if let converted = Self.convert(buffer, with: converter, to: targetFormat) {
-                    onBuffer(converted, time)
-                }
-            } else {
-                onBuffer(buffer, time)
-            }
-        }
+        tap?.stop()
+        tap = nil
     }
 
     static func guarding(_ body: () throws -> Void) throws {
@@ -302,31 +285,6 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
             throw CaptureError.audioEngine(error?.localizedDescription ?? "unknown error")
         }
         if let thrown { throw thrown }
-    }
-
-    private func measureLevel(_ buffer: AVAudioPCMBuffer) -> Float {
-        guard let channel = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
-        var sum: Float = 0
-        for index in 0..<Int(buffer.frameLength) {
-            sum += channel[index] * channel[index]
-        }
-        let rms = sqrt(sum / Float(buffer.frameLength))
-        let decibels = 20 * log10(max(rms, 0.000_01))
-        let normalized = max(0, min(1, (decibels + 55) / 45))
-        lock.lock()
-        smoothedLevel = normalized > smoothedLevel ? normalized : smoothedLevel * 0.82 + normalized * 0.18
-        let level = smoothedLevel
-        lock.unlock()
-        return level
-    }
-
-    private static func peak(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let channel = buffer.floatChannelData?[0] else { return 0 }
-        var loudest: Float = 0
-        for index in 0..<Int(buffer.frameLength) {
-            loudest = max(loudest, abs(channel[index]))
-        }
-        return loudest
     }
 
     static func convert(_ buffer: AVAudioPCMBuffer, with converter: AVAudioConverter, to format: AVAudioFormat) -> AVAudioPCMBuffer? {

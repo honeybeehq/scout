@@ -9,11 +9,34 @@ nonisolated final class SimulatedRoute: @unchecked Sendable {
         case silent
         case stops
         case interface
+        case quad
+        case duo
     }
 
     let scenario: Scenario
-    var name: String { scenario == .interface ? "MOTU M4 (simulated)" : "AirPods Max (simulated)" }
-    var channels: AVAudioChannelCount { scenario == .interface ? 8 : 1 }
+    var name: String {
+        switch scenario {
+        case .interface: "MOTU 8-channel (simulated)"
+        case .quad, .duo: "RODE 4-channel (simulated)"
+        default: "AirPods Max (simulated)"
+        }
+    }
+
+    var channels: AVAudioChannelCount {
+        switch scenario {
+        case .interface: 8
+        case .quad, .duo: 4
+        default: 1
+        }
+    }
+
+    var speechGains: [Int: Float] {
+        switch scenario {
+        case .quad: [2: 1]
+        case .duo: [0: 1, 2: 0.7]
+        default: [0: 1]
+        }
+    }
     private let lock = NSLock()
     private let speech: [Double: AVAudioPCMBuffer]
     private let duration: Double
@@ -34,7 +57,7 @@ nonisolated final class SimulatedRoute: @unchecked Sendable {
         }
         self.speech = speech
         duration = Double(file.length) / file.processingFormat.sampleRate
-        rate = scenario == .bluetooth || scenario == .interface ? 48_000 : 24_000
+        rate = [.bluetooth, .interface, .quad, .duo].contains(scenario) ? 48_000 : 24_000
     }
 
     func makeDevice() -> any MicrophoneDevice {
@@ -85,12 +108,18 @@ nonisolated final class SimulatedRoute: @unchecked Sendable {
         else { return nil }
         buffer.frameLength = frames
         let input = source.floatChannelData![0]
+        let gains = speechGains
         for channel in 0..<Int(channels) {
             let output = buffer.floatChannelData![channel]
+            let gain = gains[channel]
             for index in 0..<Int(frames) {
                 let position = Int(start) + index
                 let quiet = Float.random(in: -0.000_3...0.000_3)
-                output[index] = channel > 0 || scenario == .silent || position >= Int(source.frameLength) ? quiet : input[position]
+                if let gain, scenario != .silent, position < Int(source.frameLength) {
+                    output[index] = input[position] * gain
+                } else {
+                    output[index] = quiet
+                }
             }
         }
         let hostTime = origin + AVAudioTime.hostTime(forSeconds: Double(start) / rate)

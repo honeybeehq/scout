@@ -348,7 +348,7 @@ final class AppModel {
             language: transcriber.localeIdentifier,
             failed: session.captureProblem != nil && preferences.includeClips,
             microphoneSummary: microphone.map {
-                Walkthrough.Microphone(device: $0.device, sampleRate: $0.sampleRate, channels: $0.channels, buffers: $0.buffers, peakDb: $0.peakDecibels, restarts: $0.restarts, retries: $0.retries)
+                Walkthrough.Microphone(device: $0.device, sampleRate: $0.sampleRate, channels: $0.channels, buffers: $0.buffers, peakDb: $0.peakDecibels, restarts: $0.restarts, retries: $0.retries, channelMode: $0.channelMode, channelSwitches: ($0.channels ?? 1) > 1 ? $0.channelSwitches : nil)
             }
         )
     }
