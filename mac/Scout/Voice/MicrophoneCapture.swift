@@ -20,6 +20,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         case audioEngine(String)
         case stopped(String)
         case silentTap
+        case unreadableTap
         case noAudio(String)
 
         var errorDescription: String? {
@@ -30,6 +31,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
             case .audioEngine(let reason): "The microphone couldn't start: \(reason)"
             case .stopped(let reason): "The microphone stopped after an audio device change: \(reason)"
             case .silentTap: "The microphone started but sent no audio."
+            case .unreadableTap: "The microphone sent audio Scout couldn't read."
             case .noAudio(let reason): "No audio captured: \(reason)"
             }
         }
@@ -52,8 +54,8 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         var retries = 0
         var channelMode: String?
         var channelSwitches = 0
-        var tapUnknownClass = 0
-        var tapDropped = 0
+        var droppedBuffers = 0
+        var unlearnedClasses = 0
     }
 
     static let retryDelays: [Double] = [0.1, 0.2, 0.4, 0.6, 0.7]
@@ -65,6 +67,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     private let lock = NSLock()
     private var device: (any MicrophoneDevice)?
     private var tap: MicrophoneTap?
+    private var liveTap: MicrophoneTap?
     private var generation = 0
     private var running = false
     private var failedTries = 0
@@ -93,6 +96,10 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         lock.withLock {
             var summary = stats
             summary.peakDecibels = stats.buffers > 0 ? Double(20 * log10(max(peak, 0.000_01))).rounded() : nil
+            if let liveTap {
+                summary.droppedBuffers += liveTap.dropped.load(ordering: .relaxed)
+                summary.unlearnedClasses += liveTap.unlearned.load(ordering: .relaxed)
+            }
             return summary
         }
     }
@@ -159,12 +166,13 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
             self?.delivered(delivery, generation: current)
         }
         self.tap = tap
+        lock.withLock { liveTap = tap }
         try device.installTap(bufferSize: Self.bufferSize, format: format, block: tap.block)
         try device.start()
         tap.start()
         queue.asyncAfter(deadline: .now() + Self.firstBufferWait) { [weak self] in
             guard let self, running, current == generation, tap.received.load(ordering: .relaxed) == 0 else { return }
-            retry(after: CaptureError.silentTap)
+            retry(after: tap.dropped.load(ordering: .relaxed) > 0 ? CaptureError.unreadableTap : CaptureError.silentTap)
         }
     }
 
@@ -178,8 +186,6 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         let first = lock.withLock {
             stats.buffers += 1
             peak = max(peak, delivery.peak)
-            stats.tapUnknownClass = max(stats.tapUnknownClass, delivery.unknownClass)
-            stats.tapDropped = max(stats.tapDropped, delivery.dropped)
             guard current == generation else { return false }
             stats.channelMode = delivery.mode
             stats.channelSwitches += delivery.switches - deliveredSwitches
@@ -260,6 +266,7 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         let source = device ?? "the microphone"
         let why: String = switch error {
         case CaptureError.silentTap: "\(source) sent no sound"
+        case CaptureError.unreadableTap: "\(source) sent audio buffers Scout couldn't read"
         case CaptureError.noInputDevice: "no microphone is available"
         case CaptureError.unusableFormat: "\(source) couldn't start (its input format isn't usable)"
         case CaptureError.converterUnavailable: "\(source) couldn't start (its format isn't supported)"
@@ -273,6 +280,13 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
         device?.stop()
         device = nil
         tap?.stop()
+        if let tap {
+            lock.withLock {
+                stats.droppedBuffers += tap.dropped.load(ordering: .relaxed)
+                stats.unlearnedClasses += tap.unlearned.load(ordering: .relaxed)
+                liveTap = nil
+            }
+        }
         tap = nil
     }
 
