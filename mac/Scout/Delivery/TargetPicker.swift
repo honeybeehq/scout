@@ -558,6 +558,8 @@ enum TranscriptProblem {
         switch failure.reason {
         case .analyzerFailed: "Transcription failed"
         case .noWords: "No words were recognized"
+        case .noAudio: "No audio captured"
+        case .micStopped: "The microphone stopped"
         }
     }
 
@@ -565,6 +567,14 @@ enum TranscriptProblem {
         switch failure.reason {
         case .analyzerFailed: "Speech wasn't transcribed. The walkthrough tells the agent the transcript is missing; pins, drawings and frames are kept."
         case .noWords: "Audio was recorded but nothing came out. The walkthrough tells the agent the transcript is missing, not empty."
+        case .noAudio: "\(sentence(failure.message ?? "the microphone sent no audio")) The walkthrough tells the agent nothing was recorded, not that nothing was said."
+        case .micStopped: "\(sentence(failure.message ?? "the microphone stopped")) The walkthrough keeps what was heard before it and says the rest is missing."
         }
+    }
+
+    private static func sentence(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let capitalized = trimmed.prefix(1).uppercased() + trimmed.dropFirst()
+        return capitalized.hasSuffix(".") ? capitalized : capitalized + "."
     }
 }

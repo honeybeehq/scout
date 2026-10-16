@@ -27,7 +27,7 @@ final class LiveTranscriber {
     private(set) var inputName: String?
     private(set) var localeName: String?
     private(set) var localeIdentifier: String?
-    private(set) var failure: (message: String, at: SessionTime?)?
+    private(set) var failure: (message: String, at: SessionTime?, microphone: String?)?
     private(set) var sound = SoundMeter()
 
     var heardSound: Bool { sound.heardSound }
@@ -39,7 +39,7 @@ final class LiveTranscriber {
 
     private let clock: SessionClock?
     private let preset: SpeechTranscriber.Preset
-    private let microphone = MicrophoneCapture()
+    var microphone = MicrophoneCapture()
     private let fileFeeder = AudioFileFeeder()
     private var utteranceCount = 0
     private var generation = 0
@@ -50,6 +50,10 @@ final class LiveTranscriber {
     init(clock: SessionClock? = nil) {
         self.clock = clock
         preset = clock == nil ? .progressiveTranscription : .timeIndexedProgressiveTranscription
+    }
+
+    var microphoneSummary: MicrophoneCapture.Summary? {
+        inputFile == nil ? microphone.summary : nil
     }
 
     var wordCount: Int {
@@ -123,7 +127,7 @@ final class LiveTranscriber {
         guard !(error is CancellationError) else { return }
         let message = error.localizedDescription
         phase = .failed(message)
-        if failure == nil { failure = (message, clock?.now) }
+        if failure == nil { failure = (message, clock?.now, (error as? MicrophoneCapture.CaptureError)?.reason) }
     }
 
     func stop() async {

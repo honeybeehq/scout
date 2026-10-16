@@ -57,6 +57,7 @@ public struct WalkthroughBuilder: Sendable {
         public var transcriptEngine: String?
         public var clip: Walkthrough.Clip?
         public var sourceFailed: Bool
+        public var microphone: Walkthrough.Microphone?
         public var timeZone: TimeZone
 
         public init(
@@ -70,6 +71,7 @@ public struct WalkthroughBuilder: Sendable {
             transcriptEngine: String? = nil,
             clip: Walkthrough.Clip? = nil,
             sourceFailed: Bool = false,
+            microphone: Walkthrough.Microphone? = nil,
             timeZone: TimeZone = .current
         ) {
             self.end = end
@@ -82,6 +84,7 @@ public struct WalkthroughBuilder: Sendable {
             self.transcriptEngine = transcriptEngine
             self.clip = clip
             self.sourceFailed = sourceFailed
+            self.microphone = microphone
             self.timeZone = timeZone
         }
     }
@@ -291,7 +294,8 @@ public struct WalkthroughBuilder: Sendable {
             capture: Walkthrough.Capture(
                 permissions: finish.permissions,
                 displays: finish.displays.isEmpty ? nil : finish.displays,
-                scopes: scopes.map { Walkthrough.ScopeChange(t: ms($0.at), scope: $0.scope, bounds: Walkthrough.Box($0.bounds), by: $0.byUser ? "user" : "auto") }
+                scopes: scopes.map { Walkthrough.ScopeChange(t: ms($0.at), scope: $0.scope, bounds: Walkthrough.Box($0.bounds), by: $0.byUser ? "user" : "auto") },
+                microphone: finish.microphone
             ),
             context: context,
             transcript: Walkthrough.Transcript(

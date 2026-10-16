@@ -90,6 +90,14 @@ public enum WalkthroughText {
             return "Missing: transcription failed\(when)\(why). \(rest)"
         case .noWords:
             return "Missing: audio was recorded, but transcription produced no words. The transcript is missing, not empty."
+        case .noAudio:
+            let why = failure.message.map { oneLine($0) } ?? "the microphone sent no audio"
+            return "No audio captured: \(why). Whatever was said wasn't recorded; the transcript is missing, not empty."
+        case .micStopped:
+            let when = failure.t.map { " at \(clock($0))" } ?? ""
+            let why = failure.message.map { " (\(oneLine($0)))" } ?? ""
+            let rest = heard > 0 ? "Only the segments below, heard before it, were transcribed; the rest is missing, not silent." : "There are no words for this recording; the transcript is missing, not empty."
+            return "Missing: the microphone stopped\(when)\(why). \(rest)"
         }
     }
 
