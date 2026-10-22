@@ -156,7 +156,7 @@ The attachment lines follow Apiary's convention, so the task renders the same in
 
 ## Settings
 
-- **General:** shortcut, aim key (`⌥` by default, or `fn`), open at login, pill position.
+- **General:** interface size (Small, Default, Large, Extra large; scales every Scout window, the pill and the stack, live), shortcut, aim key (`⌥` by default, or `fn`), open at login, pill position.
 - **Voice:** language (defaults to the system language, falls back to English), input device, voice commands on/off.
 - **Agents:** routing mode, default agent for new sessions (claude, codex, …), auto-send and its delay, project overrides (app or URL pattern → repo).
 - **Privacy:** which attachments to include (clip, pin screenshots, full frames), apps never to capture (password managers are excluded by default), redaction of on-screen text in screenshots.

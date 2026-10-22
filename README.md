@@ -48,6 +48,9 @@ cat /tmp/scout-simulation/report.json
 # manual mode with a ⌃⌥B at 11 s, plus scripted review edits and review screenshots
 open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --segmentation=manual --simulate-break=11 --simulate-review --simulate-output=/tmp/scout-manual
 
+# any run above at another interface size, without saving it; --simulate-ui-size=<size>@<seconds> switches size mid-session as the Settings picker does (and saves it), and records pill and stack frames in report.json
+open -g -n ~/Applications/Scout.app --args --ui-size=extraLarge --simulate-session=/tmp/narration.aiff --dry-run-delivery --simulate-ui-size=small@6 --simulate-output=/tmp/scout-size
+
 # capture UX: hotkey, follow, keep-both, ⌃⌥E/⌃⌥⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
 ~/Applications/Scout.app/Contents/MacOS/Scout --capture-ux-demo=$HOME/.cache/scout-capture-ux --capture-ux-audio=/tmp/narration.aiff --dry-run-delivery
 ```

@@ -26,6 +26,13 @@ enum SimulationMode {
         argument("simulate-break")?.split(separator: ",").compactMap { Double($0) } ?? []
     }
 
+    static var uiSizeChange: (size: UISize, at: Double)? {
+        guard let parts = argument("simulate-ui-size")?.split(separator: "@"), parts.count == 2,
+              let size = UISize(rawValue: String(parts[0])), let time = Double(parts[1])
+        else { return nil }
+        return (size, time)
+    }
+
     static var analyzerFaultAfter: Double? {
         argument("simulate-analyzer-fault").flatMap(Double.init)
     }
@@ -482,6 +489,7 @@ enum SimulationMode {
                 postBreakShortcut()
             }
         }
+        var uiSizeReport: [String: Any] = [:]
         var snapped = false
         if ProcessInfo.processInfo.arguments.contains("--simulate-pin") {
             Task {
@@ -491,6 +499,9 @@ enum SimulationMode {
         }
         while !finished, Date().timeIntervalSince(started) < 600 {
             try? await Task.sleep(for: .milliseconds(250))
+            if let change = uiSizeChange, uiSizeReport.isEmpty, Date().timeIntervalSince(started) >= change.at {
+                uiSizeReport = await changeUISize(to: change.size, model: model, output: output)
+            }
             if !snapped, (model.session?.closedCount ?? 0) >= 1 {
                 snapped = true
                 try? await Task.sleep(for: .milliseconds(600))
@@ -517,8 +528,38 @@ enum SimulationMode {
         model.review?.save()
         try? await Task.sleep(for: .seconds(1))
         snapshotPanels(into: output, suffix: "after-stop")
-        writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport])
+        writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport])
         NSApp.terminate(nil)
+    }
+
+    private static func changeUISize(to size: UISize, model: AppModel, output: URL) async -> [String: Any] {
+        model.openSettingsWindow?()
+        try? await Task.sleep(for: .seconds(1.5))
+        let before = panelFrames()
+        snapshotPanels(into: output, suffix: "size-before")
+        captureSettingsWindow(named: "settings-size-before", into: output)
+        let from = model.preferences.uiSize
+        model.preferences.uiSize = size
+        try? await Task.sleep(for: .seconds(1.5))
+        snapshotPanels(into: output, suffix: "size-after")
+        captureSettingsWindow(named: "settings-size-after", into: output)
+        return ["from": from.rawValue, "to": size.rawValue, "scale": size.scale, "before": before, "after": panelFrames()]
+    }
+
+    private static func panelFrames() -> [String: Any] {
+        var frames: [String: Any] = [:]
+        for panel in NSApp.windows where panel is NSPanel && panel.isVisible {
+            frames[panel.frame.height < 80 ? "pill" : panel.frame == panel.screen?.frame ? "overlay" : "stack"] = ["x": panel.frame.minX, "y": panel.frame.minY, "width": panel.frame.width, "height": panel.frame.height]
+        }
+        return frames
+    }
+
+    private static func captureSettingsWindow(named name: String, into directory: URL) {
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }),
+              let image = SnapshotMode.windowImage(CGWindowID(window.windowNumber))
+        else { return }
+        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
+            .write(to: directory.appendingPathComponent("\(name).png"))
     }
 
     private static func postPin() async {
