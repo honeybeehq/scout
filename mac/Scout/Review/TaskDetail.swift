@@ -198,6 +198,7 @@ private struct TranscriptField: View {
                     .lineSpacing(4)
                     .foregroundStyle(Palette.textSecondary)
                     .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
                     .background(Color.white.opacity(0.03), in: .rect(cornerRadius: 12, style: .continuous))
@@ -518,7 +519,7 @@ struct FlowLayout: Layout {
         var rowHeight: CGFloat = 0
         var widest: CGFloat = 0
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let size = Self.size(of: subview, within: width)
             if x > 0, x + size.width > width {
                 y += rowHeight + spacing
                 x = 0
@@ -536,7 +537,7 @@ struct FlowLayout: Layout {
         var y = bounds.minY
         var rowHeight: CGFloat = 0
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            let size = Self.size(of: subview, within: bounds.width)
             if x > bounds.minX, x + size.width > bounds.maxX {
                 y += rowHeight + spacing
                 x = bounds.minX
@@ -546,5 +547,10 @@ struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
+    }
+
+    private static func size(of subview: LayoutSubview, within width: CGFloat) -> CGSize {
+        let ideal = subview.sizeThatFits(.unspecified)
+        return ideal.width > width ? subview.sizeThatFits(ProposedViewSize(width: width, height: nil)) : ideal
     }
 }
