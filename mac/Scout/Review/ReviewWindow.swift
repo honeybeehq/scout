@@ -17,7 +17,8 @@ struct ReviewWindow: View {
                 EmptyReview()
             }
         }
-        .frame(minWidth: 1040, minHeight: 700)
+        .frame(minWidth: 1140, minHeight: 700)
+        .scaledToUISize()
         .environment(\.colorScheme, .dark)
         .onAppear { model.windowOpened() }
         .onDisappear {

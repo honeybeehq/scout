@@ -303,7 +303,7 @@ enum SimulationMode {
         try? model.picker.snapshot()?.representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("picker-\(name).png"))
         ViewShot.write(TargetPickerView().environment(model.picker.model), to: output.appendingPathComponent("picker-\(name)-rendered.png"), padding: 0)
         if name == "1-open" {
-            ViewShot.write(MenuBarPanel().environment(model).frame(width: 360), to: output.appendingPathComponent("menu-bar.png"))
+            ViewShot.write(MenuBarPanel().environment(model), to: output.appendingPathComponent("menu-bar.png"))
         }
     }
 
@@ -598,7 +598,7 @@ enum SimulationMode {
     }
 
     private static func captureWindow(named name: String, into directory: URL) {
-        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 1000 }),
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.hasPrefix(ScoutApp.reviewWindowID) == true }),
               let image = SnapshotMode.windowImage(CGWindowID(window.windowNumber))
         else { return }
         try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?

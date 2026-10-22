@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import SwiftUI
 
 enum SnapshotMode {
     static var directory: URL? {
@@ -13,12 +14,29 @@ enum SnapshotMode {
         try? await Task.sleep(for: .seconds(1))
         model.openSettingsWindow?()
         try? await Task.sleep(for: .seconds(1.5))
-        if let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width < 700 && $0.frame.height > 300 }),
+        if let window = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.contains("Settings") == true }),
            let image = windowImage(CGWindowID(window.windowNumber)) {
             try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
                 .write(to: directory.appendingPathComponent("settings-\(pane.rawValue).png"))
         }
+        await captureMenuBarPanel(model: model, into: directory)
         NSApp.terminate(nil)
+    }
+
+    private static func captureMenuBarPanel(model: AppModel, into directory: URL) async {
+        let window = NSWindow(contentRect: CGRect(x: 80, y: 80, width: 10, height: 10), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.backgroundColor = NSColor(Palette.night)
+        window.sharingType = .readOnly
+        let host = NSHostingView(rootView: MenuBarPanel().environment(model))
+        window.contentView = host
+        window.setContentSize(host.fittingSize)
+        window.orderFrontRegardless()
+        try? await Task.sleep(for: .seconds(1))
+        if let image = windowImage(CGWindowID(window.windowNumber)) {
+            try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
+                .write(to: directory.appendingPathComponent("menu-bar.png"))
+        }
+        window.orderOut(nil)
     }
 
     static func run(model: AppModel, into directory: URL) async {

@@ -24,6 +24,7 @@ struct SettingsView: View {
         .frame(width: 560, height: 420)
         .environment(\.colorScheme, .dark)
         .background(Palette.ink)
+        .scaledToUISize()
     }
 }
 
@@ -73,6 +74,7 @@ private struct GeneralSettings: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
+                UISizeSection()
                 SettingsSection(title: "Scouting") {
                     SettingRow(title: "Start or stop scouting", detail: "Works in any app. Change it in the setup guide.") {
                         KeyCombo(symbols: model.shortcut.symbols, size: 26)
@@ -124,6 +126,23 @@ private struct SplittingSection: View {
                 .labelsHidden()
                 .fixedSize()
             }
+        }
+    }
+}
+
+private struct UISizeSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var preferences = model.preferences
+        SettingsSection(title: "Size") {
+            Picker("Interface size", selection: $preferences.uiSize) {
+                ForEach(UISize.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Text("Text, controls and panels in every Scout window.")
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
         }
     }
 }

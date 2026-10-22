@@ -7,6 +7,7 @@ final class HUDController {
     private let overlay = CaptureOverlayController()
     private var shownAt: TimeInterval = 0
     private var dockTask: Task<Void, Never>?
+    private weak var model: AppModel?
 
     static let pillSize = CGSize(width: 660, height: 44)
     static let pillHeight: CGFloat = 36
@@ -14,10 +15,17 @@ final class HUDController {
     static let cursorOffset = CGPoint(x: 14, y: 14)
     static let dockDelay: TimeInterval = 0.12
 
+    private var scale: CGFloat { model?.preferences.uiSize.scale ?? 1 }
+    private var scaledPillSize: CGSize { CGSize(width: Self.pillSize.width * scale, height: Self.pillSize.height * scale) }
+
     func prepare(model: AppModel) {
+        if self.model == nil {
+            self.model = model
+            trackUISize(model.preferences)
+        }
         if pill == nil {
             let pill = makePanel(content: ScoutingPill().environment(model), level: CaptureOverlayController.level + 2)
-            pill.setFrame(CGRect(origin: .zero, size: Self.pillSize), display: false)
+            pill.setFrame(CGRect(origin: .zero, size: scaledPillSize), display: false)
             warm(pill)
             self.pill = pill
         }
@@ -43,7 +51,7 @@ final class HUDController {
         let cursor = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(cursor, $0.frame, false) } ?? NSScreen.main
         guard let screen else { return }
-        pill.setFrame(clamped(CGRect(x: cursor.x + Self.cursorOffset.x, y: cursor.y - Self.cursorOffset.y - Self.pillSize.height, width: Self.pillSize.width, height: Self.pillSize.height), to: screen.visibleFrame), display: false)
+        pill.setFrame(clamped(CGRect(x: cursor.x + Self.cursorOffset.x, y: cursor.y - Self.cursorOffset.y - scaledPillSize.height, width: scaledPillSize.width, height: scaledPillSize.height), to: screen.visibleFrame), display: false)
         pill.orderFrontRegardless()
         CATransaction.flush()
         shownAt = InteractionTimings.now
@@ -55,12 +63,38 @@ final class HUDController {
         guard let stack else { return }
         Task {
             await InteractionTimings.afterCommit()
-            guard model.isScouting, let visible = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame else { return }
-            stack.setFrame(
-                CGRect(x: visible.maxX - Self.stackWidth - 14, y: visible.minY + 14, width: Self.stackWidth, height: visible.height - 28 - Self.pillSize.height),
-                display: false
-            )
+            guard model.isScouting, let frame = self.stackFrame() else { return }
+            stack.setFrame(frame, display: false)
             stack.orderFrontRegardless()
+        }
+    }
+
+    private func stackFrame() -> CGRect? {
+        guard let visible = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame else { return nil }
+        let width = Self.stackWidth * scale
+        return CGRect(x: visible.maxX - width - 14, y: visible.minY + 14, width: width, height: visible.height - 28 - scaledPillSize.height)
+    }
+
+    private func trackUISize(_ preferences: Preferences) {
+        withObservationTracking {
+            _ = preferences.uiSize
+        } onChange: { [weak self, weak preferences] in
+            Task { @MainActor in
+                guard let self, let preferences else { return }
+                self.resizePanels()
+                self.trackUISize(preferences)
+            }
+        }
+    }
+
+    private func resizePanels() {
+        if let pill, pill.isVisible {
+            let screen = pill.screen ?? NSScreen.main
+            let top = CGRect(x: pill.frame.minX, y: pill.frame.maxY - scaledPillSize.height, width: scaledPillSize.width, height: scaledPillSize.height)
+            pill.setFrame(screen.map { clamped(top, to: $0.visibleFrame) } ?? top, display: true)
+        }
+        if let stack, stack.isVisible, let frame = stackFrame() {
+            stack.setFrame(frame, display: true)
         }
     }
 
@@ -104,12 +138,12 @@ final class HUDController {
         let cocoaRegion = CGRect(x: region.minX, y: primaryHeight - region.maxY, width: region.width, height: region.height)
         let screen = NSScreen.screens.first { $0.frame.intersects(cocoaRegion) && $0.frame.contains(CGPoint(x: cocoaRegion.midX, y: cocoaRegion.midY)) } ?? NSScreen.main
         let visible = screen?.visibleFrame ?? cocoaRegion
-        let inset = (Self.pillSize.height - Self.pillHeight) / 2
+        let inset = (Self.pillSize.height - Self.pillHeight) / 2 * scale
         var origin = CGPoint(x: region.minX + 8 - inset, y: regionTop + 6 - inset)
-        if origin.y + Self.pillSize.height > visible.maxY {
-            origin.y = min(regionTop, visible.maxY) - Self.pillSize.height - 6 + inset
+        if origin.y + scaledPillSize.height > visible.maxY {
+            origin.y = min(regionTop, visible.maxY) - scaledPillSize.height - 6 + inset
         }
-        return clamped(CGRect(origin: origin, size: Self.pillSize), to: visible)
+        return clamped(CGRect(origin: origin, size: scaledPillSize), to: visible)
     }
 
     private func clamped(_ frame: CGRect, to visible: CGRect) -> CGRect {

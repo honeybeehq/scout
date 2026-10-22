@@ -111,6 +111,7 @@ struct MenuBarPanel: View {
         }
         .padding(16)
         .frame(width: 320)
+        .scaledToUISize()
         .environment(\.colorScheme, .dark)
         .task { await model.integrations.refresh() }
     }

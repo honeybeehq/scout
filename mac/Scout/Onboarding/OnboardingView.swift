@@ -28,6 +28,7 @@ struct OnboardingView: View {
             }
         }
         .frame(width: Self.size.width, height: Self.size.height)
+        .scaledToUISize()
         .environment(\.colorScheme, .dark)
         .onAppear {
             model.windowOpened()

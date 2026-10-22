@@ -30,6 +30,7 @@ struct SnippetStack: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .scaledToUISize()
         .animation(Motion.smooth, value: dispatcher.cards.map(\.id))
         .onChange(of: dispatcher.cards.count) { model.stackChanged() }
         .animation(Motion.smooth, value: model.session?.openSnippet?.id)

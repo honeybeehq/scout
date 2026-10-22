@@ -38,6 +38,38 @@ enum ReviewOpening: String, CaseIterable, Identifiable {
     }
 }
 
+enum UISize: String, CaseIterable, Identifiable {
+    case small
+    case standard
+    case large
+    case extraLarge
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .small: "Small"
+        case .standard: "Default"
+        case .large: "Large"
+        case .extraLarge: "Extra large"
+        }
+    }
+
+    var scale: CGFloat {
+        switch self {
+        case .small: 0.85
+        case .standard: 1
+        case .large: 1.15
+        case .extraLarge: 1.25
+        }
+    }
+
+    static var requested: UISize? {
+        let prefix = "--ui-size="
+        return ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.flatMap { UISize(rawValue: String($0.dropFirst(prefix.count))) }
+    }
+}
+
 @Observable
 final class Preferences {
     private let defaults = UserDefaults.standard
@@ -66,6 +98,10 @@ final class Preferences {
         didSet { defaults.set(reviewOpening.rawValue, forKey: "review.opening") }
     }
 
+    var uiSize: UISize {
+        didSet { defaults.set(uiSize.rawValue, forKey: "appearance.uiSize") }
+    }
+
     static let agents = ["claude", "codex", "grok", "kimi"]
 
     init() {
@@ -76,6 +112,7 @@ final class Preferences {
             "capture.includeClips": true,
             "scouting.segmentation": Segmentation.automatic.rawValue,
             "review.opening": ReviewOpening.whenNeeded.rawValue,
+            "appearance.uiSize": UISize.standard.rawValue,
         ])
         autoSend = defaults.bool(forKey: "delivery.autoSend")
         autoSendDelay = defaults.double(forKey: "delivery.autoSendDelay")
@@ -83,5 +120,6 @@ final class Preferences {
         includeClips = defaults.bool(forKey: "capture.includeClips")
         segmentation = Segmentation(rawValue: defaults.string(forKey: "scouting.segmentation") ?? "") ?? .automatic
         reviewOpening = ReviewOpening(rawValue: defaults.string(forKey: "review.opening") ?? "") ?? .whenNeeded
+        uiSize = UISize.requested ?? UISize(rawValue: defaults.string(forKey: "appearance.uiSize") ?? "") ?? .standard
     }
 }

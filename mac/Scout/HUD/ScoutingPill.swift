@@ -107,6 +107,7 @@ struct ScoutingPill: View {
         .overlay(Capsule().strokeBorder(Palette.hairline))
         .fixedSize()
         .frame(width: HUDController.pillSize.width, height: HUDController.pillSize.height, alignment: .leading)
+        .scaledToUISize()
         .animation(Motion.snappy, value: session?.closedCount)
         .animation(Motion.snappy, value: follower?.scopeTitle)
         .onChange(of: session?.transcriber.level) { _, level in
