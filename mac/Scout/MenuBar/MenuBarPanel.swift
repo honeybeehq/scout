@@ -3,7 +3,6 @@ import SwiftUI
 
 struct MenuBarPanel: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -95,14 +94,11 @@ struct MenuBarPanel: View {
             HStack {
                 Button(model.onboarding.isComplete ? "Setup guide" : "Finish setup") {
                     model.onboarding.restart()
-                    openWindow(id: ScoutApp.onboardingWindowID)
-                    NSApp.activate()
+                    model.openOnboarding?()
                 }
                 .buttonStyle(QuietButtonStyle())
-                SettingsLink {
-                    Text("Settings")
-                }
-                .buttonStyle(QuietButtonStyle())
+                Button("Settings") { model.openSettingsWindow?() }
+                    .buttonStyle(QuietButtonStyle())
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(QuietButtonStyle())

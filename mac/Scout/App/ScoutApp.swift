@@ -59,16 +59,16 @@ private struct MenuBarLabel: View {
         Image(nsImage: MenuBarIcon.image(scouting: model.isScouting))
             .onAppear {
                 model.openOnboarding = {
-                    openWindow(id: ScoutApp.onboardingWindowID)
                     NSApp.activate()
+                    openWindow(id: ScoutApp.onboardingWindowID)
                 }
                 model.openSettingsWindow = {
-                    openSettings()
                     NSApp.activate()
+                    openSettings()
                 }
                 model.openReviewWindow = {
-                    openWindow(id: ScoutApp.reviewWindowID)
                     if !SimulationMode.isRunning { NSApp.activate() }
+                    openWindow(id: ScoutApp.reviewWindowID)
                 }
             }
     }
