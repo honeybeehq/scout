@@ -6,30 +6,31 @@ OUT=${1:A}
 SRC=${${2:-$HOME/Applications/Scout.app}:A}
 KINDS=(${=3:-settings review onboarding})
 V="$R/build/window-order"
-mkdir -p "$V/Cover.app/Contents/MacOS" "$V/ScoutRunner.app/Contents/MacOS" "$V/mc"
+mkdir -p "$V/Cover.app/Contents/MacOS" "$V/mc"
 plist() { printf '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleExecutable</key><string>%s</string><key>CFBundleIdentifier</key><string>local.scout-window-order.%s</string><key>CFBundlePackageType</key><string>APPL</string>%s</dict></plist>\n' "$1" "$1" "$2" > "$3"; }
-if [[ ! -x "$V/wincheck" ]]; then
+if [[ ! -x "$V/wincheck" || "$S/wincheck.swift" -nt "$V/wincheck" ]]; then
   swiftc -O -module-cache-path "$V/mc" "$S/Cover.swift" -o "$V/Cover.app/Contents/MacOS/Cover" || exit 1
-  swiftc -O -module-cache-path "$V/mc" "$S/Runner.swift" -o "$V/ScoutRunner.app/Contents/MacOS/ScoutRunner" || exit 1
   swiftc -O -module-cache-path "$V/mc" "$S/wincheck.swift" -o "$V/wincheck" || exit 1
   plist Cover "" "$V/Cover.app/Contents/Info.plist"
-  plist ScoutRunner "<key>LSUIElement</key><true/>" "$V/ScoutRunner.app/Contents/Info.plist"
-  codesign -s - --force "$V/Cover.app" "$V/ScoutRunner.app"
+  codesign -s - --force "$V/Cover.app"
 fi
 rm -rf "$OUT"; mkdir -p "$OUT"
 
 open "$V/Cover.app"; sleep 2
 COVER_PID=$(pgrep -f "$V/Cover.app/Contents/MacOS/Cover" | head -1)
-printf '%s\n' "$SRC/Contents/MacOS/Scout" -onboarding.complete YES "--simulate-open-settings=$OUT" > "$V/runner-args"
-open -n "$V/ScoutRunner.app"
+open -g -n "$SRC" --args -onboarding.complete YES "--simulate-open-settings=$OUT"
 sleep 5
 SCOUT_PID=$(pgrep -f "$SRC/Contents/MacOS/Scout" | head -1)
 echo "cover=$COVER_PID scout=$SCOUT_PID" > "$OUT/pids.txt"
 
-shot() { screencapture -x "$OUT/$1.png" 2>/dev/null; "$V/wincheck" > "$OUT/$1.json"; }
+shot() {
+  "$V/wincheck" > "$OUT/$1.json"
+  for w in $("$V/wincheck" shots "$OUT/$1.json"); do screencapture -x -o -l "${w#*:}" "$OUT/$1-${w%%:*}.png" 2>/dev/null; done
+}
 cover() { open "$V/Cover.app"; sleep 1.5; }
 n=0
-open_case() { n=$((n+1)); echo "$n $1 $2" >> "$OUT/steps.txt"; cover; shot "$n-before"; "$V/wincheck" post "$1"; sleep 2.5; shot "$n-after"; }
+typeset -A BUTTON=(settings Settings review Review onboarding "Setup guide|Finish setup")
+open_case() { n=$((n+1)); echo "$n $1 $2" >> "$OUT/steps.txt"; cover; shot "$n-before"; "$V/wincheck" click "$BUTTON[$1]"; sleep 2.5; "$V/wincheck" post "state-$1"; sleep 0.5; shot "$n-after"; }
 
 for k in $KINDS; do
   open_case $k first-open
