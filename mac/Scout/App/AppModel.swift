@@ -35,12 +35,23 @@ final class AppModel {
     let widenShortcut = KeyShortcut.widenCapture
     let followShortcut = KeyShortcut.followPointer
     private(set) var scopeHotkeys: (widen: GlobalHotkey, follow: GlobalHotkey)?
+    let discardShortcut = KeyShortcut.discardRecording
+    private(set) var discardHotkeys: (discard: GlobalHotkey, cancel: GlobalHotkey)?
     private var openWindows = 0
 
     private(set) var shortcut: KeyShortcut
     private(set) var shortcutRegistered = false
     private(set) var isScouting = false
-    var confirmingDiscard = false
+    var confirmingDiscard = false {
+        didSet {
+            guard confirmingDiscard != oldValue else { return }
+            if confirmingDiscard { discardHotkeys?.cancel.register(.escape) } else { discardHotkeys?.cancel.unregister() }
+        }
+    }
+
+    var canDiscardScouting: Bool {
+        session?.cards.contains { $0.isLocked } != true
+    }
 
     private var hotkey: GlobalHotkey?
 
@@ -204,6 +215,12 @@ final class AppModel {
         self.scopeHotkeys = scopeHotkeys
         scopeHotkeys.widen.register(widenShortcut)
         scopeHotkeys.follow.register(followShortcut)
+        let discardHotkeys = discardHotkeys ?? (
+            discard: GlobalHotkey { [weak self] in self?.pressDiscard() },
+            cancel: GlobalHotkey { [weak self] in self?.confirmingDiscard = false }
+        )
+        self.discardHotkeys = discardHotkeys
+        discardHotkeys.discard.register(discardShortcut)
         session.begin()
         if result == .walkthrough, boundTarget == nil {
             Task { await prefetchTargets() }
@@ -251,11 +268,25 @@ final class AppModel {
         breakHotkey?.unregister()
         scopeHotkeys?.widen.unregister()
         scopeHotkeys?.follow.unregister()
+        discardHotkeys?.discard.unregister()
         hud.hidePill()
     }
 
+    func pressDiscard() {
+        guard isScouting else { return }
+        guard canDiscardScouting else {
+            NSSound.beep()
+            return
+        }
+        if confirmingDiscard {
+            Task { await discardScouting() }
+        } else {
+            confirmingDiscard = true
+        }
+    }
+
     func discardScouting() async {
-        guard isScouting, let session else { return }
+        guard isScouting, canDiscardScouting, let session else { return }
         endScoutingControls()
         boundTarget = nil
         session.onSnippetClosed = nil

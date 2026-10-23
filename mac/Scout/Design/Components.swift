@@ -167,6 +167,7 @@ struct DiscardControl: View {
     var question: String
     var help: String
     var compact = false
+    var shortcut: String?
     @Binding var asking: Bool
     var onDiscard: () -> Void
 
@@ -177,12 +178,24 @@ struct DiscardControl: View {
                     .foregroundStyle(Palette.textSecondary)
                     .padding(.horizontal, 4)
                     .fixedSize()
-                Button("Keep") { asking = false }
-                    .buttonStyle(DiscardCapsuleStyle(filled: false))
-                    .help("Keep going. Nothing is deleted.")
-                Button("Discard") {
+                Button {
+                    asking = false
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("Keep")
+                        if shortcut != nil { KeyHint("esc") }
+                    }
+                }
+                .buttonStyle(DiscardCapsuleStyle(filled: false))
+                .help("Keep going. Nothing is deleted.")
+                Button {
                     asking = false
                     onDiscard()
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("Discard")
+                        if let shortcut { KeyHint(shortcut) }
+                    }
                 }
                 .buttonStyle(DiscardCapsuleStyle(filled: true))
                 .help(help)

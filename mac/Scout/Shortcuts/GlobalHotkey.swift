@@ -10,6 +10,8 @@ struct KeyShortcut: Codable, Equatable {
     static let nextTask = KeyShortcut(keyCode: UInt32(kVK_ANSI_B), carbonModifiers: UInt32(controlKey | optionKey), key: "B")
     static let widenCapture = KeyShortcut(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(controlKey | optionKey), key: "E")
     static let followPointer = KeyShortcut(keyCode: UInt32(kVK_ANSI_E), carbonModifiers: UInt32(controlKey | optionKey | shiftKey), key: "E")
+    static let discardRecording = KeyShortcut(keyCode: UInt32(kVK_ANSI_X), carbonModifiers: UInt32(controlKey | optionKey), key: "X")
+    static let escape = KeyShortcut(keyCode: UInt32(kVK_Escape), carbonModifiers: 0, key: "esc")
 
     var label: String { symbols.joined() }
 

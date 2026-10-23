@@ -84,9 +84,12 @@ struct ScoutingPill: View {
             .buttonStyle(.plain)
             .help(session?.captureProblem ?? (following ? "Widen the captured area (\(model.widenShortcut.label)). \(model.followShortcut.label) follows the pointer again." : "Widen further (\(model.widenShortcut.label)), or follow the pointer again (\(model.followShortcut.label))"))
 
-            DiscardControl(question: "Discard this recording?", help: "Stop and delete this recording. Nothing is sent or copied.", asking: Bindable(model).confirmingDiscard) {
+            let discardable = model.canDiscardScouting
+            DiscardControl(question: "Discard this recording?", help: discardable ? "Stop and delete this recording (\(model.discardShortcut.label), then \(model.discardShortcut.label) again). Nothing is sent or copied." : "A task from this recording was already sent, so it can't be discarded. Finish keeps it.", shortcut: model.discardShortcut.label, asking: Bindable(model).confirmingDiscard) {
                 Task { await model.discardScouting() }
             }
+            .disabled(!discardable)
+            .opacity(discardable ? 1 : 0.5)
 
             Button {
                 model.finishScouting(input: InteractionTimings.now)

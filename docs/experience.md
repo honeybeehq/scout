@@ -58,7 +58,7 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 - **⌃⌥E** keeps both recent areas in view. **⌃⌥E** again widens to the window, then to the screen, then back to following.
 - **⌃⌥⇧E** goes back to following the pointer.
 - The capture button in the pill does the same: click to widen, ⇧-click to follow.
-- Both are global shortcuts in the same family as ⌃⌥S, registered only while recording. They need no permission. Scout takes no bare letter keys while recording, so typing in pages, lists and fields is never affected.
+- Both are global shortcuts in the same family as ⌃⌥S, registered only while recording, like ⌃⌥B and ⌃⌥X (discard). They need no permission. Scout takes no bare letter keys while recording, so typing in pages, lists and fields is never affected.
 
 **Talking.** The user talks about whatever they are looking at. Scout splits the stream into snippets in the background (see [breakpoints.md](breakpoints.md)). When a snippet closes, its card slides into the snippet stack.
 
@@ -73,7 +73,7 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
 
-**Discard.** *Discard* in the pill asks "Discard this recording?" with *Keep* and *Discard*; the question goes away by itself after 4 seconds, and recording carries on while it shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was.
+**Discard.** *Discard* in the pill, or **⌃⌥X** (Caps+X with the Caps layer), asks "Discard this recording?" with *Keep* (esc) and *Discard* (⌃⌥X); the question goes away by itself after 4 seconds, and recording carries on while it shows. Press ⌃⌥X again or click *Discard* to confirm; Esc or *Keep* cancels. ⌃⌥X is registered only while recording, and Esc only while the question shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was. Once a task from the recording has been sent (split into tasks with auto-send), Discard is off and ⌃⌥X beeps, as in the review: the sent task's files stay, and *Finish* keeps the rest.
 
 **Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within about two frames (≈30 ms at 60 Hz). Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 

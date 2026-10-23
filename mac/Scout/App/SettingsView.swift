@@ -85,6 +85,9 @@ private struct GeneralSettings: View {
                     SettingRow(title: "Next task", detail: "While scouting, ends the current task and starts the next.") {
                         KeyCombo(symbols: model.breakShortcut.symbols, size: 26)
                     }
+                    SettingRow(title: "Discard recording", detail: "While scouting, asks to discard; press it again to delete the recording. Esc keeps it.") {
+                        KeyCombo(symbols: model.discardShortcut.symbols, size: 26)
+                    }
                 }
                 SplittingSection()
                 SettingsSection(title: "App") {
