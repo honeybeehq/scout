@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import Carbon.HIToolbox
 import Foundation
 import FoundationModels
 import ScoutCore
@@ -35,6 +36,14 @@ enum SimulationMode {
 
     static var discardAt: Double? {
         argument("simulate-discard").flatMap(Double.init)
+    }
+
+    static var discardsByHotkey: Bool {
+        ProcessInfo.processInfo.arguments.contains("--simulate-discard-hotkey")
+    }
+
+    static var sendsBeforeDiscard: Bool {
+        ProcessInfo.processInfo.arguments.contains("--simulate-discard-after-send")
     }
 
     static var result: SessionResult {
@@ -592,15 +601,42 @@ enum SimulationMode {
         let filesBefore = sessionFiles(session.directory, walkthroughID: walkthroughID)
         snapshotPanels(into: output, suffix: "discard-1-button")
         ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-discard-1-button-rendered.png"), padding: 12)
-        model.confirmingDiscard = true
-        try? await Task.sleep(for: .milliseconds(700))
-        snapshotPanels(into: output, suffix: "discard-2-confirm")
-        ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-discard-2-confirm-rendered.png"), padding: 12)
+        var sentFirst = false
+        if sendsBeforeDiscard, let card = session.cards.first {
+            model.dispatcher.choose(.clipboard, for: card)
+            await model.dispatcher.send(card)
+            sentFirst = true
+            try? await Task.sleep(for: .milliseconds(700))
+            snapshotPanels(into: output, suffix: "discard-1-sent")
+        }
+        var keys: [[String: Any]] = []
+        func press(_ shortcut: KeyShortcut, _ hotkey: GlobalHotkey?) async {
+            let path = await pressKey(shortcut, hotkey: hotkey)
+            try? await Task.sleep(for: .milliseconds(700))
+            keys.append(["key": shortcut.label, "path": path, "confirming": model.confirmingDiscard, "recording": model.isScouting, "escapeRegistered": model.discardHotkeys?.cancel.isRegistered ?? false])
+        }
         let pressed = Date()
-        await model.discardScouting()
+        if discardsByHotkey {
+            await press(model.discardShortcut, model.discardHotkeys?.discard)
+            snapshotPanels(into: output, suffix: "discard-2-confirm")
+            ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-discard-2-confirm-rendered.png"), padding: 12)
+            if model.confirmingDiscard {
+                await press(.escape, model.discardHotkeys?.cancel)
+                snapshotPanels(into: output, suffix: "discard-3-kept")
+                await press(model.discardShortcut, model.discardHotkeys?.discard)
+                await press(model.discardShortcut, model.discardHotkeys?.discard)
+            }
+            await waitFor(15) { !model.isScouting && session.phase == .ended }
+        } else {
+            model.confirmingDiscard = true
+            try? await Task.sleep(for: .milliseconds(700))
+            snapshotPanels(into: output, suffix: "discard-2-confirm")
+            ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-discard-2-confirm-rendered.png"), padding: 12)
+            await model.discardScouting()
+        }
         let discardSeconds = Date().timeIntervalSince(pressed)
         try? await Task.sleep(for: .seconds(8))
-        let cards = session.cards + model.dispatcher.cards.filter { $0.sessionID == session.id }
+        let cards = session.cards + model.dispatcher.cards.filter { card in card.sessionID == session.id && !session.cards.contains { $0 === card } }
         let delivered = cards.filter { card in
             switch card.state {
             case .sent, .sending, .copiedInstead: true
@@ -626,6 +662,9 @@ enum SimulationMode {
             "pasteboardChangeCountAfter": NSPasteboard.general.changeCount,
             "pasteboardUnchanged": pasteboardBefore.0 == NSPasteboard.general.changeCount && pasteboardBefore.1 == NSPasteboard.general.string(forType: .string),
             "uiSize": model.preferences.uiSize.rawValue,
+            "keys": keys,
+            "sentBeforeDiscard": sentFirst,
+            "discardHotkeyRegisteredAfter": model.discardHotkeys?.discard.isRegistered ?? false,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? data.write(to: output.appendingPathComponent("discard.json"))
@@ -652,6 +691,23 @@ enum SimulationMode {
             "listedInSessions": SessionLibrary.recent().contains { $0.id == review.sessionID },
             "pasteboardUnchanged": pasteboard.0 == NSPasteboard.general.changeCount && pasteboard.1 == NSPasteboard.general.string(forType: .string),
         ]
+    }
+
+    private static func pressKey(_ shortcut: KeyShortcut, hotkey: GlobalHotkey?) async -> String {
+        let before = GlobalHotkey.lastPressTime
+        if CGPreflightPostEventAccess() {
+            var flags: CGEventFlags = []
+            if shortcut.carbonModifiers & UInt32(controlKey) != 0 { flags.insert(.maskControl) }
+            if shortcut.carbonModifiers & UInt32(optionKey) != 0 { flags.insert(.maskAlternate) }
+            CaptureUXDemo.postKey(UInt16(shortcut.keyCode), flags: flags)
+            for _ in 0..<30 where GlobalHotkey.lastPressTime == before {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+            if GlobalHotkey.lastPressTime != before { return "posted \(shortcut.label) key event, handled by the Carbon hotkey" }
+        }
+        guard let hotkey, hotkey.isRegistered else { return "\(shortcut.label) not registered" }
+        let status = hotkey.sendPressedEvent()
+        return "\(shortcut.label) sent as a Carbon hot-key event to the registered hotkey (status \(status)); posting key events needs Accessibility"
     }
 
     private static func sessionFiles(_ directory: URL, walkthroughID: String?) -> [String] {
