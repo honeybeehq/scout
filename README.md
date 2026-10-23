@@ -51,6 +51,9 @@ open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aif
 # any run above at another interface size, without saving it; --simulate-ui-size=<size>@<seconds> switches size mid-session as the Settings picker does (and saves it), and records pill and stack frames in report.json
 open -g -n ~/Applications/Scout.app --args --ui-size=extraLarge --simulate-session=/tmp/narration.aiff --dry-run-delivery --simulate-ui-size=small@6 --simulate-output=/tmp/scout-size
 
+# press Discard and confirm it at 6 s, then write discard.json: files left, deliveries, clipboard (--simulate-result=walkthrough records a walkthrough, as ⌃⌥S does)
+open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --simulate-result=walkthrough --simulate-discard=6 --simulate-output=/tmp/scout-discard
+
 # capture UX: hotkey, follow, keep-both, ⌃⌥E/⌃⌥⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
 ~/Applications/Scout.app/Contents/MacOS/Scout --capture-ux-demo=$HOME/.cache/scout-capture-ux --capture-ux-audio=/tmp/narration.aiff --dry-run-delivery
 ```

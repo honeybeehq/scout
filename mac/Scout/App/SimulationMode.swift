@@ -33,6 +33,14 @@ enum SimulationMode {
         return (size, time)
     }
 
+    static var discardAt: Double? {
+        argument("simulate-discard").flatMap(Double.init)
+    }
+
+    static var result: SessionResult {
+        argument("simulate-result") == "walkthrough" ? .walkthrough : .tasks
+    }
+
     static var analyzerFaultAfter: Double? {
         argument("simulate-analyzer-fault").flatMap(Double.init)
     }
@@ -429,13 +437,16 @@ enum SimulationMode {
         try? await Task.sleep(for: .seconds(4))
         captureWindow(named: "reopened", into: output)
         let tasks = model.review?.tasks ?? []
-        let report: [String: Any] = [
+        var report: [String: Any] = [
             "session": model.review?.sessionID ?? "none",
             "hasVideo": model.review?.video != nil,
             "leftover": model.review?.leftoverSpeech.map(\.text) ?? [],
             "tasks": tasks.map { "\($0.snippet.id) \(String(format: "%.1f-%.1f", $0.snippet.range.start, $0.snippet.range.end)) state=\($0.state) destination=\($0.destination?.label ?? "none") title=\($0.title) edited=\($0.transcriptOverride != nil)" },
         ]
-        if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+        if discardAt != nil, let review = model.review {
+            report["discard"] = await discard(review, model: model, output: output)
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
             try? data.write(to: output.appendingPathComponent("reopen.json"))
         }
         NSApp.terminate(nil)
@@ -481,7 +492,8 @@ enum SimulationMode {
         try? await Task.sleep(for: .seconds(1))
 
         var finished = false
-        model.startScouting(inputFile: audio, segmentation: segmentation, result: .tasks) { finished = true }
+        let pasteboardBefore = (NSPasteboard.general.changeCount, NSPasteboard.general.string(forType: .string))
+        model.startScouting(inputFile: audio, segmentation: segmentation, result: result) { finished = true }
         let started = Date()
         for time in breakTimes {
             Task {
@@ -497,10 +509,14 @@ enum SimulationMode {
                 await postPin()
             }
         }
-        while !finished, Date().timeIntervalSince(started) < 600 {
+        while !finished || discardAt != nil, Date().timeIntervalSince(started) < 600 {
             try? await Task.sleep(for: .milliseconds(250))
             if let change = uiSizeChange, uiSizeReport.isEmpty, Date().timeIntervalSince(started) >= change.at {
                 uiSizeReport = await changeUISize(to: change.size, model: model, output: output)
+            }
+            if let at = discardAt, Date().timeIntervalSince(started) >= at {
+                await discard(model: model, output: output, pasteboardBefore: pasteboardBefore)
+                return
             }
             if !snapped, (model.session?.closedCount ?? 0) >= 1 {
                 snapped = true
@@ -530,6 +546,89 @@ enum SimulationMode {
         snapshotPanels(into: output, suffix: "after-stop")
         writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport])
         NSApp.terminate(nil)
+    }
+
+    private static func discard(model: AppModel, output: URL, pasteboardBefore: (Int, String?)) async {
+        guard let session = model.session else { return }
+        let walkthroughID = session.walkthrough?.bundle.id
+        let cardsBefore = model.dispatcher.cards.filter { $0.sessionID == session.id }.map { "\($0.snippet.id) \(String(describing: $0.state))" }
+        let filesBefore = sessionFiles(session.directory, walkthroughID: walkthroughID)
+        snapshotPanels(into: output, suffix: "discard-1-button")
+        ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-discard-1-button-rendered.png"), padding: 12)
+        model.confirmingDiscard = true
+        try? await Task.sleep(for: .milliseconds(700))
+        snapshotPanels(into: output, suffix: "discard-2-confirm")
+        ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-discard-2-confirm-rendered.png"), padding: 12)
+        let pressed = Date()
+        await model.discardScouting()
+        let discardSeconds = Date().timeIntervalSince(pressed)
+        try? await Task.sleep(for: .seconds(8))
+        let cards = session.cards + model.dispatcher.cards.filter { $0.sessionID == session.id }
+        let delivered = cards.filter { card in
+            switch card.state {
+            case .sent, .sending, .copiedInstead: true
+            default: false
+            }
+        }
+        let report: [String: Any] = [
+            "session": session.directory.path,
+            "walkthroughID": walkthroughID ?? "",
+            "discardSeconds": discardSeconds,
+            "filesBeforeDiscard": filesBefore,
+            "filesAfterDiscard": sessionFiles(session.directory, walkthroughID: walkthroughID),
+            "cardsBeforeDiscard": cardsBefore,
+            "cardStatesAfter": cards.map { "\($0.snippet.id) \(String(describing: $0.state))" },
+            "delivered": delivered.count,
+            "stackCards": model.dispatcher.cards.filter { $0.sessionID == session.id }.count,
+            "reviewOpened": model.review?.sessionID == session.id,
+            "pickerOpen": model.picker.isOpen,
+            "lastWalkthrough": model.lastWalkthrough?.directory.path ?? "",
+            "isScouting": model.isScouting,
+            "visiblePanels": NSApp.windows.filter { $0 is NSPanel && $0.isVisible }.count,
+            "pasteboardChangeCountBefore": pasteboardBefore.0,
+            "pasteboardChangeCountAfter": NSPasteboard.general.changeCount,
+            "pasteboardUnchanged": pasteboardBefore.0 == NSPasteboard.general.changeCount && pasteboardBefore.1 == NSPasteboard.general.string(forType: .string),
+            "uiSize": model.preferences.uiSize.rawValue,
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
+            try? data.write(to: output.appendingPathComponent("discard.json"))
+        }
+        NSApp.terminate(nil)
+    }
+
+    private static func discard(_ review: SessionReview, model: AppModel, output: URL) async -> [String: Any] {
+        let pasteboard = (NSPasteboard.general.changeCount, NSPasteboard.general.string(forType: .string))
+        let filesBefore = sessionFiles(review.directory, walkthroughID: nil)
+        let canDiscard = review.canDiscard
+        review.confirmingDiscard = canDiscard
+        try? await Task.sleep(for: .milliseconds(700))
+        captureWindow(named: "review-discard-confirm", into: output)
+        model.discard(review)
+        try? await Task.sleep(for: .seconds(3))
+        captureWindow(named: "review-discarded", into: output)
+        return [
+            "canDiscard": canDiscard,
+            "taskStates": review.tasks.map { "\($0.snippet.id) \(String(describing: $0.state))" },
+            "filesBeforeDiscard": filesBefore,
+            "filesAfterDiscard": sessionFiles(review.directory, walkthroughID: nil),
+            "reviewStillOpen": model.review === review,
+            "listedInSessions": SessionLibrary.recent().contains { $0.id == review.sessionID },
+            "pasteboardUnchanged": pasteboard.0 == NSPasteboard.general.changeCount && pasteboard.1 == NSPasteboard.general.string(forType: .string),
+        ]
+    }
+
+    private static func sessionFiles(_ directory: URL, walkthroughID: String?) -> [String] {
+        let manager = FileManager.default
+        var roots = [directory]
+        if let walkthroughID {
+            let bundle = WalkthroughBundle(id: walkthroughID)
+            roots += [bundle.partialDirectory, bundle.directory]
+        }
+        return roots.flatMap { root -> [String] in
+            guard manager.fileExists(atPath: root.path) else { return [] }
+            let children = manager.enumerator(atPath: root.path)?.compactMap { $0 as? String } ?? []
+            return [root.path] + children.map { root.appendingPathComponent($0).path }
+        }
     }
 
     private static func changeUISize(to size: UISize, model: AppModel, output: URL) async -> [String: Any] {
