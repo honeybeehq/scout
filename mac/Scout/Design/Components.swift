@@ -162,3 +162,61 @@ struct Checkmark: View {
             .transition(.iconSwap)
     }
 }
+
+struct DiscardControl: View {
+    var question: String
+    var help: String
+    @Binding var asking: Bool
+    var onDiscard: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if asking {
+                Text(question)
+                    .foregroundStyle(Palette.textSecondary)
+                    .padding(.horizontal, 4)
+                    .fixedSize()
+                Button("Keep") { asking = false }
+                    .buttonStyle(DiscardCapsuleStyle(filled: false))
+                    .help("Keep going. Nothing is deleted.")
+                Button("Discard") {
+                    asking = false
+                    onDiscard()
+                }
+                .buttonStyle(DiscardCapsuleStyle(filled: true))
+                .help(help)
+            } else {
+                Button {
+                    asking = true
+                } label: {
+                    Label("Discard", systemImage: "trash")
+                }
+                .buttonStyle(DiscardCapsuleStyle(filled: false))
+                .help(help)
+            }
+        }
+        .font(.system(size: 11.5, weight: .medium))
+        .animation(Motion.snappy, value: asking)
+        .task(id: asking) {
+            guard asking else { return }
+            try? await Task.sleep(for: .seconds(4))
+            if !Task.isCancelled { asking = false }
+        }
+    }
+}
+
+private struct DiscardCapsuleStyle: ButtonStyle {
+    var filled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Palette.text)
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .background(filled ? Palette.fillStrong : Color.white.opacity(configuration.isPressed ? 0.09 : 0.001), in: .capsule)
+            .overlay(Capsule().strokeBorder(filled ? Color.clear : Palette.stroke))
+            .contentShape(.capsule)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(Motion.snappy, value: configuration.isPressed)
+    }
+}

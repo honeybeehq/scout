@@ -46,10 +46,10 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
 **The pill** (36 pt high, glass capsule):
 
 ```
- ● 0:42  ▂▅▇▃▁  …and the total should be bold too   ⤢ Following · Safari — Checkout  ⌃⌥E   Finish ⌃⌥S
+ ● 0:42  ▂▅▇▃▁  …and the total should be bold too   ⤢ Following · Safari — Checkout  ⌃⌥E   Discard   Finish ⌃⌥S
 ```
 
-From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. About 120 ms after it appears at the pointer, the pill glides to the top-left edge of the captured area and moves with it. The pill never takes focus and is excluded from the recording. It can be dragged anywhere.
+From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, Discard, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. About 120 ms after it appears at the pointer, the pill glides to the top-left edge of the captured area and moves with it. The pill never takes focus and is excluded from the recording. It can be dragged anywhere.
 
 **What is captured.** Scout follows the pointer. The captured area is the pane under the pointer, or the window when Scout can't tell panes apart, or the screen when no window is under it. Panes are split views found through Accessibility; inside Apiary they come from the Apiary bridge. At the shortcut, the frame starts on the window under the pointer and narrows to the pane as soon as it is known. When the pointer rests in another area for 250 ms, the frame glides there (120 ms) and the recording moves to that display if it changed. Outside the frame the screen is dimmed a little, so it is always clear what the recording is about.
 
@@ -72,6 +72,8 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 - "new task" or "next task": split now.
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
+
+**Discard.** *Discard* in the pill asks "Discard this recording?" with *Keep* and *Discard*; the question goes away by itself after 4 seconds, and recording carries on while it shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was.
 
 **Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within about two frames (≈30 ms at 60 Hz). Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 
@@ -112,6 +114,7 @@ The review is where a finished recording becomes tasks you are happy to hand off
 - **Nothing you said gets lost.** Speech that isn't in any task shows as dashed amber on the timeline and under "Not in a task yet" in the list, with *New task* and *Add to task N* (the neighbouring task).
 - **Edit before sending.** The title and the transcript are editable (an *Edited* badge and *Use the original* appear). Elements under "Pointed at" can be left out. Pins show the frame at the moment of the pin.
 - **Hand-off.** Each task has its own destination and *Send task* (⌘↩). The header has *Send all to…* (one destination for every waiting task) and *Send all* (⌥⌘↩). Clips are cut from the task's current range when it is sent. Any edit puts a task that was counting down on hold.
+- **Discard.** *Discard* in the player bar asks "Discard this session?" and then deletes the session's video, signals and `review.json`, and its waiting tasks. A session with a sent task, or whose video is still being prepared, can't be discarded.
 - **Earlier sessions.** *Sessions* lists recent sessions; the menu bar's *Review* opens the latest. Each session keeps its tasks and edits in `review.json` next to its recording.
 
 ## The snippet stack

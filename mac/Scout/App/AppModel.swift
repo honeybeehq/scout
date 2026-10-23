@@ -40,6 +40,7 @@ final class AppModel {
     private(set) var shortcut: KeyShortcut
     private(set) var shortcutRegistered = false
     private(set) var isScouting = false
+    var confirmingDiscard = false
 
     private var hotkey: GlobalHotkey?
 
@@ -241,13 +242,53 @@ final class AppModel {
         }
     }
 
-    func stopScouting(handedOff: (() -> Void)? = nil) {
-        guard isScouting, let session else { return }
+    private func endScoutingControls() {
         isScouting = false
+        confirmingDiscard = false
         breakHotkey?.unregister()
         scopeHotkeys?.widen.unregister()
         scopeHotkeys?.follow.unregister()
         hud.hidePill()
+    }
+
+    func discardScouting() async {
+        guard isScouting, let session else { return }
+        endScoutingControls()
+        boundTarget = nil
+        session.onSnippetClosed = nil
+        for card in dispatcher.cards where card.sessionID == session.id {
+            dispatcher.withdraw(card)
+        }
+        stackChanged()
+        await session.end()
+        session.walkthrough?.discard()
+        Self.removeSessionFiles(at: session.directory)
+    }
+
+    func discard(_ review: SessionReview) {
+        guard review.canDiscard else { return }
+        for card in review.tasks {
+            dispatcher.withdraw(card)
+        }
+        reviews[review.sessionID] = nil
+        if latestSessionID == review.sessionID { latestSessionID = nil }
+        if self.review === review { self.review = nil }
+        Self.removeSessionFiles(at: review.directory)
+        stackChanged()
+    }
+
+    private static func removeSessionFiles(at directory: URL) {
+        let manager = FileManager.default
+        try? manager.removeItem(at: directory)
+        let day = directory.deletingLastPathComponent()
+        if (try? manager.contentsOfDirectory(atPath: day.path))?.isEmpty == true {
+            try? manager.removeItem(at: day)
+        }
+    }
+
+    func stopScouting(handedOff: (() -> Void)? = nil) {
+        guard isScouting, let session else { return }
+        endScoutingControls()
         if let walkthrough = session.walkthrough {
             let pressed = ContinuousClock.now
             if let target = boundTarget {

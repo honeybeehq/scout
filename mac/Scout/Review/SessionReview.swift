@@ -27,6 +27,7 @@ final class SessionReview {
     var selectedTaskID: String?
     var playhead: SessionTime = 0
     var isEditingText = false
+    var confirmingDiscard = false
 
     static let minimumTaskLength: SessionTime = 0.6
     static let snapTolerance: SessionTime = 1.2
@@ -113,6 +114,10 @@ final class SessionReview {
     }
 
     var canUndo: Bool { !undoStack.isEmpty }
+
+    var canDiscard: Bool {
+        !isFinishing && !tasks.contains { $0.isLocked }
+    }
 
     func contains(_ card: SnippetCard) -> Bool {
         tasks.contains { $0 === card }

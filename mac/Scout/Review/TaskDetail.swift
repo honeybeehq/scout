@@ -36,6 +36,7 @@ struct TaskDetail: View {
 }
 
 private struct PlayerPanel: View {
+    @Environment(AppModel.self) private var model
     let review: SessionReview
     let player: ReviewPlayer
     let card: SnippetCard
@@ -110,6 +111,13 @@ private struct PlayerPanel: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(review.canSplit(card, at: review.playhead) ? Palette.textSecondary : Palette.textTertiary.opacity(0.5))
                 .disabled(!review.canSplit(card, at: review.playhead))
+
+                DiscardControl(question: "Discard this session?", help: review.canDiscard ? "Delete this session's recording and tasks. Nothing is sent or copied." : "Sessions with sent tasks, or a video still being prepared, can't be discarded.", asking: Bindable(review).confirmingDiscard) {
+                    player.detach()
+                    model.discard(review)
+                }
+                .disabled(!review.canDiscard)
+                .opacity(review.canDiscard ? 1 : 0.5)
             }
         }
     }

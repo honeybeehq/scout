@@ -28,7 +28,7 @@ struct ScoutingPill: View {
                         .foregroundStyle(Palette.textSecondary)
                 }
             }
-            .frame(maxWidth: 260, alignment: .leading)
+            .frame(maxWidth: model.confirmingDiscard ? 120 : 260, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
 
             if let session, session.segmentation == .manual {
@@ -83,6 +83,10 @@ struct ScoutingPill: View {
             }
             .buttonStyle(.plain)
             .help(session?.captureProblem ?? (following ? "Widen the captured area (\(model.widenShortcut.label)). \(model.followShortcut.label) follows the pointer again." : "Widen further (\(model.widenShortcut.label)), or follow the pointer again (\(model.followShortcut.label))"))
+
+            DiscardControl(question: "Discard this recording?", help: "Stop and delete this recording. Nothing is sent or copied.", asking: Bindable(model).confirmingDiscard) {
+                Task { await model.discardScouting() }
+            }
 
             Button {
                 model.finishScouting(input: InteractionTimings.now)

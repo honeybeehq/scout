@@ -9,7 +9,7 @@ final class HUDController {
     private var dockTask: Task<Void, Never>?
     private weak var model: AppModel?
 
-    static let pillSize = CGSize(width: 660, height: 44)
+    static let pillSize = CGSize(width: 880, height: 44)
     static let pillHeight: CGFloat = 36
     static let stackWidth: CGFloat = 360
     static let cursorOffset = CGPoint(x: 14, y: 14)
