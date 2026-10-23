@@ -70,7 +70,7 @@ private struct PlayerPanel: View {
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.1)))
             .onTapGesture { player.toggle() }
 
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 Button {
                     player.toggle()
                 } label: {
@@ -87,32 +87,37 @@ private struct PlayerPanel: View {
                 Text("\(SessionTimeline.clock(max(0, review.playhead - card.snippet.range.start), precise: true)) / \(SessionTimeline.clock(card.snippet.range.duration, precise: true))")
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
                     .foregroundStyle(Palette.textSecondary)
+                    .fixedSize()
 
-                Spacer()
+                Spacer(minLength: 0)
 
-                Toggle(isOn: Bindable(player).loopsTask) {
-                    Label("Loop task", systemImage: "repeat")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .toggleStyle(.button)
-                .buttonStyle(.plain)
-                .foregroundStyle(player.loopsTask ? Palette.text : Palette.textTertiary)
-
-                Button {
-                    player.pause()
-                    if let second = review.split(card, at: review.playhead) {
-                        review.selectedTaskID = card.snippet.id
-                        _ = second
+                if !review.confirmingDiscard {
+                    Toggle(isOn: Bindable(player).loopsTask) {
+                        Label("Loop task", systemImage: "repeat")
+                            .font(.system(size: 12, weight: .medium))
+                            .fixedSize()
                     }
-                } label: {
-                    Label("Split here", systemImage: "scissors")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(review.canSplit(card, at: review.playhead) ? Palette.textSecondary : Palette.textTertiary.opacity(0.5))
-                .disabled(!review.canSplit(card, at: review.playhead))
+                    .toggleStyle(.button)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(player.loopsTask ? Palette.text : Palette.textTertiary)
 
-                DiscardControl(question: "Discard this session?", help: review.canDiscard ? "Delete this session's recording and tasks. Nothing is sent or copied." : "Sessions with sent tasks, or a video still being prepared, can't be discarded.", asking: Bindable(review).confirmingDiscard) {
+                    Button {
+                        player.pause()
+                        if let second = review.split(card, at: review.playhead) {
+                            review.selectedTaskID = card.snippet.id
+                            _ = second
+                        }
+                    } label: {
+                        Label("Split here", systemImage: "scissors")
+                            .font(.system(size: 12, weight: .medium))
+                            .fixedSize()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(review.canSplit(card, at: review.playhead) ? Palette.textSecondary : Palette.textTertiary.opacity(0.5))
+                    .disabled(!review.canSplit(card, at: review.playhead))
+                }
+
+                DiscardControl(question: "Discard session?", help: review.canDiscard ? "Discard session: delete its recording and tasks. Nothing is sent or copied." : "Sessions with sent tasks, or a video still being prepared, can't be discarded.", compact: true, asking: Bindable(review).confirmingDiscard) {
                     player.detach()
                     model.discard(review)
                 }

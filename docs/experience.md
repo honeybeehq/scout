@@ -114,7 +114,7 @@ The review is where a finished recording becomes tasks you are happy to hand off
 - **Nothing you said gets lost.** Speech that isn't in any task shows as dashed amber on the timeline and under "Not in a task yet" in the list, with *New task* and *Add to task N* (the neighbouring task).
 - **Edit before sending.** The title and the transcript are editable (an *Edited* badge and *Use the original* appear). Elements under "Pointed at" can be left out. Pins show the frame at the moment of the pin.
 - **Hand-off.** Each task has its own destination and *Send task* (⌘↩). The header has *Send all to…* (one destination for every waiting task) and *Send all* (⌥⌘↩). Clips are cut from the task's current range when it is sent. Any edit puts a task that was counting down on hold.
-- **Discard.** *Discard* in the player bar asks "Discard this session?" and then deletes the session's video, signals and `review.json`, and its waiting tasks. A session with a sent task, or whose video is still being prepared, can't be discarded.
+- **Discard.** *Discard* in the player bar asks "Discard session?" and then deletes the session's video, signals and `review.json`, and its waiting tasks. A session with a sent task, or whose video is still being prepared, can't be discarded.
 - **Earlier sessions.** *Sessions* lists recent sessions; the menu bar's *Review* opens the latest. Each session keeps its tasks and edits in `review.json` next to its recording.
 
 ## The snippet stack

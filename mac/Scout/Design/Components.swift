@@ -166,6 +166,7 @@ struct Checkmark: View {
 struct DiscardControl: View {
     var question: String
     var help: String
+    var compact = false
     @Binding var asking: Bool
     var onDiscard: () -> Void
 
@@ -189,13 +190,19 @@ struct DiscardControl: View {
                 Button {
                     asking = true
                 } label: {
-                    Label("Discard", systemImage: "trash")
+                    if compact {
+                        Image(systemName: "trash")
+                            .accessibilityLabel("Discard")
+                    } else {
+                        Label("Discard", systemImage: "trash")
+                    }
                 }
                 .buttonStyle(DiscardCapsuleStyle(filled: false))
                 .help(help)
             }
         }
         .font(.system(size: 11.5, weight: .medium))
+        .fixedSize()
         .animation(Motion.snappy, value: asking)
         .task(id: asking) {
             guard asking else { return }
