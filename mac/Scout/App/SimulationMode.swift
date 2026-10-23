@@ -65,6 +65,50 @@ enum SimulationMode {
         argument("delivery-check").map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
+    static var openSettingsOutput: URL? {
+        argument("simulate-open-settings").map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    private static var windowOpens = 0
+
+    static func listenForOpenSettings(model: AppModel, output: URL) {
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        DistributedNotificationCenter.default().addObserver(forName: .init("com.trmdy.scout.simulate-open-settings"), object: nil, queue: .main) { note in
+            let command = note.object as? String ?? "settings"
+            Task { await openWindow(command, model: model, output: output) }
+        }
+    }
+
+    private static func openWindow(_ command: String, model: AppModel, output: URL) async {
+        let kind = command.replacingOccurrences(of: "minimize-", with: "")
+        let match = kind == "settings" ? "Settings" : kind == "review" ? ScoutApp.reviewWindowID : ScoutApp.onboardingWindowID
+        let window = { NSApp.windows.first { $0.identifier?.rawValue.contains(match) == true } }
+        if command.hasPrefix("minimize-") {
+            window()?.miniaturize(nil)
+            return
+        }
+        windowOpens += 1
+        let step = windowOpens
+        switch kind {
+        case "review": model.openLatestReview()
+        case "onboarding": model.openOnboarding?()
+        default: model.openSettingsWindow?()
+        }
+        try? await Task.sleep(for: .seconds(1.5))
+        writeJSON([
+            "step": step,
+            "window": kind,
+            "appActive": NSApp.isActive,
+            "activationPolicy": NSApp.activationPolicy().rawValue,
+            "keyWindow": NSApp.keyWindow?.title ?? "",
+            "windowVisible": window()?.isVisible ?? false,
+            "windowKey": window()?.isKeyWindow ?? false,
+            "windowMiniaturized": window()?.isMiniaturized ?? false,
+            "windowLevel": window()?.level.rawValue ?? -1,
+            "windowNumber": window()?.windowNumber ?? 0,
+        ], to: output.appendingPathComponent("open-\(step).json"))
+    }
+
     static func runDeliveryCheck(model: AppModel, directory: URL) async {
         let output = outputDirectory
         let label = argument("delivery-label") ?? "delivery"

@@ -80,6 +80,9 @@ final class AppModel {
         if let directory = SimulationMode.deliveryCheck {
             Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }
         }
+        if let output = SimulationMode.openSettingsOutput {
+            SimulationMode.listenForOpenSettings(model: self, output: output)
+        }
         if SimulationMode.reopensLatest {
             Task { await SimulationMode.reopenLatest(model: self) }
         }
