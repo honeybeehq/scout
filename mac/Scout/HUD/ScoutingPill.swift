@@ -31,58 +31,60 @@ struct ScoutingPill: View {
             .frame(maxWidth: model.confirmingDiscard ? 120 : 260, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
 
-            if let session, session.segmentation == .manual {
+            if !model.confirmingDiscard {
+                if let session, session.segmentation == .manual {
+                    Button {
+                        session.splitNow()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text("Task \(session.closedCount + 1) · Next")
+                                .contentTransition(.numericText())
+                            KeyHint(model.breakShortcut.symbols.joined())
+                        }
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(Palette.text)
+                        .padding(.horizontal, 9)
+                        .frame(height: 24)
+                        .overlay(Capsule().strokeBorder(Palette.stroke))
+                    }
+                    .buttonStyle(.plain)
+                    .help("End this task and start the next one")
+                }
+
+                let following = (follower?.scope ?? .follow) == .follow
                 Button {
-                    session.splitNow()
+                    let input = InteractionTimings.now
+                    if NSEvent.modifierFlags.contains(.shift) {
+                        follower?.follow(input: input)
+                    } else {
+                        follower?.expand(input: input)
+                    }
                 } label: {
                     HStack(spacing: 5) {
-                        Text("Task \(session.closedCount + 1) · Next")
-                            .contentTransition(.numericText())
-                        KeyHint(model.breakShortcut.symbols.joined())
+                        if session?.captureProblem != nil {
+                            Circle()
+                                .fill(Palette.caution)
+                                .frame(width: 6, height: 6)
+                        }
+                        Image(systemName: following ? "arrow.up.left.and.arrow.down.right" : "lock.fill")
+                            .font(.system(size: 9.5, weight: .semibold))
+                        Text(follower?.scopeTitle ?? "Following")
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 190, alignment: .leading)
+                            .fixedSize(horizontal: true, vertical: false)
+                        KeyHint(following ? model.widenShortcut.label : model.followShortcut.label)
                     }
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(Palette.text)
                     .padding(.horizontal, 9)
                     .frame(height: 24)
                     .overlay(Capsule().strokeBorder(Palette.stroke))
+                    .contentShape(.capsule)
                 }
                 .buttonStyle(.plain)
-                .help("End this task and start the next one")
+                .help(session?.captureProblem ?? (following ? "Widen the captured area (\(model.widenShortcut.label)). \(model.followShortcut.label) follows the pointer again." : "Widen further (\(model.widenShortcut.label)), or follow the pointer again (\(model.followShortcut.label))"))
             }
-
-            let following = (follower?.scope ?? .follow) == .follow
-            Button {
-                let input = InteractionTimings.now
-                if NSEvent.modifierFlags.contains(.shift) {
-                    follower?.follow(input: input)
-                } else {
-                    follower?.expand(input: input)
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    if session?.captureProblem != nil {
-                        Circle()
-                            .fill(Palette.caution)
-                            .frame(width: 6, height: 6)
-                    }
-                    Image(systemName: following ? "arrow.up.left.and.arrow.down.right" : "lock.fill")
-                        .font(.system(size: 9.5, weight: .semibold))
-                    Text(follower?.scopeTitle ?? "Following")
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: 190, alignment: .leading)
-                        .fixedSize(horizontal: true, vertical: false)
-                    KeyHint(following ? model.widenShortcut.label : model.followShortcut.label)
-                }
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(Palette.text)
-                .padding(.horizontal, 9)
-                .frame(height: 24)
-                .overlay(Capsule().strokeBorder(Palette.stroke))
-                .contentShape(.capsule)
-            }
-            .buttonStyle(.plain)
-            .help(session?.captureProblem ?? (following ? "Widen the captured area (\(model.widenShortcut.label)). \(model.followShortcut.label) follows the pointer again." : "Widen further (\(model.widenShortcut.label)), or follow the pointer again (\(model.followShortcut.label))"))
 
             let discardable = model.canDiscardScouting
             DiscardControl(question: "Discard this recording?", help: discardable ? "Stop and delete this recording (\(model.discardShortcut.label), then \(model.discardShortcut.label) again). Nothing is sent or copied." : "A task from this recording was already sent, so it can't be discarded. Finish keeps it.", shortcut: model.discardShortcut.label, asking: Bindable(model).confirmingDiscard) {
