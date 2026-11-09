@@ -10,10 +10,11 @@ struct TaskDetail: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
+            ScoutScroll(indicators: .automatic) {
                 HStack(alignment: .top, spacing: 28) {
                     VStack(alignment: .leading, spacing: 20) {
                         PlayerPanel(review: review, player: player, card: card)
+                        HandoffBar(review: review, card: card)
                         PinsSection(review: review, player: player, card: card)
                     }
                     .frame(minWidth: 380, maxWidth: .infinity, alignment: .top)
@@ -28,9 +29,6 @@ struct TaskDetail: View {
                 }
                 .padding(24)
             }
-            .scrollIndicators(.automatic)
-
-            HandoffBar(review: review, card: card)
         }
     }
 }
@@ -40,11 +38,19 @@ private struct PlayerPanel: View {
     let review: SessionReview
     let player: ReviewPlayer
     let card: SnippetCard
+    @Environment(\.stillRender) private var still
+    @Environment(\.stillFrame) private var stillFrame
 
     var body: some View {
         VStack(spacing: 10) {
             ZStack {
-                if review.video != nil {
+                if still, let stillFrame {
+                    Image(decorative: stillFrame, scale: 1)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Palette.sunken)
+                } else if review.video != nil {
                     PlayerSurface(player: player.player)
                 } else {
                     VStack(spacing: 10) {
@@ -61,13 +67,13 @@ private struct PlayerPanel: View {
                     }
                     .foregroundStyle(Palette.textTertiary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Palette.ink)
+                    .background(Palette.sunken)
                 }
             }
             .aspectRatio(aspect, contentMode: .fit)
             .frame(maxHeight: 420)
-            .clipShape(.rect(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.1)))
+            .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.stroke))
             .onTapGesture { player.toggle() }
 
             HStack(spacing: 12) {
@@ -76,30 +82,34 @@ private struct PlayerPanel: View {
                 } label: {
                     Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .frame(width: 34, height: 34)
-                        .background(Color.white.opacity(0.1), in: .circle)
+                        .foregroundStyle(Palette.onInk)
+                        .frame(width: 34, height: 30)
+                        .background(Palette.ink, in: .rect(cornerRadius: Radius.control, style: .continuous))
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
                 .disabled(review.video == nil)
                 .help("Play or pause (Space)")
 
-                Text("\(SessionTimeline.clock(max(0, review.playhead - card.snippet.range.start), precise: true)) / \(SessionTimeline.clock(card.snippet.range.duration, precise: true))")
-                    .font(.system(size: 12, weight: .medium).monospacedDigit())
-                    .foregroundStyle(Palette.textSecondary)
+                KeyHint("space")
+                Text("\(Text(SessionTimeline.clock(max(0, review.playhead - card.snippet.range.start), precise: true)).foregroundStyle(Palette.text)) / \(SessionTimeline.clock(card.snippet.range.duration, precise: true))")
+                    .font(.system(size: 12.5, weight: .bold).monospacedDigit())
+                    .foregroundStyle(Palette.textTertiary)
                     .fixedSize()
 
                 Spacer(minLength: 0)
 
                 if !review.confirmingDiscard {
-                    Toggle(isOn: Bindable(player).loopsTask) {
+                    Button {
+                        player.loopsTask.toggle()
+                    } label: {
                         Label("Loop task", systemImage: "repeat")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12, weight: .semibold))
                             .fixedSize()
+                            .foregroundStyle(player.loopsTask ? Palette.text : Palette.textTertiary)
                     }
-                    .toggleStyle(.button)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(player.loopsTask ? Palette.text : Palette.textTertiary)
+                    .buttonStyle(QuietButtonStyle())
+                    .accessibilityAddTraits(player.loopsTask ? .isSelected : [])
 
                     Button {
                         player.pause()
@@ -109,11 +119,10 @@ private struct PlayerPanel: View {
                         }
                     } label: {
                         Label("Split here", systemImage: "scissors")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12, weight: .semibold))
                             .fixedSize()
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(review.canSplit(card, at: review.playhead) ? Palette.textSecondary : Palette.textTertiary.opacity(0.5))
+                    .buttonStyle(QuietButtonStyle())
                     .disabled(!review.canSplit(card, at: review.playhead))
                 }
 
@@ -137,10 +146,17 @@ private struct TitleField: View {
     let review: SessionReview
     let card: SnippetCard
     @FocusState private var focused: Bool
+    @Environment(\.stillRender) private var still
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Task").eyebrowStyle(Palette.textTertiary)
+            if still {
+                Text(card.title)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Palette.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
             TextField("What should the agent do?", text: Binding(
                 get: { card.title },
                 set: { value in
@@ -151,13 +167,14 @@ private struct TitleField: View {
                 }
             ), axis: .vertical)
             .textFieldStyle(.plain)
-            .font(.system(size: 20, weight: .semibold))
+            .font(.system(size: 20, weight: .bold))
             .foregroundStyle(Palette.text)
             .disabled(card.isLocked)
             .focused($focused)
             .onChange(of: focused) { _, value in
                 review.isEditingText = value
                 if value { review.beginTextEdit() }
+            }
             }
         }
     }
@@ -168,6 +185,7 @@ private struct TranscriptField: View {
     let card: SnippetCard
     @FocusState private var focused: Bool
     @State private var width: CGFloat = 340
+    @Environment(\.stillRender) private var still
 
     static let fontSize: CGFloat = 14.5
     static let lineSpacing: CGFloat = 4
@@ -189,12 +207,7 @@ private struct TranscriptField: View {
             HStack {
                 Text("What you said").eyebrowStyle(Palette.textTertiary)
                 if card.transcriptOverride != nil {
-                    Text("Edited")
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundStyle(Palette.textSecondary)
-                        .padding(.horizontal, 7)
-                        .frame(height: 18)
-                        .background(Palette.fillRaised, in: .capsule)
+                    StateTag(text: "Edited", tone: .caution)
                     Spacer()
                     if !card.isLocked {
                         Button("Use the original") {
@@ -214,7 +227,18 @@ private struct TranscriptField: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
-                    .background(Color.white.opacity(0.03), in: .rect(cornerRadius: 12, style: .continuous))
+                    .background(Palette.fill, in: .rect(cornerRadius: Radius.card, style: .continuous))
+            } else if still {
+                Text(card.transcript)
+                    .font(.system(size: Self.fontSize))
+                    .lineSpacing(Self.lineSpacing)
+                    .foregroundStyle(Palette.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Palette.surface, in: .rect(cornerRadius: Radius.card, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.stroke))
             } else {
                 TextEditor(text: Binding(
                     get: { card.transcript },
@@ -232,8 +256,8 @@ private struct TranscriptField: View {
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                 .padding(.horizontal, 7)
                 .padding(.vertical, 10)
-                .background(Palette.fill, in: .rect(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(focused ? Color.white.opacity(0.28) : Palette.hairline))
+                .background(Palette.surface, in: .rect(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(focused ? Palette.accent : Palette.stroke, lineWidth: focused ? 1.5 : 1))
                 .onChange(of: focused) { _, value in
                     review.isEditingText = value
                     if value { review.beginTextEdit() }
@@ -281,6 +305,8 @@ private struct TargetChip: View {
                 Text(target.displayName)
                     .font(.system(size: 12.5, weight: .semibold))
                     .strikethrough(excluded)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
                 if let source = target.source {
                     Text(source.description)
                         .font(Typography.mono)
@@ -292,11 +318,12 @@ private struct TargetChip: View {
                 }
             }
             if !locked {
+                Spacer(minLength: 0)
                 Button(action: toggle) {
                     Image(systemName: excluded ? "plus" : "xmark")
                         .font(.system(size: 9.5, weight: .bold))
-                        .frame(width: 18, height: 18)
-                        .background(Color.white.opacity(0.08), in: .circle)
+                        .frame(width: 24, height: 24)
+                        .background(Palette.fillRaised, in: .rect(cornerRadius: Radius.tag + 1))
                 }
                 .buttonStyle(.plain)
                 .help(excluded ? "Include again" : "Leave out of the task")
@@ -305,8 +332,8 @@ private struct TargetChip: View {
         .padding(.leading, 12)
         .padding(.trailing, locked ? 12 : 8)
         .padding(.vertical, 8)
-        .background(excluded ? Color.clear : Palette.fill, in: .rect(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline))
+        .background(excluded ? Color.clear : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
         .opacity(excluded ? 0.5 : 1)
     }
 }
@@ -321,7 +348,7 @@ private struct PinsSection: View {
         if !marks.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Pins").eyebrowStyle(Palette.textTertiary)
-                ScrollView(.horizontal) {
+                ScoutScroll(axis: .horizontal) {
                     HStack(spacing: 10) {
                         ForEach(Array(marks.enumerated()), id: \.element.id) { index, mark in
                             PinThumbnail(review: review, mark: mark, number: index + 1)
@@ -332,7 +359,6 @@ private struct PinsSection: View {
                         }
                     }
                 }
-                .scrollIndicators(.never)
             }
         }
     }
@@ -352,20 +378,16 @@ private struct PinThumbnail: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } else {
-                    Color.white.opacity(0.05)
+                    Palette.fill
                 }
             }
             .frame(width: 168, height: 104)
-            .clipShape(.rect(cornerRadius: 10, style: .continuous))
+            .clipShape(.rect(cornerRadius: Radius.control, style: .continuous))
             .overlay(alignment: .topLeading) {
-                Text("\(number)")
-                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(width: 20, height: 20)
-                    .background(Palette.ink.opacity(0.75), in: .circle)
+                PinBadge(number: number)
                     .padding(6)
             }
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.white.opacity(0.1)))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
             Text(mark.target?.displayName ?? "Pinned spot")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(Palette.textSecondary)
@@ -388,13 +410,20 @@ private struct ContextSection: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let context = card.snippet.primaryContext {
                         HStack(spacing: 6) {
-                            Text(context.app.name).font(.system(size: 13, weight: .semibold))
-                            if let location = context.location ?? context.windowTitle, location != context.app.name {
-                                Text(location)
-                                    .font(Typography.mono)
-                                    .foregroundStyle(Palette.textSecondary)
+                            let location = context.location ?? context.windowTitle
+                            if let location, location.hasPrefix(context.app.name) {
+                                Text(location).font(.system(size: 13, weight: .semibold))
                                     .lineLimit(1)
                                     .truncationMode(.middle)
+                            } else {
+                                Text(context.app.name).font(.system(size: 13, weight: .semibold))
+                                if let location, location != context.app.name {
+                                    Text(location)
+                                        .font(Typography.mono)
+                                        .foregroundStyle(Palette.textSecondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
                             }
                         }
                     }
@@ -433,16 +462,15 @@ private struct HandoffBar: View {
         HStack(spacing: 14) {
             if case .sent(let destination) = card.state {
                 Label("Sent to \(destination)", systemImage: "checkmark")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Palette.textSecondary)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Palette.positive)
                     .lineLimit(1)
                 Spacer()
                 Button("Copy task") { copy() }
                     .buttonStyle(SecondaryButtonStyle())
             } else {
-                Text("Send to").font(Typography.caption).foregroundStyle(Palette.textTertiary)
                 DestinationPicker(card: card)
-                    .frame(maxWidth: 360, alignment: .leading)
+                    .frame(maxWidth: 300, alignment: .leading)
                 Spacer()
                 if let message = card.state.problem {
                     HStack(spacing: 6) {
@@ -466,7 +494,7 @@ private struct HandoffBar: View {
                 } label: {
                     HStack(spacing: 8) {
                         Text("Send task")
-                        Text("⌘↩").font(Typography.mono).opacity(0.7)
+                        KeyHint("⌘↩", emphasized: true)
                     }
                 }
                 .buttonStyle(PrimaryButtonStyle(large: false))
@@ -474,10 +502,9 @@ private struct HandoffBar: View {
                 .keyboardShortcut(.return, modifiers: .command)
             }
         }
-        .padding(.horizontal, 24)
-        .frame(height: 64)
-        .background(Palette.night.opacity(0.6))
-        .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+        .padding(.horizontal, 12)
+        .frame(height: 52)
+        .surfaceCard(Palette.surface)
     }
 
     private func copy() {
@@ -493,30 +520,26 @@ struct DestinationPicker: View {
     let card: SnippetCard
 
     var body: some View {
-        Menu {
+        ScoutMenu {
             ForEach(model.dispatcher.destinations(for: card), id: \.self) { destination in
                 Button(destination.label) { model.dispatcher.choose(destination, for: card) }
             }
         } label: {
+            let missing = card.destination == nil
             HStack(spacing: 6) {
-                if card.destination == nil {
-                    StatusDot(tone: .caution, size: 5)
-                } else {
-                    Image(systemName: "arrow.turn.down.right")
-                }
-                Text(card.destination?.label ?? "Choose where to send")
+                Image(systemName: missing ? "exclamationmark.circle.fill" : "arrow.turn.down.right")
+                Text(card.destination?.label ?? "Choose destination")
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .bold)).opacity(0.6)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .bold)).opacity(0.7)
             }
-            .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(card.destination == nil ? Palette.textSecondary : Palette.text)
-            .padding(.horizontal, 12)
-            .frame(height: 30)
-            .background(Color.white.opacity(0.07), in: .capsule)
+            .font(.system(size: 12.5, weight: .bold))
+            .foregroundStyle(missing ? Palette.onCaution : Palette.text)
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(missing ? Palette.cautionFill : Palette.canvas, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(missing ? Color.clear : Palette.stroke))
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
         .fixedSize(horizontal: false, vertical: true)
         .disabled(card.isLocked)
     }

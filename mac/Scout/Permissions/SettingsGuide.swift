@@ -139,7 +139,6 @@ struct SettingsGuideView: View {
             }
         }
         .frame(width: 320, height: 236)
-        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -149,14 +148,12 @@ private struct GuidingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                ScoutMark(litArcs: 3, pulsing: true)
+                ScoutMark(level: 3, pulsing: true)
                     .frame(width: 22, height: 22)
                 Text("Switch on Scout")
-                    .font(Typography.headline)
+                    .font(.system(size: 14, weight: .heavy))
                 Spacer()
-                Text(permission.title)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
+                StateTag(text: permission.title, tone: .active)
             }
 
             HStack(spacing: 14) {
@@ -178,9 +175,14 @@ private struct GuidingCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(18)
+        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.55)), in: .rect(cornerRadius: 24))
+        .background(Palette.hud, in: .rect(cornerRadius: Radius.panel, style: .continuous))
+        .overlay(alignment: .top) {
+            Rectangle().fill(Palette.accent).frame(height: 3)
+        }
+        .clipShape(.rect(cornerRadius: Radius.panel, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous).strokeBorder(Palette.stroke))
     }
 
     private var instruction: String {
@@ -200,11 +202,7 @@ private struct DoneCard: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Palette.ink)
-                .frame(width: 58, height: 58)
-                .background(Color.white.opacity(0.92), in: .circle)
+            Checkmark(size: 52)
             Text("\(permission.title) is on")
                 .font(Typography.headline)
             Text("Taking you back to Scout")
@@ -212,7 +210,12 @@ private struct DoneCard: View {
                 .foregroundStyle(Palette.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.55)), in: .rect(cornerRadius: 24))
+        .background(Palette.hud, in: .rect(cornerRadius: Radius.panel, style: .continuous))
+        .overlay(alignment: .top) {
+            Rectangle().fill(Palette.positive).frame(height: 3)
+        }
+        .clipShape(.rect(cornerRadius: Radius.panel, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous).strokeBorder(Palette.stroke))
     }
 }
 
@@ -243,7 +246,7 @@ private struct TogglePreview: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                 Capsule()
-                    .fill(on ? Color.accentColor : Color.white.opacity(0.18))
+                    .fill(on ? Color.accentColor : Palette.fillStrong)
                     .frame(width: 34, height: 20)
                     .overlay(alignment: on ? .trailing : .leading) {
                         Circle().fill(.white).padding(2)

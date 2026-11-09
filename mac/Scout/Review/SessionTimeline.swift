@@ -29,6 +29,7 @@ struct SessionTimeline: View {
 
     @State private var hoverX: CGFloat?
     @State private var draggingEdge: String?
+    @Environment(\.stillFrame) private var stillFrame
 
     static let filmTop: CGFloat = 18
     static let filmHeight: CGFloat = 58
@@ -85,15 +86,15 @@ struct SessionTimeline: View {
     }
 
     private func taskColor(_ card: SnippetCard) -> Color {
-        if card.snippet.id == review.selectedTask?.snippet.id { return Palette.accent }
-        return Color.white.opacity(card.state.isFinished ? 0.45 : 0.75)
+        if card.snippet.id == review.selectedTask?.snippet.id { return Palette.text }
+        return card.state.isFinished ? Palette.positive : Palette.text.opacity(0.75)
     }
 
     private func drawFilmstrip(in context: inout GraphicsContext, scale: TimelineScale) {
         let track = CGRect(x: scale.inset, y: Self.filmTop, width: scale.track, height: Self.filmHeight)
-        let shape = Path(roundedRect: track, cornerRadius: 10, style: .continuous)
-        context.fill(shape, with: .color(Color.white.opacity(0.05)))
-        let frames = review.filmstrip
+        let shape = Path(roundedRect: track, cornerRadius: 4, style: .continuous)
+        context.fill(shape, with: context.shade(Palette.fill))
+        let frames = stillFrame.map { [$0] } ?? review.filmstrip
         if let first = frames.first, let video = review.video {
             let covered = CGRect(x: scale.x(video.range.start), y: track.minY, width: scale.x(video.range.end) - scale.x(video.range.start), height: track.height)
             let aspect = CGFloat(first.width) / CGFloat(max(first.height, 1))
@@ -115,7 +116,7 @@ struct SessionTimeline: View {
             let range = card.snippet.range
             uncovered = uncovered.subtracting(Path(CGRect(x: scale.x(range.start), y: track.minY, width: scale.x(range.end) - scale.x(range.start), height: track.height)))
         }
-        dimmed.fill(uncovered, with: .color(Palette.ink.opacity(0.62)))
+        dimmed.fill(uncovered, with: context.shade(Palette.canvas.opacity(0.7)))
     }
 
     private func drawTasks(in context: inout GraphicsContext, scale: TimelineScale) {
@@ -123,15 +124,19 @@ struct SessionTimeline: View {
             let range = card.snippet.range
             let rect = CGRect(x: scale.x(range.start), y: Self.filmTop, width: max(2, scale.x(range.end) - scale.x(range.start)), height: Self.filmHeight)
                 .insetBy(dx: 1, dy: 1)
-            let shape = Path(roundedRect: rect, cornerRadius: 9, style: .continuous)
+            let shape = Path(roundedRect: rect, cornerRadius: 4, style: .continuous)
             let color = taskColor(card)
             let selected = card.snippet.id == review.selectedTask?.snippet.id
             if selected {
                 var band = context
                 band.clip(to: shape)
-                band.fill(Path(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: 3)), with: .color(color))
+                band.fill(Path(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: 4)), with: context.shade(color))
+                band.fill(Path(rect), with: context.shade(Palette.text.opacity(0.06)))
             }
-            context.stroke(shape, with: .color(color.opacity(selected ? 1 : 0.45)), lineWidth: selected ? 1.75 : 1)
+            if selected {
+                context.stroke(shape, with: context.shade(Palette.canvas), lineWidth: 5)
+            }
+            context.stroke(shape, with: context.shade(color.opacity(selected ? 1 : 0.5)), lineWidth: selected ? 2.5 : 1)
         }
     }
 
@@ -141,21 +146,21 @@ struct SessionTimeline: View {
             let middle = (utterance.range.start + utterance.range.end) / 2
             let inTask = covered.contains { middle >= $0.start && middle < $0.end }
             let rect = CGRect(x: scale.x(utterance.range.start), y: Self.speechTop, width: max(3, scale.x(utterance.range.end) - scale.x(utterance.range.start)), height: 8)
-            let shape = Path(roundedRect: rect, cornerRadius: 4)
+            let shape = Path(roundedRect: rect, cornerRadius: 2)
             if inTask {
-                context.fill(shape, with: .color(Color.white.opacity(0.32)))
+                context.fill(shape, with: context.shade(Palette.text.opacity(0.4)))
             } else if review.isLeftover(utterance) {
-                context.fill(shape, with: .color(Color.white.opacity(0.06)))
-                context.stroke(shape, with: .color(Color.white.opacity(0.55)), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                context.fill(shape, with: context.shade(Palette.caution.opacity(0.12)))
+                context.stroke(shape, with: context.shade(Palette.caution), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
             } else {
-                context.fill(shape, with: .color(Color.white.opacity(0.1)))
+                context.fill(shape, with: context.shade(Palette.fillStrong))
             }
         }
         for mark in review.ledger.marks {
             let center = CGPoint(x: scale.x(mark.at), y: Self.speechTop + 4)
-            let dot = Path(ellipseIn: CGRect(x: center.x - 4.5, y: center.y - 4.5, width: 9, height: 9))
-            context.fill(dot, with: .color(.white))
-            context.stroke(dot, with: .color(Palette.ink), lineWidth: 1.5)
+            let dot = Path(roundedRect: CGRect(x: center.x - 4.5, y: center.y - 4.5, width: 9, height: 9), cornerRadius: 2)
+            context.fill(dot, with: context.shade(Palette.accent))
+            context.stroke(dot, with: context.shade(Palette.canvas), lineWidth: 1.5)
         }
     }
 
@@ -167,13 +172,13 @@ struct SessionTimeline: View {
             guard name != previousApp else { continue }
             previousApp = name
             let x = scale.x(change.at)
-            context.fill(Path(CGRect(x: x - 0.5, y: 3, width: 1, height: 12)), with: .color(Color.white.opacity(0.35)))
+            context.fill(Path(CGRect(x: x - 0.5, y: 3, width: 1, height: 12)), with: context.shade(Palette.textTertiary))
             guard x - lastLabelX > 90 else { continue }
             lastLabelX = x
             let nearEnd = x > scale.width - scale.inset - 90
             context.draw(
                 Text(name).font(.system(size: 10, weight: .semibold)).foregroundStyle(Palette.textTertiary),
-                at: CGPoint(x: nearEnd ? x - 4 : x + 4, y: 9),
+                at: CGPoint(x: nearEnd ? x - 4 : x + 10, y: 9),
                 anchor: nearEnd ? .trailing : .leading
             )
         }
@@ -184,7 +189,7 @@ struct SessionTimeline: View {
         var time: SessionTime = 0
         while time <= scale.duration + 0.001 {
             let x = scale.x(time)
-            context.fill(Path(CGRect(x: x - 0.5, y: 100, width: 1, height: 4)), with: .color(Color.white.opacity(0.25)))
+            context.fill(Path(CGRect(x: x - 0.5, y: 100, width: 1, height: 4)), with: context.shade(Palette.stroke))
             context.draw(
                 Text(Self.clock(time)).font(.system(size: 10, weight: .medium).monospacedDigit()).foregroundStyle(Palette.textTertiary),
                 at: CGPoint(x: x, y: 112),
@@ -199,10 +204,10 @@ struct SessionTimeline: View {
         let width = scale.x(range.end) - scale.x(range.start)
         let color = taskColor(card)
         return Text("\(index + 1)")
-            .font(.system(size: 10.5, weight: .bold, design: .rounded))
-            .foregroundStyle(card.snippet.id == review.selectedTask?.snippet.id ? Color.white : Palette.textSecondary)
+            .font(.system(size: 10.5, weight: .heavy).monospacedDigit())
+            .foregroundStyle(card.snippet.id == review.selectedTask?.snippet.id ? Palette.onInk : Palette.text)
             .frame(minWidth: 18, minHeight: 18)
-            .background(card.snippet.id == review.selectedTask?.snippet.id ? AnyShapeStyle(color) : AnyShapeStyle(Palette.ink.opacity(0.7)), in: .circle)
+            .background(card.snippet.id == review.selectedTask?.snippet.id ? AnyShapeStyle(color) : AnyShapeStyle(Palette.surface.opacity(0.9)), in: .rect(cornerRadius: 3))
             .position(x: scale.x(range.start) + min(16, width / 2), y: Self.filmTop + 15)
             .opacity(width > 14 ? 1 : 0)
             .allowsHitTesting(false)
@@ -213,8 +218,8 @@ struct SessionTimeline: View {
         let x = scale.x(edge == .start ? range.start : range.end)
         let key = "\(card.snippet.id)-\(edge == .start ? "start" : "end")"
         let active = draggingEdge == key || card.snippet.id == review.selectedTask?.snippet.id
-        return Capsule()
-            .fill(active ? Color.white : Color.white.opacity(0.0001))
+        return RoundedRectangle(cornerRadius: 1.5)
+            .fill(active ? Palette.text : Color.white.opacity(0.0001))
             .frame(width: 4, height: 24)
             .shadow(color: .black.opacity(0.5), radius: 2)
             .frame(width: 14, height: Self.filmHeight)
@@ -242,13 +247,13 @@ struct SessionTimeline: View {
     private func hoverMarker(at x: CGFloat, scale: TimelineScale) -> some View {
         let time = scale.time(x)
         return ZStack(alignment: .top) {
-            Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1, height: Self.speechTop + 10 - 2)
+            Rectangle().fill(Palette.textTertiary).frame(width: 1, height: Self.speechTop + 10 - 2)
             Text(Self.clock(time, precise: true))
-                .font(.system(size: 10, weight: .semibold).monospacedDigit())
-                .foregroundStyle(Palette.ink)
+                .font(.system(size: 10, weight: .bold).monospacedDigit())
+                .foregroundStyle(Palette.canvas)
                 .padding(.horizontal, 5)
                 .frame(height: 15)
-                .background(Color.white.opacity(0.85), in: .capsule)
+                .background(Palette.text.opacity(0.85), in: .rect(cornerRadius: 3))
                 .offset(y: -1)
                 .fixedSize()
         }
@@ -271,11 +276,17 @@ private struct Playhead: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Rectangle().fill(Color.white).frame(width: 1.5, height: SessionTimeline.speechTop + 12)
-            Circle().fill(Color.white).frame(width: 9, height: 9).offset(y: -2)
+            Rectangle().fill(Palette.text).frame(width: 2, height: SessionTimeline.speechTop + 12)
+            RoundedRectangle(cornerRadius: 2).fill(Palette.text).frame(width: 10, height: 10).offset(y: -3)
         }
-        .shadow(color: .black.opacity(0.6), radius: 2)
+        .shadow(color: .black.opacity(0.35), radius: 1.5)
         .position(x: scale.x(review.playhead), y: (SessionTimeline.speechTop + 12) / 2)
         .allowsHitTesting(false)
+    }
+}
+
+extension GraphicsContext {
+    func shade(_ color: Color) -> GraphicsContext.Shading {
+        .color(Color(color.resolve(in: environment)))
     }
 }

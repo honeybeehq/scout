@@ -9,9 +9,8 @@ struct OnboardingView: View {
     var body: some View {
         let onboarding = model.onboarding
         ZStack {
-            Aurora(intensity: onboarding.step.glowIntensity)
+            SignalBackdrop(intensity: onboarding.step.glowIntensity)
                 .animation(Motion.smooth, value: onboarding.step)
-            Grain()
 
             VStack(spacing: 0) {
                 StepRail(current: onboarding.step)
@@ -29,7 +28,6 @@ struct OnboardingView: View {
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .scaledToUISize()
-        .environment(\.colorScheme, .dark)
         .onAppear {
             model.windowOpened()
             model.permissions.startMonitoring()
@@ -75,26 +73,28 @@ struct StepRail: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(steps) { step in
+        HStack(spacing: 4) {
+            ForEach(Array(steps.enumerated()), id: \.element) { index, step in
                 let isCurrent = step == current
                 let isDone = step.rawValue < current.rawValue
-                HStack(spacing: 6) {
-                    Capsule()
-                        .fill(isCurrent ? Color.white : Color.white.opacity(isDone ? 0.45 : 0.16))
-                        .frame(width: isCurrent ? 22 : 6, height: 6)
-                    if isCurrent {
+                VStack(alignment: .leading, spacing: 5) {
+                    Rectangle()
+                        .fill(isCurrent ? Palette.accent : isDone ? Palette.text : Palette.fillStrong)
+                        .frame(height: 3)
+                    HStack(spacing: 5) {
+                        Text(String(format: "%02d", index + 1))
+                            .monospacedDigit()
+                            .foregroundStyle(isCurrent ? Palette.accentText : Palette.textTertiary)
                         Text(step.title)
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.text)
-                            .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                            .foregroundStyle(isCurrent ? Palette.text : isDone ? Palette.textSecondary : Palette.textTertiary)
                     }
+                    .font(.system(size: 10.5, weight: .bold))
+                    .textCase(.uppercase)
+                    .tracking(0.6)
                 }
+                .frame(width: 112, alignment: .leading)
             }
         }
-        .padding(.horizontal, 14)
-        .frame(height: 30)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.3)), in: .capsule)
         .animation(Motion.snappy, value: current)
     }
 }
@@ -109,13 +109,13 @@ struct StepLayout<Content: View, Footer: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(eyebrow).eyebrowStyle()
+                Text(eyebrow).eyebrowStyle(Palette.textTertiary)
                 Text(title)
-                    .font(Typography.title)
-                    .tracking(-0.4)
+                    .font(.system(size: 30, weight: .heavy))
+                    .tracking(-0.6)
                     .foregroundStyle(Palette.text)
                 Text(message)
-                    .font(Typography.body)
+                    .font(.system(size: 15))
                     .foregroundStyle(Palette.textSecondary)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)

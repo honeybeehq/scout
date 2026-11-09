@@ -568,12 +568,16 @@ enum SimulationMode {
                 snapped = true
                 try? await Task.sleep(for: .milliseconds(600))
                 snapshotPanels(into: output, suffix: "live")
+                await DesignGallery.captureLive(model: model)
             }
         }
         try? await Task.sleep(for: .seconds(10))
         snapshotPanels(into: output, suffix: "before-stop")
         model.stopScouting()
         try? await Task.sleep(for: .seconds(4))
+        if DesignGallery.directory != nil {
+            await DesignGallery.captureReview(model: model)
+        }
         var reviewReport: [String: Any] = [:]
         if reviewsEdits, let review = model.review {
             reviewReport = await exerciseReview(review, model: model, output: output)
@@ -583,6 +587,9 @@ enum SimulationMode {
             await model.dispatcher.send(card)
         }
         try? await Task.sleep(for: .seconds(4))
+        if DesignGallery.directory != nil {
+            await DesignGallery.captureDelivered(model: model)
+        }
         let tasksBeforeClear = model.review?.tasks.count ?? -1
         model.dispatcher.dismissDelivered()
         reviewReport["tasksBeforeClearSent"] = tasksBeforeClear
@@ -591,6 +598,9 @@ enum SimulationMode {
         try? await Task.sleep(for: .seconds(1))
         snapshotPanels(into: output, suffix: "after-stop")
         writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport])
+        if DesignGallery.directory != nil {
+            await DesignGallery.captureFinished(model: model)
+        }
         NSApp.terminate(nil)
     }
 

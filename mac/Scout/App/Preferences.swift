@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 enum Segmentation: String, CaseIterable, Identifiable {
@@ -38,6 +38,35 @@ enum ReviewOpening: String, CaseIterable, Identifiable {
     }
 }
 
+enum ColorMode: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var appearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+
+    static var requested: ColorMode? {
+        let prefix = "--appearance="
+        return ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.flatMap { ColorMode(rawValue: String($0.dropFirst(prefix.count))) }
+    }
+}
+
 enum UISize: String, CaseIterable, Identifiable {
     case small
     case standard
@@ -57,7 +86,7 @@ enum UISize: String, CaseIterable, Identifiable {
 
     var scale: CGFloat {
         switch self {
-        case .small: 0.85
+        case .small: 0.86
         case .standard: 1
         case .large: 1.15
         case .extraLarge: 1.25
@@ -102,6 +131,13 @@ final class Preferences {
         didSet { defaults.set(uiSize.rawValue, forKey: "appearance.uiSize") }
     }
 
+    var colorMode: ColorMode {
+        didSet {
+            defaults.set(colorMode.rawValue, forKey: "appearance.colorMode")
+            NSApp?.appearance = colorMode.appearance
+        }
+    }
+
     static let agents = ["claude", "codex", "grok", "kimi"]
 
     init() {
@@ -113,6 +149,7 @@ final class Preferences {
             "scouting.segmentation": Segmentation.automatic.rawValue,
             "review.opening": ReviewOpening.whenNeeded.rawValue,
             "appearance.uiSize": UISize.standard.rawValue,
+            "appearance.colorMode": ColorMode.system.rawValue,
         ])
         autoSend = defaults.bool(forKey: "delivery.autoSend")
         autoSendDelay = defaults.double(forKey: "delivery.autoSendDelay")
@@ -121,5 +158,7 @@ final class Preferences {
         segmentation = Segmentation(rawValue: defaults.string(forKey: "scouting.segmentation") ?? "") ?? .automatic
         reviewOpening = ReviewOpening(rawValue: defaults.string(forKey: "review.opening") ?? "") ?? .whenNeeded
         uiSize = UISize.requested ?? UISize(rawValue: defaults.string(forKey: "appearance.uiSize") ?? "") ?? .standard
+        colorMode = ColorMode.requested ?? ColorMode(rawValue: defaults.string(forKey: "appearance.colorMode") ?? "") ?? .system
+        NSApp?.appearance = colorMode.appearance
     }
 }

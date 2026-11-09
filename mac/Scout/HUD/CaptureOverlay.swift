@@ -130,16 +130,13 @@ private struct CaptureFrame: View {
         let onThisScreen = local.map { CGRect(origin: .zero, size: screen.size).intersects($0) } ?? false
         ZStack(alignment: .topLeading) {
             if let local, onThisScreen {
-                Cutout(hole: local.insetBy(dx: -3, dy: -3), dimsOutside: true)
-                    .fill(Color.black.opacity(0.22), style: FillStyle(eoFill: true))
-                Cutout(hole: local.insetBy(dx: -3, dy: -3), dimsOutside: false)
-                    .stroke(Palette.accent, lineWidth: 2)
+                CaptureOutline(hole: local)
             } else if local != nil {
-                Color.black.opacity(0.22)
+                Palette.scrim
             }
             if let suggestion = follower.suggestion.map(localRect), CGRect(origin: .zero, size: screen.size).intersects(suggestion) {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Palette.accent.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Palette.accent.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
                     .frame(width: suggestion.width + 12, height: suggestion.height + 12)
                     .offset(x: suggestion.minX - 6, y: suggestion.minY - 6)
                     .transition(.opacity)
@@ -157,6 +154,44 @@ private struct CaptureFrame: View {
     }
 }
 
+struct CaptureOutline: View {
+    var hole: CGRect
+
+    var body: some View {
+        let outer = hole.insetBy(dx: -3, dy: -3)
+        ZStack(alignment: .topLeading) {
+            Cutout(hole: outer, dimsOutside: true)
+                .fill(Palette.scrim, style: FillStyle(eoFill: true))
+            Cutout(hole: outer, dimsOutside: false)
+                .stroke(Palette.accent, lineWidth: 2)
+            CornerTicks(rect: outer)
+                .stroke(Palette.accent, style: StrokeStyle(lineWidth: 4, lineCap: .square))
+        }
+    }
+}
+
+nonisolated private struct CornerTicks: Shape {
+    var rect: CGRect
+    var length: CGFloat = 16
+
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>> {
+        get { AnimatablePair(AnimatablePair(rect.minX, rect.minY), AnimatablePair(rect.width, rect.height)) }
+        set { rect = CGRect(x: newValue.first.first, y: newValue.first.second, width: newValue.second.first, height: newValue.second.second) }
+    }
+
+    func path(in _: CGRect) -> Path {
+        var path = Path()
+        let r = rect.insetBy(dx: -1, dy: -1)
+        let l = min(length, r.width / 3, r.height / 3)
+        for (corner, dx, dy) in [(CGPoint(x: r.minX, y: r.minY), 1.0, 1.0), (CGPoint(x: r.maxX, y: r.minY), -1.0, 1.0), (CGPoint(x: r.minX, y: r.maxY), 1.0, -1.0), (CGPoint(x: r.maxX, y: r.maxY), -1.0, -1.0)] {
+            path.move(to: CGPoint(x: corner.x + l * dx, y: corner.y))
+            path.addLine(to: corner)
+            path.addLine(to: CGPoint(x: corner.x, y: corner.y + l * dy))
+        }
+        return path
+    }
+}
+
 nonisolated private struct Cutout: Shape {
     var hole: CGRect
     var dimsOutside: Bool
@@ -169,7 +204,7 @@ nonisolated private struct Cutout: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         if dimsOutside { path.addRect(rect) }
-        path.addRoundedRect(in: hole, cornerSize: CGSize(width: 10, height: 10), style: .continuous)
+        path.addRoundedRect(in: hole, cornerSize: CGSize(width: 4, height: 4), style: .continuous)
         return path
     }
 }
@@ -180,33 +215,17 @@ struct KeepBothBubble: View {
             Text("You keep moving between these.")
                 .foregroundStyle(Palette.textSecondary)
             Text("Keep both in view")
-                .fontWeight(.semibold)
+                .fontWeight(.bold)
                 .foregroundStyle(Palette.text)
             KeyHint(KeyShortcut.widenCapture.label)
         }
         .font(.system(size: 12))
         .padding(.horizontal, 10)
         .frame(height: 28)
-        .background(Palette.ink.opacity(0.92), in: .capsule)
-        .overlay(Capsule().strokeBorder(Palette.stroke))
+        .background(Palette.hud, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
+        .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
         .fixedSize()
-    }
-}
-
-struct KeyHint: View {
-    let text: String
-
-    init(_ text: String) {
-        self.text = text
-    }
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-            .foregroundStyle(Palette.textSecondary)
-            .padding(.horizontal, 4)
-            .frame(minHeight: 16)
-            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Palette.stroke))
     }
 }
 
@@ -244,18 +263,5 @@ private struct InkLayer: View {
             path.addLine(to: CGPoint(x: point.x - origin.x, y: point.y - origin.y))
         }
         return path
-    }
-}
-
-private struct PinBadge: View {
-    let number: Int
-
-    var body: some View {
-        Text("\(number)")
-            .font(.system(size: 11.5, weight: .bold))
-            .foregroundStyle(Palette.ink)
-            .frame(width: 22, height: 22)
-            .background(Palette.accent, in: .circle)
-            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
     }
 }

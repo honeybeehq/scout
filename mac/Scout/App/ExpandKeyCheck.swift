@@ -137,7 +137,7 @@ enum ExpandKeyCheck {
     }
 
     private static func snapshotPill(_ model: AppModel, name: String, into directory: URL) {
-        ViewShot.write(ScoutingPill().environment(model).frame(width: HUDController.pillSize.width, height: HUDController.pillSize.height), to: directory.appendingPathComponent("\(name).png"))
+        ViewShot.write(ScoutingPill().environment(model).frame(width: ScoutingPill.windowSize.width, height: ScoutingPill.windowSize.height), to: directory.appendingPathComponent("\(name).png"))
     }
 }
 

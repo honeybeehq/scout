@@ -8,7 +8,7 @@ struct ReviewWindow: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Palette.night, Palette.ink], startPoint: .top, endPoint: .bottom)
+            Palette.canvas
                 .ignoresSafeArea()
             if let review = model.review {
                 ReviewContent(review: review, player: player)
@@ -19,7 +19,6 @@ struct ReviewWindow: View {
         }
         .frame(minWidth: 1140, minHeight: 700)
         .scaledToUISize()
-        .environment(\.colorScheme, .dark)
         .onAppear { model.windowOpened() }
         .onDisappear {
             player.detach()
@@ -44,7 +43,7 @@ private struct ReviewContent: View {
             HStack(spacing: 0) {
                 TaskList(review: review, player: player, onFocusRoot: { rootFocused = true })
                     .frame(width: 300)
-                    .background(Color.black.opacity(0.18))
+                    .background(Palette.surface)
                 Rectangle().fill(Palette.hairline).frame(width: 1)
                 if let card = review.selectedTask {
                     TaskDetail(review: review, player: player, card: card)
@@ -116,7 +115,7 @@ private struct SaveErrorBanner: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.05))
+        .background(Palette.negativeWash)
         .overlay(alignment: .bottom) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 }
@@ -129,18 +128,18 @@ private struct ReviewHeader: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ScoutMark(litArcs: 3, pulsing: review.isFinishing)
-                .frame(width: 26, height: 26)
+            ScoutMark(level: 3, pulsing: review.isFinishing)
+                .frame(width: 24, height: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(title).font(.system(size: 15, weight: .heavy))
                 Text(subtitle)
-                    .font(Typography.caption)
+                    .font(Typography.caption.monospacedDigit())
                     .foregroundStyle(Palette.textTertiary)
                     .lineLimit(1)
             }
             Spacer()
 
-            Menu {
+            ScoutMenu {
                 ForEach(sessions) { summary in
                     Button {
                         model.openReview(summary)
@@ -151,36 +150,29 @@ private struct ReviewHeader: View {
                 if sessions.isEmpty { Text("No earlier sessions") }
             } label: {
                 Label("Sessions", systemImage: "clock.arrow.circlepath")
-                    .font(.system(size: 12.5, weight: .medium))
+                    .modifier(SecondaryLabel())
             }
-            .menuStyle(.button)
-            .buttonStyle(SecondaryButtonStyle())
             .fixedSize()
             .onAppear { sessions = SessionLibrary.recent().filter { $0.id != review.sessionID } }
 
-            if review.unsentCount > 0 {
+            if review.unsentCount > 0, let card = review.selectedTask ?? review.tasks.first {
                 let missing = review.unsentCount - sendableCount
-                if missing > 0 {
-                    HStack(spacing: 6) {
-                        StatusDot(tone: .caution, size: 5)
-                        Text(missing == 1 ? "1 task needs a destination" : "\(missing) tasks need a destination")
+                ScoutMenu {
+                    ForEach(model.dispatcher.destinations(for: card), id: \.self) { destination in
+                        Button(destination.label) { review.assignDestinationToWaiting(destination) }
                     }
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
-                }
-                if let card = review.selectedTask ?? review.tasks.first {
-                    Menu {
-                        ForEach(model.dispatcher.destinations(for: card), id: \.self) { destination in
-                            Button(destination.label) { review.assignDestinationToWaiting(destination) }
-                        }
-                    } label: {
+                } label: {
+                    if missing > 0 {
+                        Label(missing == 1 ? "1 needs a destination" : "\(missing) need a destination", systemImage: "arrow.turn.down.right")
+                            .monospacedDigit()
+                            .modifier(SecondaryLabel(caution: true))
+                    } else {
                         Label("Send all to…", systemImage: "arrow.turn.down.right")
-                            .font(.system(size: 12.5, weight: .medium))
+                            .modifier(SecondaryLabel())
                     }
-                    .menuStyle(.button)
-                    .buttonStyle(SecondaryButtonStyle())
-                    .fixedSize()
                 }
+                .fixedSize()
+                .help("Choose one destination for every task still waiting")
             }
 
             Button {
@@ -189,8 +181,8 @@ private struct ReviewHeader: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Text(sendLabel)
-                    Text("⌥⌘↩").font(Typography.mono).opacity(0.7)
+                    Text(sendLabel).monospacedDigit()
+                    KeyHint("⌥⌘↩", emphasized: true)
                 }
             }
             .buttonStyle(PrimaryButtonStyle(large: false))
@@ -198,9 +190,9 @@ private struct ReviewHeader: View {
             .keyboardShortcut(.return, modifiers: [.command, .option])
         }
         .padding(.leading, 84)
-        .padding(.trailing, 20)
-        .frame(height: 58)
-        .background(Palette.night.opacity(0.5))
+        .padding(.trailing, 16)
+        .frame(height: 54)
+        .background(Palette.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 
@@ -265,9 +257,9 @@ private struct TimelinePanel: View {
             SessionTimeline(review: review, player: player)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(.top, 10)
         .padding(.bottom, 10)
-        .background(Color.black.opacity(0.28))
+        .background(Palette.sunken)
         .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 
@@ -276,12 +268,16 @@ private struct TimelinePanel: View {
             HStack(spacing: 5) {
                 Image(systemName: symbol)
                 Text(title)
+                KeyHint(shortcut)
             }
-            .font(.system(size: 12, weight: .medium))
-            .padding(.horizontal, 10)
+            .font(.system(size: 12, weight: .semibold))
+            .padding(.leading, 9)
+            .padding(.trailing, 5)
             .frame(height: 26)
-            .background(Color.white.opacity(enabled ? 0.07 : 0.03), in: .capsule)
-            .foregroundStyle(enabled ? Palette.text : Palette.textTertiary)
+            .background(Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(enabled ? Palette.stroke : Palette.hairline))
+            .foregroundStyle(enabled ? Palette.text : Palette.textQuaternary)
+            .opacity(enabled ? 1 : 0.6)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -295,7 +291,7 @@ private struct EmptyReview: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            ScoutMark(litArcs: 3)
+            ScoutMark(level: 3)
                 .frame(width: 64, height: 64)
             Text("No session open")
                 .font(Typography.title)
@@ -319,7 +315,7 @@ private struct EmptyReview: View {
                         .font(.system(size: 12.5))
                         .padding(.horizontal, 14)
                         .frame(height: 40)
-                        .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 10))
+                        .surfaceCard(Palette.surface)
                     }
                     .buttonStyle(.plain)
                 }
@@ -327,5 +323,20 @@ private struct EmptyReview: View {
             .frame(width: 520)
         }
         .onAppear { sessions = SessionLibrary.recent() }
+    }
+}
+
+private struct SecondaryLabel: ViewModifier {
+    var caution = false
+
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(caution ? Palette.onCaution : Palette.text)
+            .padding(.horizontal, 11)
+            .frame(height: 28)
+            .background(caution ? Palette.cautionFill : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(caution ? Color.clear : Palette.stroke))
+            .contentShape(.rect(cornerRadius: Radius.control))
     }
 }

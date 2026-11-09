@@ -249,22 +249,13 @@ private struct AimOverlay: View {
             Color.clear
             if aim.isAiming, let target = aim.hovered, let frame = target.frame {
                 let local = CGRect(x: frame.x - screenOrigin.x, y: frame.y - screenOrigin.y, width: frame.width, height: frame.height)
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Palette.accent.opacity(0.06))
-                    .strokeBorder(Palette.accent, lineWidth: 2)
+                AimOutline()
                     .frame(width: local.width + 6, height: local.height + 6)
                     .offset(x: local.minX - 3, y: local.minY - 3)
                     .animation(Motion.snappy, value: local)
 
-                Text(target.displayName)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(Palette.text)
-                    .padding(.horizontal, 9)
-                    .frame(height: 22)
-                    .background(Palette.ink.opacity(0.92), in: .capsule)
-                    .overlay(Capsule().strokeBorder(Palette.stroke))
-                    .fixedSize()
-                    .offset(x: local.minX - 3, y: max(4, local.minY - 30))
+                AimChip(label: target.displayName)
+                    .offset(x: local.minX - 3, y: max(4, local.minY - 28))
                     .animation(Motion.snappy, value: local)
             }
             ForEach(aim.pulses) { pulse in
@@ -286,10 +277,10 @@ private struct PinPulse: View {
                 .frame(width: 44, height: 44)
                 .scaleEffect(expanded ? 1.8 : 0.3)
                 .opacity(expanded ? 0 : 1)
-            Circle()
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(Palette.accent)
                 .frame(width: 16, height: 16)
-                .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(.white, lineWidth: 2))
                 .scaleEffect(expanded ? 1 : 0.3)
         }
         .onAppear {

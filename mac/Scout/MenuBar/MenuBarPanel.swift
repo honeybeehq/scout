@@ -5,33 +5,31 @@ struct MenuBarPanel: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                ScoutMark(litArcs: 3, pulsing: model.isScouting)
-                    .frame(width: 26, height: 26)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Scout").font(Typography.headline)
-                    Text(model.isScouting ? "Scouting. Talk and point." : "Ready when you are.")
-                        .font(Typography.caption)
-                        .foregroundStyle(model.isScouting ? Palette.text : Palette.textSecondary)
-                }
+                ScoutMark(level: 3, pulsing: model.isScouting)
+                    .frame(width: 22, height: 22)
+                Text("Scout").font(.system(size: 15, weight: .heavy))
                 Spacer()
+                if model.isScouting {
+                    StateTag(text: "Rec", tone: .active)
+                } else {
+                    StateTag(text: "Ready", tone: .neutral)
+                }
             }
 
             Button {
                 model.toggleScouting()
             } label: {
-                HStack {
-                    Image(systemName: model.isScouting ? "stop.fill" : "record.circle")
+                HStack(spacing: 8) {
+                    Image(systemName: model.isScouting ? "stop.fill" : "record.circle.fill")
                     Text(model.isScouting ? "Stop scouting" : "Start scouting")
                     Spacer()
-                    Text(model.shortcut.symbols.joined())
-                        .font(Typography.mono)
-                        .opacity(0.8)
+                    KeyHint(model.shortcut.symbols.joined(), emphasized: true)
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(PrimaryButtonStyle(large: false))
+            .buttonStyle(PrimaryButtonStyle(large: true))
 
             if let walkthrough = model.lastWalkthrough {
                 LastWalkthroughRow(walkthrough: walkthrough)
@@ -41,28 +39,34 @@ struct MenuBarPanel: View {
                     .foregroundStyle(Palette.textSecondary)
             }
 
-            HStack {
-                Text("Or split what you say into tasks")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                Spacer()
-                Button("Split into tasks") { model.startSplitTasks() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(Palette.textSecondary)
-                    .disabled(model.isScouting)
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Split what you say into tasks")
+                        .font(Typography.callout)
+                        .foregroundStyle(Palette.textSecondary)
+                    Spacer()
+                    Button("Split into tasks") { model.startSplitTasks() }
+                        .buttonStyle(SecondaryButtonStyle())
+                        .disabled(model.isScouting)
+                }
+                .padding(.vertical, 8)
+                Rectangle().fill(Palette.hairline).frame(height: 1)
+                SegmentationToggle()
+                    .padding(.vertical, 8)
             }
 
-            SegmentationToggle()
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
                     Text("Recent").eyebrowStyle(Palette.textTertiary)
+                    let sent = model.dispatcher.cards.suffix(5).filter { $0.state.isFinished }.count
+                    if sent > 0 {
+                        Text("\(sent) sent")
+                            .font(Typography.caption.monospacedDigit())
+                            .foregroundStyle(Palette.positive)
+                    }
                     Spacer()
                     Button("Review") { model.openLatestReview() }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(Palette.textSecondary)
+                        .buttonStyle(QuietButtonStyle())
                 }
                 if model.review?.saveError != nil {
                     HStack(spacing: 6) {
@@ -75,23 +79,28 @@ struct MenuBarPanel: View {
                 let recent = model.dispatcher.cards.suffix(5).reversed()
                 if recent.isEmpty {
                     Text("Tasks you capture show up here.")
-                        .font(.system(size: 12.5))
+                        .font(Typography.callout)
                         .foregroundStyle(Palette.textTertiary)
+                        .padding(.vertical, 4)
                 } else {
-                    ForEach(Array(recent)) { card in
-                        RecentTaskRow(card: card)
+                    VStack(spacing: 0) {
+                        ForEach(Array(recent)) { card in
+                            RecentTaskRow(card: card)
+                        }
                     }
                 }
             }
-            .padding(12)
+            .padding(.horizontal, 10)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 12))
+            .surfaceCard(Palette.surface)
 
             integrationLine
 
-            Divider().overlay(Palette.hairline)
+            Rectangle().fill(Palette.hairline).frame(height: 1)
 
-            HStack {
+            HStack(spacing: 2) {
                 Button(model.onboarding.isComplete ? "Setup guide" : "Finish setup") {
                     model.onboarding.restart()
                     model.openOnboarding?()
@@ -100,20 +109,27 @@ struct MenuBarPanel: View {
                 Button("Settings") { model.openSettingsWindow?() }
                     .buttonStyle(QuietButtonStyle())
                 Spacer()
-                Button("Quit") { NSApp.terminate(nil) }
-                    .buttonStyle(QuietButtonStyle())
-                    .keyboardShortcut("q")
+                Button {
+                    NSApp.terminate(nil)
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("Quit")
+                        KeyHint("⌘Q")
+                    }
+                }
+                .buttonStyle(QuietButtonStyle())
+                .keyboardShortcut("q")
             }
         }
-        .padding(16)
+        .padding(14)
         .frame(width: 320)
+        .background(Palette.canvas)
         .scaledToUISize()
-        .environment(\.colorScheme, .dark)
         .task { await model.integrations.refresh() }
     }
 
     private var integrationLine: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             switch model.integrations.hive {
             case .connected(let count): StatusBadge(text: "hive · \(count) active", tone: .positive)
             case .checking: StatusBadge(text: "hive · checking", tone: .caution)
@@ -139,29 +155,12 @@ private struct SegmentationToggle: View {
         @Bindable var preferences = model.preferences
         HStack(spacing: 10) {
             Text("New task on")
-                .font(Typography.caption)
+                .font(Typography.callout)
                 .foregroundStyle(Palette.textSecondary)
             Spacer()
-            HStack(spacing: 2) {
-                ForEach(Segmentation.allCases) { mode in
-                    Button {
-                        withAnimation(Motion.snappy) { preferences.segmentation = mode }
-                    } label: {
-                        Text(mode == .automatic ? "Auto" : "\(model.breakShortcut.symbols.joined()) only")
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(preferences.segmentation == mode ? Palette.ink : Palette.textSecondary)
-                            .padding(.horizontal, 10)
-                            .frame(height: 24)
-                            .background {
-                                if preferences.segmentation == mode { Capsule().fill(.white) }
-                            }
-                            .contentShape(.capsule)
-                    }
-                    .buttonStyle(.plain)
-                }
+            SegmentedChoice(options: Segmentation.allCases, selection: $preferences.segmentation) { mode in
+                mode == .automatic ? "Auto" : "\(model.breakShortcut.symbols.joined()) only"
             }
-            .padding(2)
-            .background(Color.white.opacity(0.07), in: .capsule)
             .disabled(model.isScouting)
         }
         .help(preferences.segmentation.explanation)
@@ -173,34 +172,22 @@ private struct RecentTaskRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 14)
+            StateRail(color: CardStateTag.color(for: card.state))
+                .frame(height: 14)
             Text(card.title)
                 .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(card.state.isFinished ? Palette.textSecondary : Palette.text)
                 .lineLimit(1)
             Spacer(minLength: 4)
+            if card.state.isFinished {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10.5, weight: .heavy))
+                    .foregroundStyle(Palette.positive)
+            } else {
+                CardStateTag(state: card.state)
+            }
         }
-    }
-
-    private var icon: String {
-        switch card.state {
-        case .sent: "checkmark.circle.fill"
-        case .failed: "exclamationmark.triangle.fill"
-        case .copiedInstead: "doc.on.clipboard.fill"
-        case .needsDestination, .held: "pause.circle.fill"
-        default: "arrow.up.circle"
-        }
-    }
-
-    private var tint: Color {
-        switch card.state {
-        case .sent: Palette.textTertiary
-        case .failed, .copiedInstead: Palette.negative
-        case .needsDestination, .held: Palette.textSecondary
-        default: Palette.textSecondary
-        }
+        .frame(height: 26)
     }
 }
 
@@ -232,14 +219,10 @@ private struct LastWalkthroughRow: View {
             }
             Spacer(minLength: 4)
             Button("Send…") { model.sendLastWalkthrough() }
-                .buttonStyle(.plain)
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(Palette.textSecondary)
+                .buttonStyle(SecondaryButtonStyle())
                 .disabled(model.isScouting)
             Button("Copy") { model.copyLastWalkthrough() }
-                .buttonStyle(.plain)
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(Palette.textSecondary)
+                .buttonStyle(QuietButtonStyle())
             Button {
                 model.revealLastWalkthrough()
             } label: {

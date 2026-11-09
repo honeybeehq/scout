@@ -25,7 +25,7 @@ enum SnapshotMode {
 
     private static func captureMenuBarPanel(model: AppModel, into directory: URL) async {
         let window = NSWindow(contentRect: CGRect(x: 80, y: 80, width: 10, height: 10), styleMask: [.borderless], backing: .buffered, defer: false)
-        window.backgroundColor = NSColor(Palette.night)
+        window.backgroundColor = NSColor(Palette.canvas)
         window.sharingType = .readOnly
         let host = NSHostingView(rootView: MenuBarPanel().environment(model))
         window.contentView = host
@@ -60,6 +60,9 @@ enum SnapshotMode {
     private typealias WindowImageFunction = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
 
     static func windowImage(_ windowID: CGWindowID) -> CGImage? {
+        if screenIsLocked, let window = NSApp.windows.first(where: { CGWindowID($0.windowNumber) == windowID }) {
+            return offscreenImage(of: window)
+        }
         guard let handle = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", RTLD_LAZY),
               let symbol = dlsym(handle, "CGWindowListCreateImage")
         else { return nil }
@@ -67,5 +70,18 @@ enum SnapshotMode {
         let options = CGWindowListOption.optionIncludingWindow.rawValue
         let imageOptions = CGWindowImageOption([.boundsIgnoreFraming, .bestResolution]).rawValue
         return function(.null, options, windowID, imageOptions)?.takeRetainedValue()
+    }
+
+    static var screenIsLocked: Bool {
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return session["CGSSessionScreenIsLocked"] as? Bool ?? false
+    }
+
+    static func offscreenImage(of window: NSWindow) -> CGImage? {
+        guard let view = window.contentView?.superview ?? window.contentView else { return nil }
+        view.layoutSubtreeIfNeeded()
+        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        return rep.cgImage
     }
 }

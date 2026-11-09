@@ -18,14 +18,14 @@ struct VoiceStep: View {
                 TranscriptStage(finalized: transcriber.finalizedText, volatile: transcriber.volatileText)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                LevelBars(levels: levels, active: transcriber.phase == .listening)
+                LevelBars(levels: levels, active: transcriber.phase == .listening, tint: Palette.accent, square: true)
                     .frame(height: 44)
 
                 status
                     .frame(height: 26)
             }
-            .padding(28)
-            .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 30))
+            .padding(24)
+            .surfaceCard(Palette.surface, radius: Radius.panel)
         } footer: {
             BackButton()
             Spacer()
@@ -113,15 +113,16 @@ private struct TranscriptStage: View {
 struct LevelBars: View {
     var levels: [Float]
     var active: Bool
-    var tint: Color = .white
+    var tint: Color = Palette.text
     var maxHeight: CGFloat = 44
     var barWidth: CGFloat = 4
+    var square = false
 
     var body: some View {
         HStack(alignment: .center, spacing: barWidth) {
             ForEach(Array(levels.enumerated()), id: \.offset) { index, level in
                 let edgeFade = min(1, Double(min(index, levels.count - 1 - index)) / 8 + 0.15)
-                Capsule()
+                RoundedRectangle(cornerRadius: square ? barWidth * 0.25 : barWidth / 2, style: .continuous)
                     .fill(tint.opacity(active ? (levels.count > 12 ? edgeFade : 1) : 0.18))
                     .frame(width: barWidth, height: max(barWidth, CGFloat(level) * maxHeight))
             }

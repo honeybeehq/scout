@@ -8,17 +8,18 @@ struct TaskList: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
+            ScoutScroll {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text("Tasks").eyebrowStyle(Palette.textTertiary)
                         Spacer()
                         Text(summary)
-                            .font(Typography.caption)
+                            .font(Typography.caption.monospacedDigit())
                             .foregroundStyle(Palette.textTertiary)
                     }
                     .padding(.horizontal, 10)
-                    .padding(.bottom, 4)
+                    .padding(.top, 4)
+                    .padding(.bottom, 6)
 
                     ForEach(Array(review.tasks.enumerated()), id: \.element.id) { index, card in
                         TaskRow(card: card, index: index, selected: card.snippet.id == review.selectedTask?.snippet.id)
@@ -65,9 +66,8 @@ struct TaskList: View {
                         }
                     }
                 }
-                .padding(10)
+                .padding(8)
             }
-            .scrollIndicators(.never)
             .onChange(of: review.selectedTask?.id) { _, id in
                 guard let id else { return }
                 withAnimation(Motion.smooth) { proxy.scrollTo(id, anchor: .center) }
@@ -90,18 +90,20 @@ private struct TaskRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Text("\(index + 1)")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(selected ? Color.white : Palette.textSecondary)
-                .frame(width: 22, height: 22)
-                .background(selected ? Palette.accent : Palette.fillRaised, in: .circle)
+            Text(String(format: "%02d", index + 1))
+                .font(.system(size: 11, weight: .heavy).monospacedDigit())
+                .foregroundStyle(selected ? Palette.onInk : Palette.textSecondary)
+                .frame(width: 24, height: 20)
+                .background(selected ? Palette.ink : Palette.fillRaised, in: .rect(cornerRadius: Radius.tag + 1, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(card.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Palette.text)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6) {
                     Text(SessionTimeline.clock(card.snippet.range.start))
                         .monospacedDigit()
@@ -113,23 +115,24 @@ private struct TaskRow: View {
                         Text(app).lineLimit(1)
                     }
                 }
-                .font(.system(size: 11))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Palette.textTertiary)
                 StateLine(card: card)
             }
             Spacer(minLength: 0)
         }
-        .padding(10)
+        .padding(.vertical, 9)
+        .padding(.leading, 11)
+        .padding(.trailing, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(selected ? Color.white.opacity(0.09) : Color.clear)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .fill(selected ? Palette.selection : Color.clear)
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(selected ? Palette.hairline : .clear, lineWidth: 1)
+        .overlay(alignment: .leading) {
+            if selected { StateRail(color: Palette.ink).padding(.vertical, 6) }
         }
-        .contentShape(.rect(cornerRadius: 12))
+        .contentShape(.rect(cornerRadius: Radius.control))
         .animation(.easeOut(duration: 0.12), value: selected)
     }
 
@@ -141,9 +144,9 @@ struct StateLine: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: symbol).foregroundStyle(tint)
-            Text(text).lineLimit(1).foregroundStyle(Palette.textTertiary)
+            Text(text).lineLimit(1).foregroundStyle(card.state == .needsDestination ? Palette.textSecondary : tint)
         }
-        .font(.system(size: 11, weight: .medium))
+        .font(.system(size: 11, weight: .semibold))
     }
 
     private var symbol: String {
@@ -165,7 +168,7 @@ struct StateLine: View {
         case .copiedInstead: "Not sent, copied instead"
         case .sending: "Sending…"
         case .countdown: "Sending soon"
-        case .needsDestination: "Choose where it goes"
+        case .needsDestination: "Needs destination"
         case .preparing: "Preparing"
         case .held, .withdrawn: card.destination.map { "To \($0.label)" } ?? "Ready"
         }
@@ -173,9 +176,10 @@ struct StateLine: View {
 
     private var tint: Color {
         switch card.state {
-        case .sent: Palette.textTertiary
+        case .sent: Palette.positive
         case .failed, .copiedInstead: Palette.negative
         case .needsDestination: Palette.caution
+        case .countdown, .sending: Palette.accentText
         default: Palette.textTertiary
         }
     }
@@ -213,8 +217,8 @@ private struct LeftoverRow: View {
         }
         .padding(10)
         .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Palette.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(Palette.caution.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         }
     }
 }
@@ -223,10 +227,10 @@ private struct LeftoverActionStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Palette.textSecondary)
-            .padding(.horizontal, 9)
-            .frame(height: 22)
-            .background(configuration.isPressed ? Palette.fillStrong : Palette.fillRaised, in: .capsule)
+            .foregroundStyle(Palette.text)
+            .padding(.horizontal, 8)
+            .frame(height: 24)
+            .background(configuration.isPressed ? Palette.fillStrong : Palette.fillRaised, in: .rect(cornerRadius: Radius.control, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
     }
 }

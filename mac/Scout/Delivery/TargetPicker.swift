@@ -160,7 +160,7 @@ final class TargetPickerController {
         panel.becomesKeyOnlyIfNeeded = false
         panel.sharingType = SimulationMode.panelSharing
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
-        let host = NSHostingView(rootView: TargetPickerView().environment(model).environment(\.colorScheme, .dark))
+        let host = NSHostingView(rootView: TargetPickerView().environment(model))
         host.sizingOptions = []
         panel.contentView = host
         panel.layoutIfNeeded()
@@ -309,9 +309,8 @@ struct TargetPickerView: View {
             }
         }
         .frame(width: TargetPickerController.size.width, height: model.isCompact ? 52 : TargetPickerController.size.height, alignment: .topLeading)
-        .background(Palette.night.opacity(0.94), in: .rect(cornerRadius: 20, style: .continuous))
-        .glassEffect(.regular.tint(Palette.night.opacity(0.3)), in: .rect(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Palette.stroke, lineWidth: 1))
+        .background(Palette.hud, in: .rect(cornerRadius: Radius.panel, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous).strokeBorder(Palette.stroke, lineWidth: 1))
         .onChange(of: model.focusToken, initial: true) { fieldFocused = true }
     }
 
@@ -426,8 +425,8 @@ struct TargetPickerView: View {
                 .focused($fieldFocused)
                 .padding(.horizontal, 10)
                 .frame(height: 30)
-                .background(Palette.fill, in: .rect(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Palette.hairline))
+                .background(Palette.fill, in: .rect(cornerRadius: Radius.control, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.hairline))
             rows
         }
         .padding(.horizontal, 16)
@@ -494,7 +493,7 @@ struct TargetPickerView: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 30)
-        .background(selected ? Palette.fillStrong : .clear, in: .rect(cornerRadius: 7, style: .continuous))
+        .background(selected ? Palette.selection : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
     }
 
     private var footer: some View {

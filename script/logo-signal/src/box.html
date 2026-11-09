@@ -1,0 +1,7 @@
+<script>
+window.box=async(u,N)=>{const im=new Image();im.src=u;await im.decode();const S=im.width,f=S/N;
+const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d',{colorSpace:'srgb'});x.drawImage(im,0,0);const d=x.getImageData(0,0,S,S).data;
+const o=new ImageData(N,N);for(let Y=0;Y<N;Y++)for(let X=0;X<N;X++){let r=0,g=0,b=0,a=0;for(let y=Y*f;y<(Y+1)*f;y++)for(let xx=X*f;xx<(X+1)*f;xx++){const i=(y*S+xx)*4,A=d[i+3];r+=d[i]*A;g+=d[i+1]*A;b+=d[i+2]*A;a+=A}
+const j=(Y*N+X)*4;o.data[j+3]=Math.round(a/(f*f));if(a>0){o.data[j]=Math.round(r/a);o.data[j+1]=Math.round(g/a);o.data[j+2]=Math.round(b/a)}}
+const oc=document.createElement('canvas');oc.width=oc.height=N;oc.getContext('2d').putImageData(o,0,0);return oc.toDataURL('image/png')};
+window.__done=true</script>

@@ -11,17 +11,18 @@ struct AccessStep: View {
             message: "macOS asks you to switch on three things. Scout checks each one as you go and brings you back when it's done."
         ) {
             HStack(alignment: .center, spacing: 44) {
-                ZStack {
-                    Circle()
-                        .fill(RadialGradient(colors: [Color.white.opacity(0.06), .clear], center: .center, startRadius: 2, endRadius: 120))
-                        .frame(width: 240, height: 240)
-                    ScoutMark(litArcs: permissions.grantedCount, pulsing: permissions.allGranted)
-                        .frame(width: 128, height: 128)
-                        .offset(x: -6, y: -6)
+                VStack(spacing: 14) {
+                    ScoutMark(level: permissions.grantedCount, pulsing: permissions.allGranted)
+                        .frame(width: 150, height: 150)
+                    Text("\(permissions.grantedCount)/3 on")
+                        .font(.system(size: 13, weight: .heavy).monospacedDigit())
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                        .foregroundStyle(permissions.allGranted ? Palette.positive : Palette.textSecondary)
                 }
-                .frame(width: 220)
+                .frame(width: 200)
 
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     ForEach(Permission.allCases) { permission in
                         PermissionRow(
                             permission: permission,
@@ -54,8 +55,8 @@ private struct PermissionRow: View {
     let isNext: Bool
 
     var body: some View {
-        HStack(spacing: 16) {
-            IconOrb(symbol: permission.symbol, active: isNext)
+        HStack(spacing: 14) {
+            IconOrb(symbol: permission.symbol, size: 36, active: isNext)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(permission.title)
@@ -77,12 +78,17 @@ private struct PermissionRow: View {
             }
             .animation(Motion.iconSwap, value: state)
         }
-        .padding(.horizontal, 18)
-        .frame(height: 78)
-        .glassEffect(.regular.tint(Palette.night.opacity(isNext ? 0.1 : 0.3)), in: .rect(cornerRadius: 22))
+        .padding(.leading, 17)
+        .padding(.trailing, 14)
+        .frame(height: 72)
+        .background(Palette.surface, in: .rect(cornerRadius: Radius.card, style: .continuous))
+        .overlay(alignment: .leading) {
+            StateRail(color: state.isGranted ? Palette.positive : isNext ? Palette.accent : Color.clear)
+        }
+        .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(isNext ? Palette.stroke : .clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(isNext ? Palette.stroke : Palette.hairline, lineWidth: 1)
         }
         .opacity(state.isGranted ? 0.85 : 1)
         .animation(Motion.smooth, value: isNext)

@@ -16,9 +16,10 @@ struct ConnectStep: View {
                     ApiaryCard(status: integrations.apiary)
                         .frame(width: 250)
                 }
-                .frame(maxHeight: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
 
                 RoutePicker(route: $integrations.route, hiveAvailable: hiveAvailable)
+                Spacer(minLength: 0)
             }
         } footer: {
             BackButton()
@@ -59,19 +60,17 @@ private struct HiveCard: View {
                     .font(.system(size: 12.5))
                     .foregroundStyle(Palette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
             } else {
                 VStack(spacing: 6) {
                     ForEach(sessions) { session in
                         SessionRow(session: session)
                     }
                 }
-                Spacer(minLength: 0)
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 22))
+        .surfaceCard(Palette.surface, radius: Radius.panel)
     }
 
     private var isConnected: Bool {
@@ -93,7 +92,7 @@ private struct HiveCard: View {
         switch status {
         case .checking: "Checking for hive…"
         case .connected: "No active sessions yet. Scout can start one for each task."
-        case .unreachable(let reason): "hive didn't answer: \(reason)"
+        case .unreachable(let reason): "hive is installed, but Scout couldn't talk to it (\(reason))."
         case .missing: "Without hive, Scout copies tasks to your clipboard and saves them to a folder."
         }
     }
@@ -104,9 +103,7 @@ private struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(session.isWorking ? Palette.positive : Palette.textQuaternary)
-                .frame(width: 7, height: 7)
+            StatusDot(tone: session.isWorking ? .positive : .neutral, size: 7)
             VStack(alignment: .leading, spacing: 1) {
                 Text(session.displayTitle)
                     .font(.system(size: 12.5, weight: .semibold))
@@ -122,13 +119,13 @@ private struct SessionRow: View {
             Text(session.agent)
                 .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, 7)
+                .padding(.horizontal, 6)
                 .frame(height: 18)
-                .background(Color.white.opacity(0.08), in: .capsule)
+                .background(Palette.fillRaised, in: .rect(cornerRadius: Radius.tag))
         }
         .padding(.horizontal, 10)
         .frame(height: 40)
-        .background(Color.white.opacity(0.04), in: .rect(cornerRadius: 8))
+        .background(Palette.fill, in: .rect(cornerRadius: Radius.control))
     }
 }
 
@@ -155,9 +152,9 @@ private struct ApiaryCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(18)
+        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 22))
+        .surfaceCard(Palette.surface, radius: Radius.panel)
     }
 
     private var message: String {
@@ -184,36 +181,15 @@ private struct RoutePicker: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            GlassEffectContainer(spacing: 4) {
-                HStack(spacing: 4) {
-                    ForEach(DeliveryRoute.allCases) { option in
-                        Button {
-                            withAnimation(Motion.snappy) { route = option }
-                        } label: {
-                            Text(option.title)
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .foregroundStyle(route == option ? Palette.ink : Palette.textSecondary)
-                                .padding(.horizontal, 14)
-                                .frame(height: 30)
-                                .background {
-                                    if route == option {
-                                        Capsule().fill(.white)
-                                    }
-                                }
-                                .contentShape(.capsule)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(4)
-                .glassEffect(.regular, in: .capsule)
+            if hiveAvailable {
+                SegmentedChoice(options: DeliveryRoute.allCases, selection: $route, title: \.title)
+            } else {
+                StateTag(text: "Clipboard", tone: .neutral)
             }
-            .disabled(!hiveAvailable)
-            .opacity(hiveAvailable ? 1 : 0.5)
         }
-        .padding(.leading, 28)
-        .padding(.trailing, 16)
-        .frame(height: 70)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .capsule)
+        .padding(.leading, 18)
+        .padding(.trailing, 14)
+        .frame(height: 66)
+        .surfaceCard(Palette.surface, radius: Radius.panel)
     }
 }

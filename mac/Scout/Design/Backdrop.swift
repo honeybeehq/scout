@@ -1,51 +1,45 @@
 import SwiftUI
 
-struct Aurora: View {
-    var glow: Color = Palette.accent
+struct SignalBackdrop: View {
     var intensity: Double = 1
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
-        let field = AuroraField(glow: glow, intensity: intensity, still: reduceMotion)
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { @Sendable context in
-            field.mesh(at: context.date)
+        ZStack {
+            Palette.canvas
+            GridLines()
+                .stroke(Palette.hairline.opacity(0.7), lineWidth: 1)
+            Grain()
         }
         .ignoresSafeArea()
     }
 }
 
-nonisolated struct AuroraField: Sendable {
-    let glow: Color
-    let intensity: Double
-    let still: Bool
+nonisolated private struct GridLines: Shape {
+    var spacing: CGFloat = 48
 
-    func mesh(at date: Date) -> MeshGradient {
-        MeshGradient(width: 3, height: 3, points: points(at: still ? 0 : date.timeIntervalSinceReferenceDate), colors: colors)
-    }
-
-    private var colors: [Color] {
-        [
-            Palette.ink, Palette.night, Palette.ink,
-            Palette.indigo.opacity(0.9), Palette.plum.opacity(0.75), Palette.night,
-            glow.opacity(0.55 * intensity), Palette.plum.opacity(0.6), Palette.indigo.opacity(0.85),
-        ]
-    }
-
-    private func points(at t: TimeInterval) -> [SIMD2<Float>] {
-        func drift(_ speed: Double, _ amount: Double, _ offset: Double) -> Float {
-            Float(sin(t * speed + offset) * amount)
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        var x = rect.minX + spacing
+        while x < rect.maxX {
+            path.move(to: CGPoint(x: x, y: rect.minY))
+            path.addLine(to: CGPoint(x: x, y: rect.maxY))
+            x += spacing
         }
-        return [
-            [0, 0], [0.5 + drift(0.21, 0.08, 0), 0], [1, 0],
-            [0, 0.5 + drift(0.17, 0.10, 1)], [0.5 + drift(0.23, 0.12, 2), 0.5 + drift(0.19, 0.10, 3)], [1, 0.5 + drift(0.13, 0.12, 4)],
-            [0, 1], [0.5 + drift(0.15, 0.14, 5), 1], [1, 1],
-        ]
+        var y = rect.minY + spacing
+        while y < rect.maxY {
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.addLine(to: CGPoint(x: rect.maxX, y: y))
+            y += spacing
+        }
+        return path
     }
 }
 
 struct Grain: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
+        let dark = colorScheme == .dark
         Canvas { @Sendable context, size in
             var generator = SeededGenerator(seed: 7)
             let count = Int(size.width * size.height / 90)
@@ -53,11 +47,10 @@ struct Grain: View {
                 let x = Double.random(in: 0..<size.width, using: &generator)
                 let y = Double.random(in: 0..<size.height, using: &generator)
                 let alpha = Double.random(in: 0.015..<0.05, using: &generator)
-                context.fill(Path(CGRect(x: x, y: y, width: 1, height: 1)), with: .color(.white.opacity(alpha)))
+                context.fill(Path(CGRect(x: x, y: y, width: 1, height: 1)), with: .color((dark ? Color.white : Color.black).opacity(alpha * (dark ? 1 : 0.6))))
             }
         }
         .allowsHitTesting(false)
-        .blendMode(.plusLighter)
     }
 }
 

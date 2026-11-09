@@ -137,7 +137,7 @@ private struct MockCheckout: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 32)
-            .background(Color.white.opacity(0.04))
+            .background(Palette.fill)
 
             HStack(alignment: .top, spacing: 18) {
                 VStack(alignment: .leading, spacing: 14) {
@@ -146,7 +146,7 @@ private struct MockCheckout: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Email").font(Typography.caption).foregroundStyle(Palette.textSecondary)
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.06))
+                            .fill(Palette.fillRaised)
                             .overlay(alignment: .leading) {
                                 Text(verbatim: "you@studio.dev").font(.system(size: 13)).foregroundStyle(Palette.textTertiary).padding(.leading, 10)
                             }
@@ -163,11 +163,11 @@ private struct MockCheckout: View {
                         Text("Cancel")
                             .font(.system(size: 13, weight: .medium))
                             .padding(.horizontal, 14).frame(height: 32)
-                            .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 8))
+                            .background(Palette.fillRaised, in: .rect(cornerRadius: 8))
                             .practiceElement(.cancel)
                         Text("Pay now")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Palette.ink)
+                            .foregroundStyle(Color(hex: 0x10131C))
                             .padding(.horizontal, 10).frame(height: 24)
                             .background(Color(hex: 0xB9C1D9), in: .rect(cornerRadius: 6))
                             .practiceElement(.payNow)
@@ -185,14 +185,14 @@ private struct MockCheckout: View {
                 }
                 .padding(14)
                 .frame(width: 170)
-                .background(Color.white.opacity(0.05), in: .rect(cornerRadius: 12))
+                .background(Palette.fill, in: .rect(cornerRadius: 12))
                 .practiceElement(.summary)
             }
             .padding(20)
         }
         .foregroundStyle(Palette.text)
-        .background(Palette.ink.opacity(0.55), in: .rect(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Palette.hairline))
+        .background(Palette.surface, in: .rect(cornerRadius: Radius.panel))
+        .overlay(RoundedRectangle(cornerRadius: Radius.panel).strokeBorder(Palette.stroke))
     }
 }
 
@@ -202,20 +202,11 @@ private struct AimHighlight: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Palette.accent.opacity(0.08))
-                .strokeBorder(Palette.accent, lineWidth: 1.5)
+            AimOutline()
                 .frame(width: frame.width + 8, height: frame.height + 8)
                 .offset(x: frame.minX - 4, y: frame.minY - 4)
 
-            Text("\(element.role) “\(element.label)”")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Palette.text)
-                .padding(.horizontal, 8)
-                .frame(height: 20)
-                .background(Palette.ink.opacity(0.9), in: .capsule)
-                .overlay(Capsule().strokeBorder(Palette.stroke))
-                .fixedSize()
+            AimChip(role: element.role, label: element.label)
                 .offset(x: frame.minX - 4, y: frame.minY - 30)
         }
         .allowsHitTesting(false)
@@ -234,10 +225,10 @@ private struct PinMarker: View {
                 .frame(width: 34, height: 34)
                 .scaleEffect(ripple ? 1.6 : 0.4)
                 .opacity(ripple ? 0 : 0.9)
-            Circle()
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(Palette.accent)
                 .frame(width: 14, height: 14)
-                .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(.white, lineWidth: 2))
         }
         .allowsHitTesting(false)
         .transition(.scale(scale: 0.2).combined(with: .opacity))
@@ -262,10 +253,21 @@ private struct PinTray: View {
             }
 
             if pins.isEmpty {
-                Text("Try pinning the tiny “Pay now” button.")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(Palette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No pins yet")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(Palette.textSecondary)
+                    Text("Try pinning the tiny “Pay now” button.")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Palette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background {
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .strokeBorder(Palette.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                }
             }
 
             ForEach(pins.reversed()) { pin in
@@ -279,14 +281,16 @@ private struct PinTray: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 8))
+                .overlay(alignment: .leading) { StateRail(color: Palette.accent) }
+                .background(Palette.fillRaised, in: .rect(cornerRadius: Radius.control))
+                .clipShape(.rect(cornerRadius: Radius.control))
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             Spacer(minLength: 0)
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .rect(cornerRadius: 20))
+        .surfaceCard(Palette.surface, radius: Radius.panel)
     }
 }
 
@@ -297,9 +301,9 @@ private struct ShortcutRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "record.circle")
+            Image(systemName: "record.circle.fill")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Palette.textSecondary)
+                .foregroundStyle(Palette.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Start scouting from anywhere")
                     .font(Typography.headline)
@@ -313,10 +317,10 @@ private struct ShortcutRow: View {
             Button(recording ? "Cancel" : "Change") { recording ? stopRecording() : startRecording() }
                 .buttonStyle(SecondaryButtonStyle())
         }
-        .padding(.leading, 26)
-        .padding(.trailing, 16)
-        .frame(height: 64)
-        .glassEffect(.regular.tint(Palette.night.opacity(0.25)), in: .capsule)
+        .padding(.leading, 18)
+        .padding(.trailing, 14)
+        .frame(height: 60)
+        .surfaceCard(Palette.surface, radius: Radius.panel)
         .onDisappear(perform: stopRecording)
     }
 

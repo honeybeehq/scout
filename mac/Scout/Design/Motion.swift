@@ -22,11 +22,12 @@ private struct StaggeredEntrance: ViewModifier {
     var index: Int
     @State private var shown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.stillRender) private var still
 
     func body(content: Content) -> some View {
         content
-            .opacity(shown ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 8)
+            .opacity(shown || still ? 1 : 0)
+            .offset(y: shown || reduceMotion || still ? 0 : 8)
             .onAppear {
                 withAnimation(.spring(duration: 0.45, bounce: 0).delay(0.08 + Double(index) * 0.1)) { shown = true }
             }

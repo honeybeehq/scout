@@ -8,7 +8,11 @@ struct SettingsView: View {
     }
 
     @Environment(AppModel.self) private var model
-    @State private var pane = SettingsView.requestedPane ?? .general
+    @State private var pane: Pane
+
+    init(pane: Pane? = nil) {
+        _pane = State(initialValue: pane ?? SettingsView.requestedPane ?? .general)
+    }
 
     static var requestedPane: Pane? {
         let prefix = "--settings-pane="
@@ -16,15 +20,79 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView(selection: $pane) {
-            Tab("General", systemImage: "gearshape", value: .general) { GeneralSettings() }
-            Tab("Agents", systemImage: "hexagon", value: .agents) { AgentSettings() }
-            Tab("SDKs", systemImage: "chevron.left.forwardslash.chevron.right", value: .sdks) { SDKSettings() }
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                ForEach(Array(Pane.allCases.enumerated()), id: \.element) { index, item in
+                    PaneTab(title: item.title, symbol: item.symbol, shortcut: "⌘\(index + 1)", selected: pane == item) {
+                        withAnimation(Motion.snappy) { pane = item }
+                    }
+                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(Palette.surface)
+            .overlay(alignment: .bottom) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+
+            Group {
+                switch pane {
+                case .general: GeneralSettings()
+                case .agents: AgentSettings()
+                case .sdks: SDKSettings()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 560, height: 420)
-        .environment(\.colorScheme, .dark)
-        .background(Palette.ink)
+        .frame(width: 560, height: 620)
+        .background(Palette.canvas)
         .scaledToUISize()
+    }
+}
+
+extension SettingsView.Pane {
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .agents: "Agents"
+        case .sdks: "SDKs"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: "gearshape.fill"
+        case .agents: "arrow.turn.down.right"
+        case .sdks: "chevron.left.forwardslash.chevron.right"
+        }
+    }
+}
+
+private struct PaneTab: View {
+    var title: String
+    var symbol: String
+    var shortcut: String
+    var selected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .bold))
+                Text(title)
+                KeyHint(shortcut, emphasized: selected)
+            }
+            .font(.system(size: 12.5, weight: .bold))
+            .foregroundStyle(selected ? Palette.onInk : Palette.textSecondary)
+            .padding(.leading, 10)
+            .padding(.trailing, 6)
+            .frame(height: 28)
+            .background(selected ? Palette.ink : Color.clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .contentShape(.rect(cornerRadius: Radius.control))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -33,14 +101,15 @@ private struct SettingsSection<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title).eyebrowStyle(Palette.textTertiary)
-            VStack(alignment: .leading, spacing: 14) {
+                .padding(.leading, 2)
+            VStack(alignment: .leading, spacing: 0) {
                 content
             }
-            .padding(16)
+            .padding(.horizontal, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular.tint(Palette.night.opacity(0.35)), in: .rect(cornerRadius: 18))
+            .surfaceCard(Palette.surface)
         }
     }
 }
@@ -48,12 +117,13 @@ private struct SettingsSection<Content: View>: View {
 private struct SettingRow<Trailing: View>: View {
     var title: String
     var detail: String?
+    var divider = true
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(Typography.headline)
+                Text(title).font(Typography.headline).foregroundStyle(Palette.text)
                 if let detail {
                     Text(detail)
                         .font(Typography.caption)
@@ -64,6 +134,22 @@ private struct SettingRow<Trailing: View>: View {
             Spacer(minLength: 12)
             trailing
         }
+        .padding(.vertical, 10)
+        .overlay(alignment: .top) {
+            if divider { Rectangle().fill(Palette.hairline).frame(height: 1) }
+        }
+    }
+}
+
+private struct SettingNote: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
+            .font(Typography.caption)
+            .foregroundStyle(Palette.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.bottom, 10)
     }
 }
 
@@ -72,29 +158,28 @@ private struct GeneralSettings: View {
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+        ScoutScroll {
+            VStack(alignment: .leading, spacing: 16) {
                 UISizeSection()
                 SettingsSection(title: "Scouting") {
-                    SettingRow(title: "Start or stop scouting", detail: "Works in any app. Change it in the setup guide.") {
-                        KeyCombo(symbols: model.shortcut.symbols, size: 26)
+                    SettingRow(title: "Start or stop scouting", detail: "Works in any app. Change it in the setup guide.", divider: false) {
+                        KeyHint(model.shortcut.symbols.joined(), large: true)
                     }
                     SettingRow(title: "Aim and pin", detail: "Hold ⌥ while scouting, then click an element.") {
-                        Keycap(symbol: "⌥", size: 26)
+                        KeyHint("⌥", large: true)
                     }
                     SettingRow(title: "Next task", detail: "While scouting, ends the current task and starts the next.") {
-                        KeyCombo(symbols: model.breakShortcut.symbols, size: 26)
+                        KeyHint(model.breakShortcut.symbols.joined(), large: true)
                     }
                     SettingRow(title: "Discard recording", detail: "While scouting, asks to discard; press it again to delete the recording. Esc keeps it.") {
-                        KeyCombo(symbols: model.discardShortcut.symbols, size: 26)
+                        KeyHint(model.discardShortcut.symbols.joined(), large: true)
                     }
                 }
                 SplittingSection()
                 SettingsSection(title: "App") {
-                    SettingRow(title: "Open Scout at login", detail: nil) {
+                    SettingRow(title: "Open Scout at login", detail: nil, divider: false) {
                         Toggle("", isOn: $opensAtLogin)
-                            .toggleStyle(.switch)
-                            .tint(Palette.accent)
+                            .toggleStyle(SignalToggleStyle())
                             .labelsHidden()
                             .onChange(of: opensAtLogin) { _, enabled in model.opensAtLogin = enabled }
                     }
@@ -104,7 +189,7 @@ private struct GeneralSettings: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(20)
         }
     }
 }
@@ -115,19 +200,12 @@ private struct SplittingSection: View {
     var body: some View {
         @Bindable var preferences = model.preferences
         SettingsSection(title: "Tasks") {
-            Picker("Start a new task", selection: $preferences.segmentation) {
-                ForEach(Segmentation.allCases) { Text($0.title).tag($0) }
+            SettingRow(title: "Start a new task", detail: nil, divider: false) {
+                SegmentedChoice(options: Segmentation.allCases, selection: $preferences.segmentation, title: \.title)
             }
-            .pickerStyle(.segmented)
-            Text(preferences.segmentation.explanation)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
+            SettingNote(text: preferences.segmentation.explanation)
             SettingRow(title: "Open the review after scouting", detail: "Trim clips, fix splits and send tasks.") {
-                Picker("", selection: $preferences.reviewOpening) {
-                    ForEach(ReviewOpening.allCases) { Text($0.title).tag($0) }
-                }
-                .labelsHidden()
-                .fixedSize()
+                ChoiceMenu(options: ReviewOpening.allCases, selection: $preferences.reviewOpening, title: \.title)
             }
         }
     }
@@ -138,14 +216,13 @@ private struct UISizeSection: View {
 
     var body: some View {
         @Bindable var preferences = model.preferences
-        SettingsSection(title: "Size") {
-            Picker("Interface size", selection: $preferences.uiSize) {
-                ForEach(UISize.allCases) { Text($0.title).tag($0) }
+        SettingsSection(title: "Display") {
+            SettingRow(title: "Interface size", detail: "Text, controls and panels in every Scout window.", divider: false) {
+                SegmentedChoice(options: UISize.allCases, selection: $preferences.uiSize, title: \.title)
             }
-            .pickerStyle(.segmented)
-            Text("Text, controls and panels in every Scout window.")
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
+            SettingRow(title: "Appearance", detail: nil) {
+                SegmentedChoice(options: ColorMode.allCases, selection: $preferences.colorMode, title: \.title)
+            }
         }
     }
 }
@@ -156,46 +233,36 @@ private struct AgentSettings: View {
     var body: some View {
         @Bindable var integrations = model.integrations
         @Bindable var preferences = model.preferences
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+        ScoutScroll {
+            VStack(alignment: .leading, spacing: 16) {
                 SettingsSection(title: "Routing") {
-                    Picker("Where tasks go", selection: $integrations.route) {
-                        ForEach(DeliveryRoute.allCases) { Text($0.title).tag($0) }
+                    SettingRow(title: "Where tasks go", detail: nil, divider: false) {
+                        SegmentedChoice(options: DeliveryRoute.allCases, selection: $integrations.route, title: \.title)
                     }
-                    .pickerStyle(.segmented)
-                    Text(integrations.route.explanation)
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
+                    SettingNote(text: integrations.route.explanation)
                     SettingRow(title: "Agent for new sessions", detail: "Used when Scout starts a session for a task.") {
-                        Picker("", selection: $preferences.defaultAgent) {
-                            ForEach(Preferences.agents, id: \.self) { Text($0).tag($0) }
-                        }
-                        .labelsHidden()
-                        .fixedSize()
+                        ChoiceMenu(options: Preferences.agents, selection: $preferences.defaultAgent) { $0 }
                     }
                 }
                 SettingsSection(title: "Sending") {
-                    SettingRow(title: "Send automatically", detail: "Each task waits a moment so you can hold it or change where it goes.") {
+                    SettingRow(title: "Send automatically", detail: "Each task waits a moment so you can hold it or change where it goes.", divider: false) {
                         Toggle("", isOn: $preferences.autoSend)
-                            .toggleStyle(.switch)
-                            .tint(Palette.accent)
+                            .toggleStyle(SignalToggleStyle())
                             .labelsHidden()
                     }
                     if preferences.autoSend {
                         SettingRow(title: "Wait before sending", detail: nil) {
-                            Stepper("\(Int(preferences.autoSendDelay)) s", value: $preferences.autoSendDelay, in: 1...30, step: 1)
-                                .fixedSize()
+                            NumberStepper(value: $preferences.autoSendDelay, range: 1...30, unit: "s")
                         }
                     }
                     SettingRow(title: "Attach video clips", detail: "The part of the recording each task covers.") {
                         Toggle("", isOn: $preferences.includeClips)
-                            .toggleStyle(.switch)
-                            .tint(Palette.accent)
+                            .toggleStyle(SignalToggleStyle())
                             .labelsHidden()
                     }
                 }
             }
-            .padding(24)
+            .padding(20)
         }
     }
 }
@@ -212,17 +279,15 @@ private struct SDKSettings: View {
 
     var body: some View {
         let bridge = model.bridge
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+        ScoutScroll {
+            VStack(alignment: .leading, spacing: 16) {
                 SettingsSection(title: "Bridge") {
-                    SettingRow(title: "Status", detail: bridge.port.map { "Listening on 127.0.0.1:\($0)" } ?? bridge.failure ?? "Starting…") {
+                    SettingRow(title: "Status", detail: bridge.port.map { "Listening on 127.0.0.1:\($0)" } ?? bridge.failure ?? "Starting…", divider: false) {
                         StatusBadge(text: bridge.port == nil ? "Off" : "On", tone: bridge.port == nil ? .negative : .positive)
                     }
                     let apps = bridge.clients.filter { $0.hello != nil }
                     if apps.isEmpty {
-                        Text("No apps connected. Add the SDK to a dev server and open the app.")
-                            .font(Typography.caption)
-                            .foregroundStyle(Palette.textTertiary)
+                        SettingNote(text: "No apps connected. Add the SDK to a dev server and open the app.")
                     } else {
                         ForEach(apps) { client in
                             HStack(spacing: 10) {
@@ -236,6 +301,7 @@ private struct SDKSettings: View {
                                     .font(Typography.mono)
                                     .foregroundStyle(Palette.textTertiary)
                             }
+                            .padding(.vertical, 8)
                         }
                     }
                 }
@@ -245,6 +311,9 @@ private struct SDKSettings: View {
                         .foregroundStyle(Palette.text)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Palette.sunken, in: .rect(cornerRadius: Radius.control, style: .continuous))
+                        .padding(.top, 12)
                     HStack {
                         Text("Development only. The plugin does nothing in production builds.")
                             .font(Typography.caption)
@@ -257,9 +326,10 @@ private struct SDKSettings: View {
                         }
                         .buttonStyle(SecondaryButtonStyle())
                     }
+                    .padding(.vertical, 10)
                 }
             }
-            .padding(24)
+            .padding(20)
         }
     }
 }

@@ -1,0 +1,26 @@
+<!doctype html><html><body style="margin:0;background:transparent"><canvas id=c width=1024 height=1024></canvas>
+<script>window.onerror=(m)=>{window.__err=String(m);window.__done=true}</script><script src="shader-v2-signal.js"></script>
+<script>
+const P=new URLSearchParams(location.search);const C=+P.get('c')||1;const S=+P.get('s')||1024;
+const cv=document.getElementById('c');cv.width=cv.height=S;
+const gl=cv.getContext('webgl2',{premultipliedAlpha:true,preserveDrawingBuffer:true,antialias:false});
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){document.title='ERR';window.__err=gl.getShaderInfoLog(o);throw new Error(window.__err)}return o}
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,`#version 300 es
+in vec2 a;void main(){gl_Position=vec4(a,0,1);}`));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,`#version 300 es
+precision highp float;
+#define C ${C}
+#define V ${+P.get("v")||0}
+#define RES ${S}.0
+${Object.entries(JSON.parse(P.get("d")||"{}")).map(([k,v])=>`#define ${k} ${v}`).join("\n")}
+`+FRAG));
+gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){window.__err="link:"+gl.getProgramInfoLog(pr);window.__done=true;throw 0}gl.useProgram(pr);
+const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const l=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,2,gl.FLOAT,false,0,0);
+gl.viewport(0,0,S,S);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+const TILE=128;gl.enable(gl.SCISSOR_TEST);
+let ty=0,tx=0;
+function step(){gl.scissor(tx,ty,TILE,TILE);gl.drawArrays(gl.TRIANGLES,0,3);gl.finish();tx+=TILE;if(tx>=S){tx=0;ty+=TILE}if(ty<S)setTimeout(step,0);else{window.__png=cv.toDataURL('image/png');window.__done=true}}
+step();
+</script></body></html>

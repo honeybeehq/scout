@@ -6,22 +6,22 @@ struct SnippetStack: View {
 
     var body: some View {
         let dispatcher = model.dispatcher
-        VStack(alignment: .trailing, spacing: 10) {
+        VStack(alignment: .trailing, spacing: 8) {
             if let session = model.session, session.phase == .live, let open = session.openSnippet {
                 FormingCard(snippet: open, manual: session.segmentation == .manual, number: session.closedCount + 1, shortcut: model.breakShortcut.symbols.joined(), onCut: session.splitNow)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
 
-            ScrollView {
-                VStack(spacing: 10) {
+            ScoutScroll {
+                VStack(spacing: 8) {
                     ForEach(dispatcher.cards.reversed()) { card in
                         SnippetCardView(card: card)
                             .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
                     }
                 }
                 .padding(.bottom, 8)
+                .padding(.horizontal, 4)
             }
-            .scrollIndicators(.never)
             .scrollBounceBehavior(.basedOnSize)
 
             if dispatcher.cards.contains(where: { $0.state.isFinished }) {
@@ -47,34 +47,42 @@ private struct FormingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                WaitingDots(color: Palette.textSecondary)
-                Text(manual ? "Task \(number)" : "Listening")
-                    .eyebrowStyle()
+                StateTag(text: manual ? "Rec · Task \(number)" : "Rec · Listening", tone: .active)
+                WaitingDots(color: Palette.accent)
                 Spacer()
                 if let context = snippet.primaryContext {
                     Text(context.app.name)
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textTertiary)
+                        .lineLimit(1)
                 }
                 Button(action: onCut) {
-                    Label(manual ? "Next \(shortcut)" : "Cut", systemImage: "scissors")
-                        .font(.system(size: 11, weight: .semibold))
+                    HStack(spacing: 4) {
+                        Image(systemName: "scissors")
+                        Text(manual ? "Next" : "Cut")
+                        if manual { KeyHint(shortcut) }
+                    }
+                    .font(.system(size: 11, weight: .semibold))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(manual ? Palette.text : Palette.textSecondary)
+                .buttonStyle(QuietButtonStyle())
             }
             Text(snippet.transcript.isEmpty ? "…" : SnippetCardView.excerpt(snippet.transcript, limit: 220))
-                .font(.system(size: 13))
-                .foregroundStyle(Palette.textSecondary)
+                .font(.system(size: 12.5))
+                .foregroundStyle(Palette.text)
                 .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Palette.stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+        .padding(.leading, 15)
+        .padding([.trailing, .vertical], 12)
+        .background(Palette.hud, in: .rect(cornerRadius: Radius.card, style: .continuous))
+        .overlay(alignment: .leading) { StateRail(color: Palette.recording) }
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Palette.accent, lineWidth: 1.5)
         }
-        .glassEffect(.regular.tint(Palette.ink.opacity(0.5)), in: .rect(cornerRadius: 18))
+        .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
     }
 }
 
@@ -84,11 +92,12 @@ struct SnippetCardView: View {
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 8) {
+                CardStateTag(state: card.state)
                 if let context = card.snippet.primaryContext {
                     Text(Self.where(context))
-                        .font(Typography.mono)
+                        .font(Typography.caption)
                         .foregroundStyle(Palette.textTertiary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -107,26 +116,32 @@ struct SnippetCardView: View {
             }
 
             Text(card.title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13.5, weight: .bold))
                 .foregroundStyle(Palette.text)
                 .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
+            if !card.state.isFinished {
             Text(Self.excerpt(card.transcript, limit: 180))
-                .font(.system(size: 12.5))
+                .font(.system(size: 12))
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
-            let targets = card.targets.prefix(2)
+            let targets = card.state.isFinished ? [] : Array(card.targets.prefix(2))
             if !targets.isEmpty {
                 HStack(spacing: 6) {
-                    ForEach(Array(targets)) { target in
+                    ForEach(targets) { target in
                         Text(target.displayName)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(Palette.textSecondary)
                             .lineLimit(1)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 6)
                             .frame(height: 20)
-                            .background(Palette.fillRaised, in: .capsule)
+                            .background(Palette.fillRaised, in: .rect(cornerRadius: Radius.tag, style: .continuous))
                     }
                 }
             }
@@ -137,15 +152,21 @@ struct SnippetCardView: View {
                 DeliveryControl(card: card)
             }
         }
-        .padding(14)
-        .glassEffect(.regular.tint(Palette.ink.opacity(0.45)), in: .rect(cornerRadius: 18))
-        .opacity(card.state.isFinished ? 0.72 : 1)
+        .padding(.leading, 15)
+        .padding([.trailing, .vertical], 12)
+        .background(Palette.hud, in: .rect(cornerRadius: Radius.card, style: .continuous))
+        .overlay(alignment: .leading) { StateRail(color: CardStateTag.color(for: card.state)) }
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.stroke))
+        .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+
         .onHover { hovering = $0 }
     }
 
     static func `where`(_ context: AppContext) -> String {
-        if let location = context.location { return "\(context.app.name) · \(location)" }
-        return context.app.name
+        guard let location = context.location, location != context.app.name else { return context.app.name }
+        if location.hasPrefix(context.app.name) { return location }
+        return "\(context.app.name) · \(location)"
     }
 
     static func excerpt(_ text: String, limit: Int) -> String {
@@ -158,7 +179,7 @@ private struct DestinationMenu: View {
     let card: SnippetCard
 
     var body: some View {
-        Menu {
+        ScoutMenu {
             ForEach(model.dispatcher.destinations(for: card), id: \.self) { destination in
                 Button(destination.label) { model.dispatcher.choose(destination, for: card) }
             }
@@ -169,15 +190,13 @@ private struct DestinationMenu: View {
                 } else {
                     Image(systemName: "arrow.turn.down.right")
                 }
-                Text(card.destination?.label ?? "Choose where to send")
+                Text(card.destination?.label ?? "Choose destination")
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(Palette.textSecondary)
+            .font(.system(size: 11.5, weight: .semibold))
+            .foregroundStyle(card.destination == nil ? Palette.caution : Palette.textSecondary)
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
         .frame(maxWidth: 230, alignment: .leading)
         .disabled(card.state == .sending || card.state.isFinished)
     }
@@ -214,10 +233,7 @@ private struct DeliveryControl: View {
                 Text("Sending").font(Typography.caption).foregroundStyle(Palette.textSecondary)
             }
         case .sent(let destination):
-            Label("Sent", systemImage: "checkmark")
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(Palette.textSecondary)
-                .fixedSize()
+            EmptyView()
                 .help("Sent to \(destination)")
         case .withdrawn:
             EmptyView()
@@ -243,13 +259,51 @@ private struct CountdownRing: View {
         TimelineView(.animation(minimumInterval: 1 / 30)) { @Sendable context in
             let remaining = max(0, until.timeIntervalSince(context.date))
             ZStack {
-                Circle().stroke(Color.white.opacity(0.15), lineWidth: 2)
+                Circle().stroke(Palette.fillStrong, lineWidth: 2)
                 Circle()
                     .trim(from: 0, to: total > 0 ? remaining / total : 0)
                     .stroke(Palette.text, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             .frame(width: 14, height: 14)
+        }
+    }
+}
+
+struct StateRail: View {
+    var color: Color
+
+    var body: some View {
+        Rectangle()
+            .fill(color)
+            .frame(width: 3)
+    }
+}
+
+struct CardStateTag: View {
+    let state: SnippetCard.State
+
+    var body: some View {
+        switch state {
+        case .needsDestination: StateTag(text: "Needs destination", tone: .caution)
+        case .countdown: StateTag(text: "Sending", tone: .active)
+        case .sending: StateTag(text: "Sending", tone: .active)
+        case .sent: StateTag(text: "Sent", tone: .positive)
+        case .failed: StateTag(text: "Failed", tone: .negative)
+        case .copiedInstead: StateTag(text: "Copied", tone: .caution)
+        case .withdrawn: StateTag(text: "Withdrawn", tone: .neutral)
+        case .held: StateTag(text: "Held", tone: .neutral)
+        case .preparing: StateTag(text: "Preparing", tone: .neutral)
+        }
+    }
+
+    static func color(for state: SnippetCard.State) -> Color {
+        switch state {
+        case .needsDestination, .copiedInstead: Palette.caution
+        case .countdown, .sending: Palette.accent
+        case .sent: Palette.positive
+        case .failed: Palette.negative
+        case .withdrawn, .held, .preparing: Palette.stroke
         }
     }
 }

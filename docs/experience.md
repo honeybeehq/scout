@@ -6,10 +6,10 @@ This is how Scout looks and behaves from the user's side. Visual rules are in [d
 
 | Surface | What it is | When it shows |
 |---|---|---|
-| Onboarding window | One 940×640 window, dark, full-bleed | First launch, or from the menu bar via "Setup guide" |
-| Menu bar item | Pointer-and-signal glyph. Tinted with the accent while scouting | Always |
+| Onboarding window | One 940×640 window, light or dark, full-bleed | First launch, or from the menu bar via "Setup guide" |
+| Menu bar item | The Signal beam as a template glyph. Coral while scouting | Always |
 | Menu bar panel | Start/stop, recent tasks, integration status | Click on the menu bar item |
-| Scouting pill | Floating glass capsule, first at the pointer, then docked above the captured area | While scouting |
+| Recording bar (pill) | Solid bar hanging from the top centre of the captured display like a notch | While scouting |
 | Capture frame | Accent outline around the captured area, with the rest of the screen dimmed, plus pins and ink | While scouting |
 | Snippet stack | Column of task cards on the right edge | While scouting, from the first closed task |
 | Review window | Full editor for a finished session: video, timeline, tasks, hand-off | After stopping (by default when a task is waiting), from the menu bar, or for any earlier session |
@@ -22,13 +22,13 @@ Scout is a menu bar app (`LSUIElement`). It becomes a regular app with a Dock ic
 
 Onboarding is six steps. Every step can be revisited, and progress is saved, so a relaunch (which Screen Recording requires) returns to the same step.
 
-1. **Welcome.** The Scout mark draws in: pointer first, then the three signal arcs one by one. One sentence explains the product, with one button: *Set up Scout*. A privacy line under it: "Nothing leaves this Mac until you send it."
+1. **Welcome.** The Scout beam lights up in three steps. One sentence explains the product, with one button: *Set up Scout*. A privacy line under it: "Nothing leaves this Mac until you send it."
 2. **Access.** Three permission rows: Screen Recording, Microphone, Accessibility. Each row shows its live state and one action:
    - *Allow* triggers the system request.
    - Once requested, the row shows *Waiting* and a *Open Settings* button. Scout opens the exact pane in System Settings.
    - A **settings guide** card attaches to the side of the System Settings window and follows it as it moves. It shows the Scout icon (which can be dragged into the list) and an animated switch. When macOS reports the grant, the card turns into a check and Scout comes back to the front by itself.
    - Screen Recording only takes effect after a relaunch. When the user returns from Settings without the grant showing, the row offers *Relaunch*. Scout quits, reopens, and resumes on this step.
-   - The Scout mark on the left lights one arc per granted permission. With all three granted, the mark pulses and *Continue* turns on. *Skip for now* is always available so nobody gets stuck.
+   - The Scout beam on the left brightens one step per granted permission. With all three granted, the mark pulses and *Continue* turns on. *Skip for now* is always available so nobody gets stuck.
 3. **Voice.** Scout starts listening immediately. If needed it first downloads the on-device speech model, showing progress. The user's words appear large as they speak: finalized words in white, words still being decided in grey. After four words: "Scout hears you."
 4. **Point.** A practice page (a fake checkout form) teaches aiming. Holding `⌥` highlights the element under the pointer with its role and label. Clicking pins it; an accent marker drops with a ripple, and the pin appears in a list with its (sample) source location. The same step shows the global shortcut and lets the user change it.
 5. **Agents.** Scout checks for hive and Apiary live and shows the most recently active sessions. The user picks where tasks go:
@@ -41,15 +41,17 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
 
 ## Scouting
 
-**Start.** Press `⌃⌥S` from any app, or click *Start scouting* in the menu bar panel. Recording starts at once: the pill appears next to the pointer and the capture frame outlines what is under it. There is no mode picker and no window or screen to choose.
+**Start.** Press `⌃⌥S` from any app, or click *Start scouting* in the menu bar panel. Recording starts at once: the recording bar appears at the top of the display and the capture frame outlines what is under it. There is no mode picker and no window or screen to choose.
 
-**The pill** (36 pt high, glass capsule):
+**The recording bar** (36 pt high, solid, top corners flush with the menu bar):
 
 ```
  ● 0:42  ▂▅▇▃▁  …and the total should be bold too   ⤢ Following · Safari — Checkout  ⌃⌥E   Discard   Finish ⌃⌥S
 ```
 
-From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, Discard, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. About 120 ms after it appears at the pointer, the pill glides to the top-left edge of the captured area and moves with it. The pill never takes focus and is excluded from the recording. It can be dragged anywhere.
+From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, Discard, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button.
+
+The bar hangs from the top centre of the display being captured, directly under the menu bar. On a MacBook with a notch it sits under the notch and is centred on it, so it is never hidden. It stays put while the capture moves within a display and jumps to another display only when the capture does. Every control has a fixed slot, so nothing shifts when you hover, the transcript grows, the capture scope changes or the Discard question shows; long text truncates inside its slot. The bar never takes focus, is excluded from the recording, and can't be dragged.
 
 **What is captured.** Scout follows the pointer. The captured area is the pane under the pointer, or the window when Scout can't tell panes apart, or the screen when no window is under it. Panes are split views found through Accessibility; inside Apiary they come from the Apiary bridge. At the shortcut, the frame starts on the window under the pointer and narrows to the pane as soon as it is known. When the pointer rests in another area for 250 ms, the frame glides there (120 ms) and the recording moves to that display if it changed. Outside the frame the screen is dimmed a little, so it is always clear what the recording is about.
 
@@ -73,7 +75,7 @@ From left to right: recording dot and elapsed time, voice level, the last words 
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
 
-**Discard.** *Discard* in the pill, or **⌃⌥X** (Caps+X with the Caps layer), asks "Discard this recording?" with *Keep* (esc) and *Discard* (⌃⌥X) in place of the capture button and *Next*; the question goes away by itself after 4 seconds, and recording carries on while it shows. Press ⌃⌥X again or click *Discard* to confirm; Esc or *Keep* cancels. ⌃⌥X is registered only while recording, and Esc only while the question shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was. Once a task from the recording has been sent (split into tasks with auto-send), Discard is off and ⌃⌥X beeps, as in the review: the sent task's files stay, and *Finish* keeps the rest.
+**Discard.** *Discard* in the pill, or **⌃⌥X** (Caps+X with the Caps layer), asks "Discard this recording?" with *Keep* (esc) in place of the transcript, *Next* and the capture button, while *Discard* (⌃⌥X) turns crimson in its own slot; the question goes away by itself after 4 seconds, and recording carries on while it shows. Press ⌃⌥X again or click *Discard* to confirm; Esc or *Keep* cancels. ⌃⌥X is registered only while recording, and Esc only while the question shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was. Once a task from the recording has been sent (split into tasks with auto-send), Discard is off and ⌃⌥X beeps, as in the review: the sent task's files stay, and *Finish* keeps the rest.
 
 **Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within about two frames (≈30 ms at 60 Hz). Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 
@@ -159,7 +161,7 @@ The attachment lines follow Apiary's convention, so the task renders the same in
 
 ## Settings
 
-- **General:** interface size (Small, Default, Large, Extra large; scales every Scout window, the pill and the stack, live), shortcut, aim key (`⌥` by default, or `fn`), open at login, pill position.
+- **General:** interface size (Small, Default, Large, Extra large; scales every Scout window, the pill and the stack, live), shortcut, aim key (`⌥` by default, or `fn`), open at login, appearance (System, Light, Dark).
 - **Voice:** language (defaults to the system language, falls back to English), input device, voice commands on/off.
 - **Agents:** routing mode, default agent for new sessions (claude, codex, …), auto-send and its delay, project overrides (app or URL pattern → repo).
 - **Privacy:** which attachments to include (clip, pin screenshots, full frames), apps never to capture (password managers are excluded by default), redaction of on-screen text in screenshots.
