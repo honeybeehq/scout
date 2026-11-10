@@ -106,16 +106,16 @@ struct MenuBarPanelContent: View {
             header
                 .padding(.bottom, 14)
             recordGroup
-                .padding(.bottom, 16)
+                .padding(.bottom, 14)
             divider
             recentGroup
-                .padding(.vertical, 12)
+                .padding(.vertical, 14)
             divider
             footer
-                .padding(.top, 10)
+                .padding(.top, 12)
         }
         .padding(Self.edge)
-        .frame(width: 320)
+        .frame(width: 336)
         .background(Palette.canvas)
     }
 
@@ -127,6 +127,7 @@ struct MenuBarPanelContent: View {
         HStack(spacing: 8) {
             ScoutMark(level: 3, pulsing: state.isScouting)
                 .frame(width: 18, height: 18)
+                .padding(.leading, -4)
             Text("Scout").font(.system(size: 15, weight: .heavy))
             Spacer()
             HStack(spacing: 6) {
@@ -325,7 +326,7 @@ private struct RecentTaskRow: View {
                 Text(task.title)
                     .font(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(task.state.isFinished ? Palette.textSecondary : Palette.text)
-                    .lineLimit(task.state.isFinished ? 1 : 2)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 if let label {
                     Text(label)
@@ -364,7 +365,7 @@ private struct RecentTaskRow: View {
         switch task.state {
         case .needsDestination: "Needs a destination"
         case .countdown, .sending: "Sending"
-        case .sent: nil
+        case .sent: "Sent"
         case .failed: "Failed"
         case .copiedInstead: "Copied instead"
         case .withdrawn: "Withdrawn"
@@ -408,29 +409,11 @@ private struct LastWalkthroughRow: View {
                         .disabled(isScouting)
                     Button("Copy", action: actions.copyWalkthrough)
                         .buttonStyle(QuietButtonStyle())
-                    IconButton(symbol: "folder", label: "Show in Finder", action: actions.revealWalkthrough)
+                    Button("Show in Finder", action: actions.revealWalkthrough)
+                        .buttonStyle(QuietButtonStyle())
                 }
                 .padding(.top, 4)
             }
         }
-    }
-}
-
-private struct IconButton: View {
-    let symbol: String
-    let label: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 11.5, weight: .semibold))
-                .frame(width: 24, height: 28)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Palette.textSecondary)
-        .help(label)
-        .accessibilityLabel(label)
     }
 }
