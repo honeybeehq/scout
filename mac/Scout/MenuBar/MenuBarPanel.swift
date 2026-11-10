@@ -112,7 +112,7 @@ struct MenuBarPanelContent: View {
                 .padding(.vertical, 14)
             divider
             footer
-                .padding(.top, 12)
+                .padding(.top, 14)
         }
         .padding(Self.edge)
         .frame(width: 336)
@@ -153,7 +153,7 @@ struct MenuBarPanelContent: View {
             .buttonStyle(RecordButtonStyle(finishing: state.isScouting))
 
             HStack(spacing: 8) {
-                Button("Split into tasks", action: actions.splitIntoTasks)
+                Button("Record as tasks", action: actions.splitIntoTasks)
                     .buttonStyle(SecondaryButtonStyle())
                     .fixedSize()
                     .disabled(state.isScouting)
@@ -230,7 +230,7 @@ struct MenuBarPanelContent: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             connections
             HStack(spacing: 2) {
                 Button(state.setupComplete ? "Setup guide" : "Finish setup", action: actions.openSetup)
