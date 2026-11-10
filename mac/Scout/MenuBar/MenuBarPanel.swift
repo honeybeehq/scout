@@ -160,12 +160,12 @@ struct MenuBarPanelContent: View {
                     .help("Record, and Scout turns what you say into separate tasks for agents.")
                 Spacer(minLength: 4)
                 HStack(spacing: 6) {
-                    Text("New task on")
+                    Text("New task")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize()
                     ChoiceMenu(options: Segmentation.allCases, selection: $segmentation) { mode in
-                        mode == .automatic ? "Auto" : "\(state.breakShortcut) only"
+                        mode == .automatic ? "Auto" : "On \(state.breakShortcut)"
                     }
                 }
                 .disabled(state.isScouting)
@@ -321,7 +321,8 @@ private struct RecentTaskRow: View {
                     Text(task.title)
                         .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Text(label)
                         .font(Typography.caption)
