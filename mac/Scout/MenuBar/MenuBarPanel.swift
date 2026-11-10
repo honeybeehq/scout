@@ -254,7 +254,7 @@ struct MenuBarPanelContent: View {
     private var connections: some View {
         HStack(spacing: 14) {
             switch state.hive {
-            case .connected(let count): Connection(tone: .positive, name: "hive", detail: "\(count) active")
+            case .connected(let count): Connection(tone: .positive, name: "hive", detail: count == 1 ? "1 session" : "\(count) sessions")
             case .checking: Connection(tone: .caution, name: "hive", detail: "checking")
             case .unreachable: Connection(tone: .negative, name: "hive", detail: "not responding")
             case .missing: Connection(tone: .neutral, name: "hive", detail: "not installed")
@@ -263,7 +263,7 @@ struct MenuBarPanelContent: View {
                 Connection(tone: .positive, name: "Apiary", detail: nil)
             }
             if !state.sdkApps.isEmpty {
-                Connection(tone: .positive, name: "SDK", detail: state.sdkApps.count == 1 ? state.sdkApps[0] : "\(state.sdkApps.count) apps")
+                Connection(tone: .positive, name: state.sdkApps.count == 1 ? state.sdkApps[0] : "\(state.sdkApps.count) apps", detail: "SDK")
                     .help(state.sdkApps.joined(separator: ", "))
             }
         }
@@ -337,7 +337,7 @@ private struct RecentTaskRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Text(label)
                         .font(Typography.caption)
-                        .foregroundStyle(tone == .neutral ? Palette.textTertiary : tone.color)
+                        .foregroundStyle(tone == .neutral ? Palette.textSecondary : tone.color)
                 }
             }
         }
@@ -352,6 +352,10 @@ private struct RecentTaskRow: View {
                 .font(.system(size: 9.5, weight: .heavy))
                 .foregroundStyle(Palette.positive)
                 .accessibilityLabel("Sent")
+        } else if case .sending = task.state {
+            SendingMark()
+        } else if case .countdown = task.state {
+            SendingMark()
         } else {
             StatusDot(tone: tone)
         }
@@ -360,7 +364,7 @@ private struct RecentTaskRow: View {
     private var tone: Tone {
         switch task.state {
         case .needsDestination, .copiedInstead: .caution
-        case .countdown, .sending: .active
+        case .countdown, .sending: .neutral
         case .sent: .positive
         case .failed: .negative
         case .withdrawn, .held, .preparing: .neutral
@@ -421,5 +425,13 @@ private struct LastWalkthroughRow: View {
                 .padding(.top, 4)
             }
         }
+    }
+}
+
+private struct SendingMark: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+            .strokeBorder(Palette.textSecondary, lineWidth: 1.5)
+            .frame(width: 7, height: 7)
     }
 }
