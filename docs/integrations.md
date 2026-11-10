@@ -8,7 +8,7 @@ Scout talks to the hive daemon directly over its socket, not through the CLI. Th
 
 **Socket.** `$HIVE_V2_SOCKET_PATH`, else `$HIVE_V2_DATA_DIR/hived.sock`, else `~/.hive/v2/hived.sock`. JSON, one object per line. No auth; only the same user can open the socket.
 
-**Handshake.** The server speaks first: `{"protocol":"v2/1","capabilities":[…],"identity":{…}}`. The client answers `{"protocol":"v2/1"}`.
+**Handshake.** The server speaks first: `{"protocol":"v2/2","capabilities":[…],"identity":{…}}`. The client answers `{"protocol":"v2/2"}`.
 
 **Requests.** `{"id":<n>,"verb":"<verb>","params":{…}}` → `{"id":<n>,"ok":true,"result":…}` or `{"id":<n>,"ok":false,"error":{"code","message"}}`.
 

@@ -41,7 +41,7 @@ nonisolated struct HiveClient: Sendable {
         }
     }
 
-    static let protocolVersion = "v2/1"
+    static let protocolVersion = "v2/2"
 
     var socketPath: String
 
