@@ -98,109 +98,142 @@ struct MenuBarPanelContent: View {
     @Binding var segmentation: Segmentation
     let actions: MenuBarPanelActions
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                ScoutMark(level: 3, pulsing: state.isScouting)
-                    .frame(width: 22, height: 22)
-                Text("Scout").font(.system(size: 15, weight: .heavy))
-                Spacer()
-                if state.isScouting {
-                    StateTag(text: "Rec", tone: .active)
-                } else {
-                    StateTag(text: "Ready", tone: .neutral)
-                }
-            }
+    private static let edge: CGFloat = 16
+    private static let quietInset: CGFloat = 8
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.bottom, 14)
+            recordGroup
+                .padding(.bottom, 16)
+            divider
+            recentGroup
+                .padding(.vertical, 12)
+            divider
+            footer
+                .padding(.top, 10)
+        }
+        .padding(Self.edge)
+        .frame(width: 320)
+        .background(Palette.canvas)
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Palette.hairline).frame(height: 1)
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            ScoutMark(level: 3, pulsing: state.isScouting)
+                .frame(width: 18, height: 18)
+            Text("Scout").font(.system(size: 15, weight: .heavy))
+            Spacer()
+            HStack(spacing: 6) {
+                StatusDot(tone: state.isScouting ? .active : .positive)
+                Text(state.isScouting ? "Recording" : "Ready")
+                    .font(Typography.caption)
+                    .foregroundStyle(state.isScouting ? Palette.accentText : Palette.textSecondary)
+            }
+        }
+    }
+
+    private var recordGroup: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Button(action: actions.toggleScouting) {
                 HStack(spacing: 8) {
                     Image(systemName: state.isScouting ? "stop.fill" : "record.circle.fill")
-                    Text(state.isScouting ? "Stop scouting" : "Start scouting")
+                    Text(state.isScouting ? "Finish scouting" : "Start scouting")
                     Spacer()
                     KeyHint(state.shortcut, emphasized: true)
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(PrimaryButtonStyle(large: true))
+            .buttonStyle(RecordButtonStyle(finishing: state.isScouting))
+
+            HStack(spacing: 8) {
+                Button("Split into tasks", action: actions.splitIntoTasks)
+                    .buttonStyle(SecondaryButtonStyle())
+                    .fixedSize()
+                .disabled(state.isScouting)
+                .help("Record, and Scout turns what you say into separate tasks for agents.")
+                Spacer(minLength: 4)
+                Text("New task")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                    .fixedSize()
+                SegmentedChoice(options: Segmentation.allCases, selection: $segmentation) { mode in
+                    mode == .automatic ? "Auto" : state.breakShortcut
+                }
+                .disabled(state.isScouting)
+                .help(segmentation.explanation)
+            }
+
+            if let problem = state.walkthroughProblem, state.lastWalkthrough == nil {
+                HStack(spacing: 6) {
+                    StatusDot(tone: .caution, size: 5)
+                    Text(problem)
+                }
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            }
+        }
+    }
+
+    private var recentGroup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("Recent").eyebrowStyle(Palette.textTertiary)
+                let sent = state.recent.filter { $0.state.isFinished }.count
+                if sent > 0 {
+                    Text("\(sent) sent")
+                        .font(Typography.caption.monospacedDigit())
+                        .foregroundStyle(Palette.positive)
+                }
+                Spacer()
+                Button(action: actions.openReview) {
+                    HStack(spacing: 3) {
+                        Text("Review")
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                }
+                .buttonStyle(QuietButtonStyle())
+                .padding(.trailing, -Self.quietInset)
+            }
+            .frame(height: 20)
 
             if let walkthrough = state.lastWalkthrough {
                 LastWalkthroughRow(walkthrough: walkthrough, isScouting: state.isScouting, actions: actions)
-            } else if let problem = state.walkthroughProblem {
-                Text(problem)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
             }
-
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Split what you say into tasks")
-                        .font(Typography.callout)
-                        .foregroundStyle(Palette.textSecondary)
-                    Spacer()
-                    Button("Split into tasks", action: actions.splitIntoTasks)
-                        .buttonStyle(SecondaryButtonStyle())
-                        .disabled(state.isScouting)
+            if state.lastSessionSaveFailed {
+                HStack(spacing: 6) {
+                    StatusDot(tone: .negative, size: 5)
+                    Text("Couldn't save the last session")
                 }
-                .padding(.vertical, 8)
-                Rectangle().fill(Palette.hairline).frame(height: 1)
-                HStack(spacing: 10) {
-                    Text("New task on")
-                        .font(Typography.callout)
-                        .foregroundStyle(Palette.textSecondary)
-                    Spacer()
-                    SegmentedChoice(options: Segmentation.allCases, selection: $segmentation) { mode in
-                        mode == .automatic ? "Auto" : "\(state.breakShortcut) only"
-                    }
-                    .disabled(state.isScouting)
-                }
-                .help(segmentation.explanation)
-                .padding(.vertical, 8)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
             }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text("Recent").eyebrowStyle(Palette.textTertiary)
-                    let sent = state.recent.filter { $0.state.isFinished }.count
-                    if sent > 0 {
-                        Text("\(sent) sent")
-                            .font(Typography.caption.monospacedDigit())
-                            .foregroundStyle(Palette.positive)
-                    }
-                    Spacer()
-                    Button("Review", action: actions.openReview)
-                        .buttonStyle(QuietButtonStyle())
-                }
-                if state.lastSessionSaveFailed {
-                    HStack(spacing: 6) {
-                        StatusDot(tone: .negative, size: 5)
-                        Text("Couldn't save the last session")
-                    }
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                }
-                if state.recent.isEmpty {
-                    Text("Tasks you capture show up here.")
+            if state.recent.isEmpty {
+                if state.lastWalkthrough == nil {
+                    Text("Nothing yet. Start scouting and talk through what you see.")
                         .font(Typography.callout)
                         .foregroundStyle(Palette.textTertiary)
-                        .padding(.vertical, 4)
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(state.recent) { task in
-                            RecentTaskRow(task: task)
-                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(state.recent) { task in
+                        RecentTaskRow(task: task)
                     }
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .surfaceCard(Palette.surface)
+        }
+    }
 
-            integrationLine
-
-            Rectangle().fill(Palette.hairline).frame(height: 1)
-
+    private var footer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            connections
             HStack(spacing: 2) {
                 Button(state.setupComplete ? "Setup guide" : "Finish setup", action: actions.openSetup)
                     .buttonStyle(QuietButtonStyle())
@@ -208,7 +241,7 @@ struct MenuBarPanelContent: View {
                     .buttonStyle(QuietButtonStyle())
                 Spacer()
                 Button(action: actions.quit) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Text("Quit")
                         KeyHint("⌘Q")
                     }
@@ -216,28 +249,65 @@ struct MenuBarPanelContent: View {
                 .buttonStyle(QuietButtonStyle())
                 .keyboardShortcut("q")
             }
+            .padding(.horizontal, -Self.quietInset)
         }
-        .padding(14)
-        .frame(width: 320)
-        .background(Palette.canvas)
     }
 
-    private var integrationLine: some View {
-        HStack(spacing: 6) {
+    private var connections: some View {
+        HStack(spacing: 14) {
             switch state.hive {
-            case .connected(let count): StatusBadge(text: "hive · \(count) active", tone: .positive)
-            case .checking: StatusBadge(text: "hive · checking", tone: .caution)
-            case .unreachable: StatusBadge(text: "hive · not responding", tone: .negative)
-            case .missing: StatusBadge(text: "hive · not installed", tone: .neutral)
+            case .connected(let count): Connection(tone: .positive, name: "hive", detail: "\(count) active")
+            case .checking: Connection(tone: .caution, name: "hive", detail: "checking")
+            case .unreachable: Connection(tone: .negative, name: "hive", detail: "not responding")
+            case .missing: Connection(tone: .neutral, name: "hive", detail: "not installed")
             }
             if state.apiaryRunning {
-                StatusBadge(text: "Apiary", tone: .positive)
+                Connection(tone: .positive, name: "Apiary", detail: nil)
             }
             if !state.sdkApps.isEmpty {
-                StatusBadge(text: state.sdkApps.count == 1 ? "SDK · \(state.sdkApps[0])" : "SDK · \(state.sdkApps.count) apps", tone: .positive)
+                Connection(tone: .positive, name: "SDK", detail: state.sdkApps.count == 1 ? state.sdkApps[0] : "\(state.sdkApps.count) apps")
                     .help(state.sdkApps.joined(separator: ", "))
             }
         }
+        .frame(height: 20)
+    }
+}
+
+private struct Connection: View {
+    let tone: Tone
+    let name: String
+    let detail: String?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            StatusDot(tone: tone)
+            HStack(spacing: 4) {
+                Text(name).foregroundStyle(Palette.textSecondary)
+                if let detail {
+                    Text(detail).foregroundStyle(tone == .negative ? Palette.negative : Palette.textTertiary)
+                }
+            }
+            .lineLimit(1)
+        }
+        .font(Typography.caption)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct RecordButtonStyle: ButtonStyle {
+    let finishing: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13.5, weight: .bold))
+            .foregroundStyle(finishing ? Palette.onInk : Palette.onAccent)
+            .padding(.horizontal, 14)
+            .frame(height: 38)
+            .background(finishing ? Palette.ink : Palette.accent, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .brightness(configuration.isPressed ? -0.08 : 0)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(Motion.snappy, value: configuration.isPressed)
+            .contentShape(.rect(cornerRadius: Radius.control))
     }
 }
 
@@ -245,23 +315,58 @@ private struct RecentTaskRow: View {
     let task: MenuBarPanelState.RecentTask
 
     var body: some View {
-        HStack(spacing: 8) {
-            StateRail(color: CardStateTag.color(for: task.state))
-                .frame(height: 14)
-            Text(task.title)
-                .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(task.state.isFinished ? Palette.textSecondary : Palette.text)
-                .lineLimit(1)
-            Spacer(minLength: 4)
-            if task.state.isFinished {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 10.5, weight: .heavy))
-                    .foregroundStyle(Palette.positive)
-            } else {
-                CardStateTag(state: task.state)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            marker
+                .frame(width: 12)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(task.title)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(task.state.isFinished ? Palette.textSecondary : Palette.text)
+                    .lineLimit(1)
+                if let label {
+                    Text(label)
+                        .font(Typography.caption)
+                        .foregroundStyle(tone == .neutral ? Palette.textTertiary : tone.color)
+                }
             }
         }
-        .frame(height: 26)
+        .padding(.vertical, 3)
+        .help(task.title)
+    }
+
+    @ViewBuilder
+    private var marker: some View {
+        if task.state.isFinished {
+            Image(systemName: "checkmark")
+                .font(.system(size: 9.5, weight: .heavy))
+                .foregroundStyle(Palette.positive)
+                .accessibilityLabel("Sent")
+        } else {
+            StatusDot(tone: tone)
+        }
+    }
+
+    private var tone: Tone {
+        switch task.state {
+        case .needsDestination, .copiedInstead: .caution
+        case .countdown, .sending: .active
+        case .sent: .positive
+        case .failed: .negative
+        case .withdrawn, .held, .preparing: .neutral
+        }
+    }
+
+    private var label: String? {
+        switch task.state {
+        case .needsDestination: "Needs a destination"
+        case .countdown, .sending: "Sending"
+        case .sent: nil
+        case .failed: "Failed"
+        case .copiedInstead: "Copied instead"
+        case .withdrawn: "Withdrawn"
+        case .held: "Held"
+        case .preparing: "Preparing"
+        }
     }
 }
 
@@ -271,11 +376,11 @@ private struct LastWalkthroughRow: View {
     let actions: MenuBarPanelActions
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(Palette.textSecondary)
-                .frame(width: 14)
+                .frame(width: 12)
             VStack(alignment: .leading, spacing: 1) {
                 Text(walkthrough.title)
                     .font(.system(size: 12.5, weight: .medium))
@@ -283,6 +388,7 @@ private struct LastWalkthroughRow: View {
                 Text(walkthrough.summary)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textTertiary)
+                    .lineLimit(1)
                 if let problem = walkthrough.transcriptProblem {
                     HStack(spacing: 5) {
                         StatusDot(tone: .caution, size: 5)
@@ -296,14 +402,28 @@ private struct LastWalkthroughRow: View {
             Button("Send…", action: actions.sendWalkthrough)
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(isScouting)
-            Button("Copy", action: actions.copyWalkthrough)
-                .buttonStyle(QuietButtonStyle())
-            Button(action: actions.revealWalkthrough) {
-                Image(systemName: "folder")
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Palette.textSecondary)
-            .help("Show in Finder")
+            IconButton(symbol: "doc.on.doc", label: "Copy", action: actions.copyWalkthrough)
+            IconButton(symbol: "folder", label: "Show in Finder", action: actions.revealWalkthrough)
         }
+        .padding(.trailing, -4)
+    }
+}
+
+private struct IconButton: View {
+    let symbol: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11.5, weight: .semibold))
+                .frame(width: 24, height: 28)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Palette.textSecondary)
+        .help(label)
+        .accessibilityLabel(label)
     }
 }
