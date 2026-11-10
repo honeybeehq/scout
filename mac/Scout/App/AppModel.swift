@@ -88,6 +88,9 @@ final class AppModel {
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
         }
+        if let directory = PanelGallery.directory {
+            Task { await PanelGallery.run(into: directory) }
+        }
         if let directory = SimulationMode.deliveryCheck {
             Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }
         }

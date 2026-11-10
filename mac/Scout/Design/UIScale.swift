@@ -21,15 +21,18 @@ private struct ScoutScale: ViewModifier {
     @Environment(AppModel.self) private var model
 
     func body(content: Content) -> some View {
-        let scale = model.preferences.uiSize.scale
-        ScaledLayout(scale: scale) {
-            content.scaleEffect(scale, anchor: .topLeading)
-        }
+        content.scaled(by: model.preferences.uiSize.scale)
     }
 }
 
 extension View {
     func scaledToUISize() -> some View {
         modifier(ScoutScale())
+    }
+
+    func scaled(by scale: CGFloat) -> some View {
+        ScaledLayout(scale: scale) {
+            scaleEffect(scale, anchor: .topLeading)
+        }
     }
 }
