@@ -89,6 +89,7 @@ struct ScoutingPill: View {
         .coordinateSpace(.named(BarLayoutProbe.space))
         .scaledToUISize()
         .animation(Motion.snappy, value: confirming)
+        .animation(Motion.snappy, value: session?.confirmingBreak)
         .task(id: confirming) {
             guard confirming else { return }
             try? await Task.sleep(for: .seconds(4))
@@ -102,7 +103,22 @@ struct ScoutingPill: View {
 
     @ViewBuilder
     private func transcript(_ session: ScoutingSession?) -> some View {
-        if let session {
+        if let session, session.confirmingBreak {
+            HStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(Palette.accentText)
+                Text(session.walkthrough == nil ? "New task" : "New ask")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Palette.text)
+                Text("Keep talking.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.textTertiary)
+            }
+            .lineLimit(1)
+            .transition(.opacity)
+            .barSlot("break")
+        } else if let session {
             liveText(session)
         } else {
             Text("Starting…")

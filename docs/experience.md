@@ -49,7 +49,7 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
  ● 0:42  ▂▅▇▃▁  …and the total should be bold too   ⤢ Following · Safari — Checkout  ⌃⌥E   Discard   Finish ⌃⌥S
 ```
 
-From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, Discard, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button.
+From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, Discard, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. When ⌃⌥B is caught, the transcript slot shows `+ New ask  Keep talking.` (`New task` when splitting into tasks) for 1.6 seconds, then the words come back.
 
 The bar hangs from the top centre of the display being captured, directly under the menu bar. On a MacBook with a notch it sits under the notch and is centred on it, so it is never hidden. It stays put while the capture moves within a display and jumps to another display only when the capture does. Every control has a fixed slot, so nothing shifts when you hover, the transcript grows, the capture scope changes or the Discard question shows; long text truncates inside its slot. The bar never takes focus, is excluded from the recording, and can't be dragged.
 
@@ -79,14 +79,18 @@ The bar hangs from the top centre of the display being captured, directly under 
 
 **Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within about two frames (≈30 ms at 60 Hz). Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 
+## New ask in a walkthrough
+
+A hotkey recording ends as one walkthrough, and Scout splits what you said into asks by itself: requests, problems and pauses start a new one. Press **⌃⌥B** (Caps+B with the Caps layer) to start a new ask yourself. The bar shows "New ask", the walkthrough records a `break` event at that moment, and the asks list cuts there: the sentence you were finishing stays in the ask before, and what you say next begins the new ask, kept even when it has no request words in it. Everywhere you didn't press ⌃⌥B, Scout splits as before. Saying "new task" doesn't cut asks.
+
 ## Automatic and manual tasks
 
-Two ways to decide where one task ends and the next begins. Pick one in the menu bar panel ("New task on: Auto / ⌃⌥B only") or in Settings → General. The choice is fixed per session.
+These apply to "Split into tasks" in the menu bar. Two ways to decide where one task ends and the next begins. Pick one in the menu bar panel ("New task on: Auto / ⌃⌥B only") or in Settings → General. The choice is fixed per session.
 
 - **Automatic** (default). The breakpoint engine cuts on pauses, cue phrases ("next thing", "also"), app/window/URL changes, a new target, topic shifts and screen changes. See [breakpoints.md](breakpoints.md).
 - **Manual.** Nothing cuts except you: press **⌃⌥B** (Caps+B with the Caps layer), click *Next* in the pill, or say "new task" / "next task" as a sentence of its own. Pauses, app switches and long silences never cut, so one task can span apps and minutes. The pill shows `Task 3 · Next ⌃⌥B`.
 
-⌃⌥B also works in automatic mode as a forced cut. It is registered only while scouting, so it never steals the chord otherwise.
+⌃⌥B also works in automatic mode as a forced cut. In both modes the bar shows "New task" when it is caught. It is registered only while scouting (walkthrough or tasks), so it never steals the chord otherwise.
 
 ## The review window
 

@@ -544,7 +544,20 @@ enum SimulationMode {
         for time in breakTimes {
             Task {
                 try? await Task.sleep(for: .seconds(time))
+                let pillBefore = describe(model.hud.pillWindow?.frame)
+                let pressesBefore = GlobalHotkey.lastPressTime
                 postBreakShortcut()
+                try? await Task.sleep(for: .milliseconds(400))
+                let name = String(format: "break-%.1fs", time)
+                snapshotPanels(into: output, suffix: name)
+                breakLog.append([
+                    "at": time,
+                    "caughtByHotkey": GlobalHotkey.lastPressTime != pressesBefore,
+                    "barConfirming": model.session?.confirmingBreak ?? false,
+                    "pillBefore": pillBefore,
+                    "pillAfter": describe(model.hud.pillWindow?.frame),
+                    "snapshot": "pill-\(name).png",
+                ])
             }
         }
         var uiSizeReport: [String: Any] = [:]
@@ -848,6 +861,13 @@ enum SimulationMode {
             .write(to: directory.appendingPathComponent("\(name).png"))
     }
 
+    private static var breakLog: [[String: Any]] = []
+
+    private static func describe(_ rect: CGRect?) -> String {
+        guard let rect else { return "none" }
+        return String(format: "x %.1f y %.1f w %.1f h %.1f", rect.minX, rect.minY, rect.width, rect.height)
+    }
+
     private static func postBreakShortcut() {
         let source = CGEventSource(stateID: .hidSystemState)
         let down = CGEvent(keyboardEventSource: source, virtualKey: 11, keyDown: true)
@@ -885,6 +905,8 @@ enum SimulationMode {
             "attachments": (model.review?.tasks ?? model.dispatcher.cards).flatMap { $0.attachments.map(\.line) },
             "cards": cards,
         ]
+        report["breaks"] = breakLog
+        report["walkthrough"] = model.lastWalkthrough?.directory.path ?? ""
         report.merge(extra) { $1 }
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: directory.appendingPathComponent("report.json"))

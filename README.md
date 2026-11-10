@@ -10,10 +10,10 @@ What works today:
 
 - **Onboarding.** Live permission checks for Screen Recording, Microphone and Accessibility, a guide card that follows System Settings, relaunch-and-resume, an on-device voice check, pointing practice, and hive/Apiary detection.
 - **Scouting.** Press `⌃⌥S` and talk. Recording starts at once with no picker; capture follows the pane or window under the pointer across displays, E widens it (both recent areas, window, screen) and ⇧E follows again. Discard in the recording bar, or `⌃⌥X` twice, throws the recording away without sending anything. `⌥`-drag draws. On-device transcription with word timings, app/window/URL context, pointer dwell targets, and `⌥`-click pins feed the breakpoint engine, which cuts the stream into tasks while you talk.
-- **Walkthroughs.** A hotkey recording ends as one walkthrough.v1 bundle (transcript with word timings, key frames, pointed-at elements, drawings, how the captured area changed, a short list of asks and the clip) under `~/Library/Application Support/Scout/walkthroughs`, with its path on the clipboard for ⌘V into Apiary. "Split into tasks" in the menu bar keeps the task flow below.
+- **Walkthroughs.** A hotkey recording ends as one walkthrough.v1 bundle (transcript with word timings, key frames, pointed-at elements, drawings, how the captured area changed, a short list of asks and the clip) under `~/Library/Application Support/Scout/walkthroughs`, with its path on the clipboard for ⌘V into Apiary. Press `⌃⌥B` (Caps+B) to start a new ask: what you say next begins it, the bundle records a `break` event, and the bar shows "New ask"; elsewhere Scout splits asks on its own. "Split into tasks" in the menu bar keeps the task flow below.
 - **Tasks.** Each task gets a title, transcript, the elements you pointed at, runtime errors from the page, a video clip (cut in about 30 ms, no re-encode) and pin screenshots.
 - **Review.** After a session, a review window shows the whole recording on a filmstrip timeline. Trim, split, join or delete tasks, pick up speech that isn't in a task, edit titles and transcripts, and send tasks one by one or all at once. Earlier sessions reopen from the menu bar.
-- **Manual tasks.** Switch "New task on" to ⌃⌥B in the menu bar, and only ⌃⌥B (or saying "new task") starts the next task.
+- **Manual tasks.** Switch "New task on" to ⌃⌥B in the menu bar, and only ⌃⌥B (or saying "new task") starts the next task. In automatic mode ⌃⌥B forces a cut. Either way the bar shows "New task".
 - **Delivery.** Tasks go to the hive session already working in the app's repo (or a new one), with idempotent sends; the clipboard is the fallback.
 - **Web SDK.** `@scout/vite` + `@scout/react` add component names and `file:line` source locations for pins, plus errors and failed requests.
 
@@ -45,7 +45,7 @@ say -o /tmp/narration.aiff "The pay button is too small. [[slnc 2500]] Next thin
 open -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --simulate-pin --simulate-output=/tmp/scout-simulation
 cat /tmp/scout-simulation/report.json
 
-# manual mode with a ⌃⌥B at 11 s, plus scripted review edits and review screenshots
+# manual mode with a ⌃⌥B at 11 s, plus scripted review edits and review screenshots (each ⌃⌥B adds a pill-break-<s>.png and an entry under "breaks" in report.json; with --simulate-result=walkthrough it records a break in the walkthrough)
 open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --segmentation=manual --simulate-break=11 --simulate-review --simulate-output=/tmp/scout-manual
 
 # any run above at another interface size, without saving it; --simulate-ui-size=<size>@<seconds> switches size mid-session as the Settings picker does (and saves it), and records pill and stack frames in report.json

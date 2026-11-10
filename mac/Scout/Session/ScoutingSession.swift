@@ -23,6 +23,8 @@ final class ScoutingSession {
     private(set) var phase: Phase = .starting
     private(set) var openSnippet: Snippet?
     private(set) var closedCount = 0
+    private(set) var confirmingBreak = false
+    @ObservationIgnored private var breakConfirmation: Task<Void, Never>?
     private(set) var hoverTarget: Target?
     private(set) var context: AppContext?
     private(set) var elapsed: TimeInterval = 0
@@ -242,6 +244,17 @@ final class ScoutingSession {
 
     func splitNow() {
         ingest(.command(CommandSignal(at: clock.now, command: .split)))
+        confirmBreak()
+    }
+
+    func confirmBreak() {
+        breakConfirmation?.cancel()
+        confirmingBreak = true
+        breakConfirmation = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.6))
+            guard !Task.isCancelled else { return }
+            self?.confirmingBreak = false
+        }
     }
 
     func discardCurrent() {

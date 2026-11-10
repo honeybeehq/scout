@@ -91,7 +91,7 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
       pin-<n>.png              screenshot at each pin, element outlined
   corrections.jsonl            user merges and splits, for tuning the segmenter
   walkthroughs/<wt_ULID>/      one walkthrough.v1 bundle per hotkey recording (written as <id>.partial/, renamed when complete)
-    walkthrough.json           transcript with word timings, frames, pointers, drawings, asks, clip
+    walkthrough.json           transcript with word timings, frames, pointers, drawings, events (scope, app switch, ⌃⌥B break), asks, clip
     walkthrough.md             the text an agent receives
     frames/<ms>.png            key frames at start, pins, dwells, strokes, scope and scene changes, end (≤ 1600 px)
     frames/thumbs/<ms>.jpg     ≤ 320 px previews

@@ -35,6 +35,8 @@ enum DesignGallery {
             model.confirmingDiscard = true
             render(ScoutingPill().environment(model), scheme: scheme, name: name("pill-discard", scheme, size))
             model.confirmingDiscard = false
+            model.session?.confirmBreak()
+            render(ScoutingPill().environment(model), scheme: scheme, name: name("pill-new-ask", scheme, size))
         }
         await captureBarSequence(model: model)
     }
@@ -53,6 +55,7 @@ enum DesignGallery {
             ("widen", false, { follower.expand(input: InteractionTimings.now) }),
             ("widen-again", false, { follower.expand(input: InteractionTimings.now) }),
             ("follow", false, { follower.follow(input: InteractionTimings.now) }),
+            ("new-ask", false, { session.confirmBreak() }),
             ("transcript-1", false, {}),
             ("transcript-2", false, {}),
             ("transcript-3", false, {}),
