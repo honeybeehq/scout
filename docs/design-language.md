@@ -12,7 +12,7 @@ The app icon is a telescope seen end-on: you look into the barrel, and its lens 
 - The telescope reads as light, not as a drawing: the barrel rim is a soft glowing ring that is brightest on the side the lens leans toward, a fainter inner ring sits between rim and lens, and the lens is the one hot point. The rings and the lens sit slightly off centre, so the barrel seems to run back into the glass.
 - 16 and 32 px are tuned by hand: the rim and lens are snapped to whole pixels, with a dark gap between them, no bevel and stronger contrast.
 - The menu bar glyph is the same end-on telescope as a template image: a soft halo, a rim ring and a solid lens dot (black, adapts to the menu bar). It turns coral while recording.
-- In the app, `ScoutMark` still draws the earlier beam in SwiftUI: a soft glow, a beam whose ends fade (`BeamFill`) and a pale core. Its `level` (0–3) dims or brightens it, for example one step per granted permission during onboarding, and it pulses while Scout is ready or recording.
+- In the app, `ScoutMark` draws the same end-on telescope in SwiftUI: a soft glow, a rim ring lit toward the lens (`RimLight`), a faint inner ring and a warm lens (`LensFill`) set slightly off centre. Below 40 pt it drops the inner ring, as the 16 and 32 px icons do. Its `level` (0–3) dims or brightens it, for example one step per granted permission during onboarding, and it pulses while Scout is ready or recording.
 
 Draw the telescope as light inside the glass: a filled glowing lens and soft rings. A thin luminous outline of a telescope reads as a neon sign or line art and breaks the family.
 

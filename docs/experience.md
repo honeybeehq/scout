@@ -7,7 +7,7 @@ This is how Scout looks and behaves from the user's side. Visual rules are in [d
 | Surface | What it is | When it shows |
 |---|---|---|
 | Onboarding window | One 940×640 window, light or dark, full-bleed | First launch, or from the menu bar via "Setup guide" |
-| Menu bar item | The Signal beam as a template glyph. Coral while scouting | Always |
+| Menu bar item | The end-on telescope (rim and lens) as a template glyph. Coral while scouting | Always |
 | Menu bar panel | Start or finish scouting, *Record as tasks* with its *New task* setting, the last walkthrough, recent tasks with their state, hive and Apiary status | Click on the menu bar item |
 | Recording bar (pill) | Solid bar hanging from the top centre of the captured display like a notch | While scouting |
 | Capture frame | Accent outline around the captured area, with the rest of the screen dimmed, plus pins and ink | While scouting |
@@ -22,13 +22,13 @@ Scout is a menu bar app (`LSUIElement`). It becomes a regular app with a Dock ic
 
 Onboarding is six steps. Every step can be revisited, and progress is saved, so a relaunch (which Screen Recording requires) returns to the same step.
 
-1. **Welcome.** The Scout beam lights up in three steps. One sentence explains the product, with one button: *Set up Scout*. A privacy line under it: "Nothing leaves this Mac until you send it."
+1. **Welcome.** The Scout lens lights up in three steps. One sentence explains the product, with one button: *Set up Scout*. A privacy line under it: "Nothing leaves this Mac until you send it."
 2. **Access.** Three permission rows: Screen Recording, Microphone, Accessibility. Each row shows its live state and one action:
    - *Allow* triggers the system request.
    - Once requested, the row shows *Waiting* and a *Open Settings* button. Scout opens the exact pane in System Settings.
    - A **settings guide** card attaches to the side of the System Settings window and follows it as it moves. It shows the Scout icon (which can be dragged into the list) and an animated switch. When macOS reports the grant, the card turns into a check and Scout comes back to the front by itself.
    - Screen Recording only takes effect after a relaunch. When the user returns from Settings without the grant showing, the row offers *Relaunch*. Scout quits, reopens, and resumes on this step.
-   - The Scout beam on the left brightens one step per granted permission. With all three granted, the mark pulses and *Continue* turns on. *Skip for now* is always available so nobody gets stuck.
+   - The Scout lens on the left brightens one step per granted permission. With all three granted, the mark pulses and *Continue* turns on. *Skip for now* is always available so nobody gets stuck.
 3. **Voice.** Scout starts listening immediately. If needed it first downloads the on-device speech model, showing progress. The user's words appear large as they speak: finalized words in white, words still being decided in grey. After four words: "Scout hears you."
 4. **Point.** A practice page (a fake checkout form) teaches aiming. Holding `⌥` highlights the element under the pointer with its role and label. Clicking pins it; an accent marker drops with a ripple, and the pin appears in a list with its (sample) source location. The same step shows the global shortcut and lets the user change it.
 5. **Agents.** Scout checks for hive and Apiary live and shows the most recently active sessions. The user picks where tasks go:
