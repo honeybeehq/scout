@@ -155,17 +155,20 @@ struct MenuBarPanelContent: View {
                 Button("Split into tasks", action: actions.splitIntoTasks)
                     .buttonStyle(SecondaryButtonStyle())
                     .fixedSize()
-                .disabled(state.isScouting)
-                .help("Record, and Scout turns what you say into separate tasks for agents.")
+                    .disabled(state.isScouting)
+                    .help("Record, and Scout turns what you say into separate tasks for agents.")
                 Spacer(minLength: 4)
-                Text("New task")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
-                    .fixedSize()
-                SegmentedChoice(options: Segmentation.allCases, selection: $segmentation) { mode in
-                    mode == .automatic ? "Auto" : state.breakShortcut
+                HStack(spacing: 6) {
+                    Text("New task on")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textTertiary)
+                        .fixedSize()
+                    ChoiceMenu(options: Segmentation.allCases, selection: $segmentation) { mode in
+                        mode == .automatic ? "Auto" : "\(state.breakShortcut) only"
+                    }
                 }
                 .disabled(state.isScouting)
+                .opacity(state.isScouting ? 0.55 : 1)
                 .help(segmentation.explanation)
             }
 
@@ -322,7 +325,8 @@ private struct RecentTaskRow: View {
                 Text(task.title)
                     .font(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(task.state.isFinished ? Palette.textSecondary : Palette.text)
-                    .lineLimit(1)
+                    .lineLimit(task.state.isFinished ? 1 : 2)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let label {
                     Text(label)
                         .font(Typography.caption)
@@ -376,15 +380,16 @@ private struct LastWalkthroughRow: View {
     let actions: MenuBarPanelActions
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "doc.on.clipboard")
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Palette.textSecondary)
                 .frame(width: 12)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(walkthrough.title)
                     .font(.system(size: 12.5, weight: .medium))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(walkthrough.summary)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textTertiary)
@@ -397,15 +402,17 @@ private struct LastWalkthroughRow: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                 }
+                HStack(spacing: 4) {
+                    Button("Send…", action: actions.sendWalkthrough)
+                        .buttonStyle(SecondaryButtonStyle())
+                        .disabled(isScouting)
+                    Button("Copy", action: actions.copyWalkthrough)
+                        .buttonStyle(QuietButtonStyle())
+                    IconButton(symbol: "folder", label: "Show in Finder", action: actions.revealWalkthrough)
+                }
+                .padding(.top, 4)
             }
-            Spacer(minLength: 4)
-            Button("Send…", action: actions.sendWalkthrough)
-                .buttonStyle(SecondaryButtonStyle())
-                .disabled(isScouting)
-            IconButton(symbol: "doc.on.doc", label: "Copy", action: actions.copyWalkthrough)
-            IconButton(symbol: "folder", label: "Show in Finder", action: actions.revealWalkthrough)
         }
-        .padding(.trailing, -4)
     }
 }
 
