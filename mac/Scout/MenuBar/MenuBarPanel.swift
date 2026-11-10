@@ -188,12 +188,6 @@ struct MenuBarPanelContent: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text("Recent").eyebrowStyle(Palette.textTertiary)
-                let sent = state.recent.filter { $0.state.isFinished }.count
-                if sent > 0 {
-                    Text("\(sent) sent")
-                        .font(Typography.caption.monospacedDigit())
-                        .foregroundStyle(Palette.positive)
-                }
                 Spacer()
                 Button(action: actions.openReview) {
                     HStack(spacing: 3) {
@@ -322,13 +316,25 @@ private struct RecentTaskRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             marker
                 .frame(width: 12)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(task.title)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(task.state.isFinished ? Palette.textSecondary : Palette.text)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let label {
+            if task.state.isFinished {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(task.title)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Palette.textSecondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Text(label)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.positive)
+                        .fixedSize()
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(task.title)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Palette.text)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(label)
                         .font(Typography.caption)
                         .foregroundStyle(tone == .neutral ? Palette.textTertiary : tone.color)
@@ -361,7 +367,7 @@ private struct RecentTaskRow: View {
         }
     }
 
-    private var label: String? {
+    private var label: String {
         switch task.state {
         case .needsDestination: "Needs a destination"
         case .countdown, .sending: "Sending"
