@@ -52,6 +52,7 @@ vec3 coral(float t){
 struct Lay { vec3 col; float a; vec3 emit; };
 void over(inout Lay L, vec3 c, float a){ L.col = mix(L.col, c, a*(1.0-0.0)); L.a = max(L.a, a); }
 
+
 vec3 baseTop, baseBot, sideTint; vec3 emitF = vec3(1.0); float darkGlass, frostAmt, refr;
 
 void material(){
@@ -59,7 +60,7 @@ void material(){
   baseTop=vec3(0.66,0.37,0.08); baseBot=vec3(0.42,0.15,0.03); sideTint=vec3(1.0,0.55,0.10); darkGlass=0.5; frostAmt=0.7; refr=1.2; emitF=vec3(1.0,0.66,0.42);
 #elif C==6
   baseTop=vec3(0.20,0.11,0.05); baseBot=vec3(0.10,0.045,0.02); sideTint=vec3(1.0,0.55,0.12); darkGlass=1.0; frostAmt=0.6; refr=1.2;
-#elif C==15
+#elif C==15 || C==16
   baseTop=vec3(BT_R,BT_G,BT_B); baseBot=vec3(BB_R,BB_G,BB_B); sideTint=vec3(1.0,0.40,0.20); darkGlass=DG; frostAmt=0.65; refr=1.2; emitF=vec3(1.0,EF_G,EF_B);
 #endif
 }
@@ -90,7 +91,7 @@ void tune(){
   kSize=1.06; kGain=1.15; kLine=1.15; vigK=1.4; inLine=0.4; lipOld=1.0; lipK=0.10;
   hUp = float(V-3)*0.03*1024.0/392.0;
 #endif
-#elif C==15
+#elif C==15 || C==16
   kSize=1.0; kGain=PG; kSoft=0.9; vigK=1.5; edgeDark=0.20; inLine=0.4; lipOld=1.0; lipK=0.10;
   hEdge=PE; hGrad=1.0; hHaloW=PHW; hBloom=PBL; hTop=PTOP; hRim=PRIM; hCore=PCORE; kHalo=PHALO;
 #if SMALL>=2
@@ -99,6 +100,77 @@ void tune(){
 #endif
 #endif
 }
+
+#if C==16
+float sdSlab(vec2 p, float x0, float x1, float r0, float r1, float rr){
+  float cx = 0.5*(x0+x1), hw = 0.5*(x1-x0);
+  float k = (p.x - x0)/(x1 - x0);
+  float r = mix(r0, r1, clamp(k, 0.0, 1.0));
+  float sl = (r1 - r0)/(x1 - x0);
+  vec2 d = vec2(abs(p.x - cx) - hw + rr, (abs(p.y) - r + rr)/sqrt(1.0 + sl*sl));
+  return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - rr;
+}
+float sdScope(vec2 p){
+  float d = sdSlab(p, -0.64*TK, -0.50*TK, 0.060*TK, 0.060*TK, 0.018*TK);
+  d = min(d, sdSlab(p, -0.52*TK, -0.30*TK, 0.088*TK, 0.088*TK, 0.016*TK));
+  d = min(d, sdSlab(p, -0.32*TK, 0.38*TK, 0.120*TK, 0.150*TK, 0.016*TK));
+  d = min(d, sdSlab(p, 0.36*TK, 0.64*TK, 0.185*TK, 0.185*TK, 0.024*TK));
+  return d;
+}
+vec2 scopeLocal(vec2 q){
+  vec2 p = q - vec2(TCX, TCY);
+  float c = cos(TA), s = sin(TA);
+  return vec2(c*p.x + s*p.y, -s*p.x + c*p.y);
+}
+void scopeLight(inout Lay L, vec2 q, float px){
+#if TV==3
+  float rr = length(q - vec2(TCX, TCY));
+  float dOut = rr - 0.50*TK;
+  vec2 co = vec2(COX, COY)*TK;
+  float dStep = length(q - vec2(TCX, TCY) - 0.5*co) - 0.38*TK;
+  float dLens = length(q - vec2(TCX, TCY) - co) - LR*TK;
+  float d = dOut;
+  vec2 lp = (q - vec2(TCX, TCY) - co)/(LR*TK);
+  float ax = clamp(1.0 - rr/(0.5*TK), 0.0, 1.0);
+#else
+  vec2 p = scopeLocal(q);
+  p.y /= TRY;
+  float d = sdScope(p)*TRY;
+  float dStep = 1e3;
+  vec2 lc = vec2(0.64*TK - LDEP*TK, 0.0);
+  vec2 lp = (p - lc)/vec2(LEX*TK, LR*TK);
+  float dLens = (length(lp) - 1.0)*LR*TK;
+  float ax = clamp(0.5 + 0.5*p.x/(0.64*TK), 0.0, 1.0);
+#endif
+  float ow = OW*(1.0 + px);
+  float cov = 1.0 - sstep(-ow, ow, d);
+  float tIn = clamp(-d/(0.12*TK), 0.0, 1.0);
+  L.emit += coral(FBASE + 0.10*tIn + FGRAD*ax) * FILL * (1.0 + FGAIN*ax) * cov * kGain;
+  float rim = exp(-abs(d + OIN)/ow);
+  float rimSoft = exp(-abs(d + OIN)/(ow*4.0));
+  float ramp = mix(1.0 - ORAMP, 1.0, ax);
+#if TV==3
+  vec2 rdir = normalize(q - vec2(TCX, TCY) + 1e-5);
+  ramp *= mix(1.0 - RLIT, 1.0, 0.5 + 0.5*dot(rdir, normalize(vec2(COX, COY) + 1e-5)));
+#endif
+  L.emit += coral(OBASE) * (OG*rim + OSG*rimSoft) * ramp * kGain;
+  L.emit += vec3(1.0,0.80,0.68) * hRim * rim * 0.6;
+#if TV==3
+  L.emit += coral(OBASE - 0.08) * OSTEP * ramp * exp(-abs(dStep)/ow) * kGain;
+  float gap = sstep(-ow, ow, dLens) * (1.0 - sstep(-ow, ow, d));
+  L.emit *= 1.0 - GAPD*gap;
+#endif
+  float lcov = 1.0 - sstep(-ow*LSOFT, ow*LSOFT, dLens);
+  float lt = clamp(1.0 - length(lp), 0.0, 1.0);
+  L.emit += coral(LBASE + LSPAN*lt) * lcov * LG * kGain;
+  vec2 gp = lp - vec2(LGX, LGY);
+  L.emit += vec3(1.0,0.66,0.58) * LCORE * lcov * exp(-dot(gp,gp)/0.18);
+  L.emit += coral(OBASE) * LRIM * exp(-abs(dLens)/(ow*LSOFT));
+  L.emit += vec3(1.0,0.36,0.16)*0.42*kHalo*exp(-max(dLens,0.0)*6.0/hHaloW);
+  L.emit += vec3(0.88,0.16,0.08)*0.25*kHalo*exp(-max(d,0.0)*2.5/hHaloW);
+  L.emit += vec3(1.0,0.45,0.25)*hBloom*exp(-max(d,0.0)*14.0);
+}
+#endif
 
 Lay interior(vec2 q){
   Lay L; L.col = vec3(0); L.a = 0.0; L.emit = vec3(0);
@@ -123,6 +195,33 @@ Lay interior(vec2 q){
   L.emit += vec3(0.9,0.25,0.04)*0.25*kHalo*exp(-max(d,0.0)*2.5/hw);
   L.emit += vec3(1.0,0.55,0.12)*hBloom*exp(-max(d,0.0)*14.0);
   L.emit += vec3(1.0,0.90,0.62)*hCore*cov*exp(-dot(p-vec2(0.0,0.05),p-vec2(0.0,0.05))/0.06);
+#elif C==16 && SMALL>=2
+  vec2 u = (q*SC + FC)/PXS - vec2(SOX, SOY);
+  vec2 qq = (u*PXS - FC)/SC;
+  float pxq = PXS/SC;
+#if TV==3
+  float rr = length(qq - vec2(TCX, TCY));
+  float d = (rr - 0.50*TK)/pxq;
+  float dLens = (length(qq - vec2(TCX, TCY) - vec2(COX, COY)*TK) - LR*TK)/pxq;
+  float dIn = (rr - SRING*TK)/pxq;
+#else
+  vec2 p = scopeLocal(qq);
+  p.y /= SRY;
+  float d = sdScope(p)*SRY/pxq;
+  vec2 lc = vec2(0.64*TK - LDEP*TK, 0.0);
+  vec2 lp = (p - lc)/vec2(LEX*TK, LR*TK);
+  float dLens = (length(lp) - 1.0)*LR*TK/pxq;
+  float dIn = 1e3;
+#endif
+  float cov = 1.0 - sstep(-0.03, 0.03, d);
+  float lcov = 1.0 - sstep(-0.03, 0.03, dLens);
+  float hole = 1.0 - sstep(-0.03, 0.03, dIn);
+  float gapB = sstep(-0.03, 0.03, dLens) * (1.0 - sstep(SGW - 0.03, SGW + 0.03, dLens));
+  L.emit += coral(SLO) * cov * SGAIN * (1.0 - SHOLE*hole*(1.0 - lcov)) * (1.0 - SGAP*gapB);
+  L.emit += coral(SLO + SSPAN) * lcov * SGAIN * SLG;
+  L.emit += coral(0.40)*SHALO*exp(-max(d,0.0)/SHW) * (1.0 - cov);
+#elif C==16
+  scopeLight(L, q, 0.0);
 #elif C==15 && SMALL>=2
   vec2 u = (q*SC + FC)/PXS;
   float d = sdBox(u - vec2(SPX, SPC), vec2(SPW, SPH), SPR);

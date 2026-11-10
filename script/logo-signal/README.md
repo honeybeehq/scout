@@ -20,3 +20,13 @@ Small sizes (round 3): 16 px pill 5×9 px (`SPX 0.5 SPC 0.5 SPW 2.5 SPH 4.5 SPR 
 Beam softening (Chris's family-fit note, so the beam reads as light rather than a toggle, battery or capital "I"): `BEND 0.6` keeps the middle 60 % of the beam's edge as crisp as Apiary's hexagon; beyond it the edge blurs (`BSOFT 10`), the glow fades (`BFADE 0.30`), the rim fades out and the beam tapers slightly (`BTAPER 0.04`). A hot inner core lifts the centre (`BGRAD 0.12`, `BPULSE 0.20` at `BPY 0.03`, `BPW 0.5`). The 16 and 32 px pills fade their end pixels slightly (`SFADE 0.22`).
 
 Install into the app: copy `masters/scout-signal.iconset/icon_<n>x<n>.png` to `mac/Scout/Resources/Assets.xcassets/AppIcon.appiconset/icon_<n>x<n>@1x.png` and the `@2x` files as they are.
+
+## Scout telescope (current app icon)
+
+`C==16` replaces the beam with a monocular telescope. `TV` picks the view: `1` angled 45°, `2` horizontal, `3` end-on. The app ships the end-on take: an offset barrel rim (`COX/COY`, `RLIT` lights the rim toward the lens), a faint inner ring (`OSTEP`), a dark gap (`GAPD`) and the glowing lens (`LR`, `LG`, `LCORE`). Small sizes snap the rim and lens to pixels with a dark ring between them (`SRING`, `SHOLE`).
+
+```sh
+python3 scope.py endon
+```
+
+It reads the chosen parameters from `final-takes.json` and renders `masters/scope-endon-*`, a `.iconset` and `.icns`. Install them as described above, from `masters/scope-endon.iconset`.

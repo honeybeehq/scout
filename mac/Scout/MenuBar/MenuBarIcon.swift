@@ -18,14 +18,18 @@ struct MenuBarGlyph: View {
     var body: some View {
         let ink = scouting ? Color(hex: 0xFF5A3C) : Color.black
         ZStack {
-            Capsule()
+            Circle()
                 .fill(ink.opacity(scouting ? 0.4 : 0.22))
-                .frame(width: 9, height: 17)
-                .blur(radius: 1.6)
-            Capsule()
-                .fill(BeamFill(color: ink))
-                .frame(width: 5, height: 15)
+                .frame(width: 17, height: 17)
+                .blur(radius: 1.4)
+            Circle()
+                .strokeBorder(ink.opacity(0.7), lineWidth: 1.6)
+                .frame(width: 15, height: 15)
+            Circle()
+                .fill(ink)
+                .frame(width: 7.5, height: 7.5)
+                .offset(x: -0.6, y: 0.7)
         }
-        .frame(width: 14, height: 18)
+        .frame(width: 18, height: 18)
     }
 }

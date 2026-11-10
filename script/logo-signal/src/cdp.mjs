@@ -24,6 +24,6 @@ export async function launch() {
       throw new Error('timeout ' + url);
     },
     async eval(expr) { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails)); return r.result.value; },
-    close() { ws.close(); p.kill('SIGKILL'); fs.rmSync(profile, { recursive: true, force: true }); }
+    close() { ws.close(); p.kill('SIGKILL'); fs.rmSync(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }); }
   };
 }

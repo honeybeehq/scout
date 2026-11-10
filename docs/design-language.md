@@ -6,15 +6,15 @@ Code: `mac/Scout/Design/` (`Palette`, `Typography`, `Components`, `UIScale`, `Mo
 
 ## Icon and mark
 
-The app icon is one vertical beam of ember-coral light inside the family's dark glass slab. It is a sibling of Apiary (an amber hexagon) and Honeybee (stacked glass plates): same slab, bevel, bottom band and inner lighting, with only the inner form and hue changed.
+The app icon is a telescope seen end-on: you look into the barrel, and its lens glows ember-coral inside the family's dark glass slab. It is a sibling of Apiary (an amber hexagon) and Honeybee (stacked glass plates): same slab, bevel, bottom band and inner lighting, with only the inner form and hue changed.
 
-- Rendered with the family's WebGL2 shader, `script/logo-signal/` (concept `C==15`). See its README to re-render. Grid: an 824×824 body on a 1024 canvas, continuous-corner squircle, shadow inside the margin.
-- The beam reads as light, not as an object: its middle has a crisp edge like Apiary's hexagon, its ends soften and fade, and a hot core brightens the centre.
-- 16 and 32 px are tuned by hand: the beam is snapped to whole pixels, with no bevel and stronger contrast.
-- In the app, `ScoutMark` draws the same idea in SwiftUI: a soft glow, a beam whose ends fade (`BeamFill`) and a pale core. Its `level` (0–3) dims or brightens it, for example one step per granted permission during onboarding, and it pulses while Scout is ready or recording.
-- The menu bar glyph is the beam as a template image (black, adapts to the menu bar). It turns coral while recording.
+- Rendered with the family's WebGL2 shader, `script/logo-signal/` (concept `C==16`, end-on variant `TV 3`; parameters in `final-takes.json`). See its README to re-render. Grid: an 824×824 body on a 1024 canvas, continuous-corner squircle, shadow inside the margin.
+- The telescope reads as light, not as a drawing: the barrel rim is a soft glowing ring that is brightest on the side the lens leans toward, a fainter inner ring sits between rim and lens, and the lens is the one hot point. The rings and the lens sit slightly off centre, so the barrel seems to run back into the glass.
+- 16 and 32 px are tuned by hand: the rim and lens are snapped to whole pixels, with a dark gap between them, no bevel and stronger contrast.
+- The menu bar glyph is the same end-on telescope as a template image: a soft halo, a rim ring and a solid lens dot (black, adapts to the menu bar). It turns coral while recording.
+- In the app, `ScoutMark` still draws the earlier beam in SwiftUI: a soft glow, a beam whose ends fade (`BeamFill`) and a pale core. Its `level` (0–3) dims or brightens it, for example one step per granted permission during onboarding, and it pulses while Scout is ready or recording.
 
-Don't draw the beam as an outline with a fill level. That reads as a battery or a toggle.
+Draw the telescope as light inside the glass: a filled glowing lens and soft rings. A thin luminous outline of a telescope reads as a neon sign or line art and breaks the family.
 
 ## Color
 
