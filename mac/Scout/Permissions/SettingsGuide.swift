@@ -142,7 +142,7 @@ struct SettingsGuideView: View {
     }
 }
 
-private struct GuidingCard: View {
+struct GuidingCard: View {
     let permission: Permission
 
     var body: some View {

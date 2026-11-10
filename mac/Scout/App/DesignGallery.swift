@@ -130,6 +130,7 @@ enum DesignGallery {
                 render(SettingsView(pane: pane).environment(model), scheme: scheme, name: name("settings-\(pane.rawValue)", scheme, size), background: true)
             }
             render(CaptureScene().frame(width: 960 * size.scale, height: 560 * size.scale).scaledToUISize().environment(model), scheme: scheme, name: name("capture", scheme, size))
+            render(GuidingCard(permission: .microphone).frame(width: 320, height: 236), scheme: scheme, name: name("settings-guide", scheme, size), background: true)
         }
         for scheme in schemes {
             let glyphs = HStack(spacing: 24) {
