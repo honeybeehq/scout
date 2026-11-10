@@ -10,10 +10,10 @@ What works today:
 
 - **Onboarding.** Live permission checks for Screen Recording, Microphone and Accessibility, a guide card that follows System Settings, relaunch-and-resume, an on-device voice check, pointing practice, and hive/Apiary detection.
 - **Scouting.** Press `⌃⌥S` and talk. Recording starts at once with no picker; capture follows the pane or window under the pointer across displays, E widens it (both recent areas, window, screen) and ⇧E follows again. Discard in the recording bar, or `⌃⌥X` twice, throws the recording away without sending anything. `⌥`-drag draws. On-device transcription with word timings, app/window/URL context, pointer dwell targets, and `⌥`-click pins feed the breakpoint engine, which cuts the stream into tasks while you talk.
-- **Walkthroughs.** A hotkey recording ends as one walkthrough.v1 bundle (transcript with word timings, key frames, pointed-at elements, drawings, how the captured area changed, a short list of asks and the clip) under `~/Library/Application Support/Scout/walkthroughs`, with its path on the clipboard for ⌘V into Apiary. Press `⌃⌥B` (Caps+B) to start a new ask: what you say next begins it, the bundle records a `break` event, and the bar shows "New ask"; elsewhere Scout splits asks on its own. "Split into tasks" in the menu bar keeps the task flow below.
+- **Walkthroughs.** A hotkey recording ends as one walkthrough.v1 bundle (transcript with word timings, key frames, pointed-at elements, drawings, how the captured area changed, a short list of asks and the clip) under `~/Library/Application Support/Scout/walkthroughs`, with its path on the clipboard for ⌘V into Apiary. Press `⌃⌥B` (Caps+B) to start a new ask: what you say next begins it, the bundle records a `break` event, and the bar shows "New ask"; elsewhere Scout splits asks on its own. "Record as tasks" in the menu bar keeps the task flow below.
 - **Tasks.** Each task gets a title, transcript, the elements you pointed at, runtime errors from the page, a video clip (cut in about 30 ms, no re-encode) and pin screenshots.
 - **Review.** After a session, a review window shows the whole recording on a filmstrip timeline. Trim, split, join or delete tasks, pick up speech that isn't in a task, edit titles and transcripts, and send tasks one by one or all at once. Earlier sessions reopen from the menu bar.
-- **Manual tasks.** Switch "New task on" to ⌃⌥B in the menu bar, and only ⌃⌥B (or saying "new task") starts the next task. In automatic mode ⌃⌥B forces a cut. Either way the bar shows "New task".
+- **Manual tasks.** Switch "New task" to "On ⌃⌥B" in the menu bar, and only ⌃⌥B (or saying "new task") starts the next task. In automatic mode ⌃⌥B forces a cut. Either way the bar shows "New task".
 - **Delivery.** Tasks go to the hive session already working in the app's repo (or a new one), with idempotent sends; the clipboard is the fallback.
 - **Web SDK.** `@scout/vite` + `@scout/react` add component names and `file:line` source locations for pins, plus errors and failed requests.
 
@@ -57,6 +57,9 @@ open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aif
 
 # design review without a screen: renders every surface in light and dark at all four sizes, plus a recording-bar frame sequence and bar-frames.json (add --appearance=light|dark to force one appearance for the app itself)
 open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aiff --dry-run-delivery --simulate-review --simulate-output=/tmp/scout-gallery-sim --design-gallery=/tmp/scout-gallery
+
+# the menu bar panel in fixed states (empty, busy, recording), light and dark, all four sizes
+~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-panel
 
 # capture UX: hotkey, follow, keep-both, ⌃⌥E/⌃⌥⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
 ~/Applications/Scout.app/Contents/MacOS/Scout --capture-ux-demo=$HOME/.cache/scout-capture-ux --capture-ux-audio=/tmp/narration.aiff --dry-run-delivery

@@ -8,7 +8,7 @@ This is how Scout looks and behaves from the user's side. Visual rules are in [d
 |---|---|---|
 | Onboarding window | One 940×640 window, light or dark, full-bleed | First launch, or from the menu bar via "Setup guide" |
 | Menu bar item | The Signal beam as a template glyph. Coral while scouting | Always |
-| Menu bar panel | Start/stop, recent tasks, integration status | Click on the menu bar item |
+| Menu bar panel | Start or finish scouting, *Record as tasks* with its *New task* setting, the last walkthrough, recent tasks with their state, hive and Apiary status | Click on the menu bar item |
 | Recording bar (pill) | Solid bar hanging from the top centre of the captured display like a notch | While scouting |
 | Capture frame | Accent outline around the captured area, with the rest of the screen dimmed, plus pins and ink | While scouting |
 | Snippet stack | Column of task cards on the right edge | While scouting, from the first closed task |
@@ -85,7 +85,7 @@ A hotkey recording ends as one walkthrough, and Scout splits what you said into 
 
 ## Automatic and manual tasks
 
-These apply to "Split into tasks" in the menu bar. Two ways to decide where one task ends and the next begins. Pick one in the menu bar panel ("New task on: Auto / ⌃⌥B only") or in Settings → General. The choice is fixed per session.
+These apply to "Record as tasks" in the menu bar. Two ways to decide where one task ends and the next begins. Pick one in the menu bar panel ("New task: Auto / On ⌃⌥B") or in Settings → General. The choice is fixed per session.
 
 - **Automatic** (default). The breakpoint engine cuts on pauses, cue phrases ("next thing", "also"), app/window/URL changes, a new target, topic shifts and screen changes. See [breakpoints.md](breakpoints.md).
 - **Manual.** Nothing cuts except you: press **⌃⌥B** (Caps+B with the Caps layer), click *Next* in the pill, or say "new task" / "next task" as a sentence of its own. Pauses, app switches and long silences never cut, so one task can span apps and minutes. The pill shows `Task 3 · Next ⌃⌥B`.

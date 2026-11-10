@@ -101,3 +101,5 @@ Short, direct, second person. Say what happens, not what the feature is called: 
 ## Rendering the UI offscreen
 
 `--design-gallery=<dir>` added to a `--simulate-session` run renders every surface with `ImageRenderer` in light and dark at all four sizes, plus a frame sequence of the recording bar with `bar-frames.json` (window frame and every control's position per frame). Use it to review design changes when the screen can't be captured.
+
+`--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding, five long recent tasks with a walkthrough, and recording) in light and dark at all four sizes, then quits. It needs no session and no permissions.
