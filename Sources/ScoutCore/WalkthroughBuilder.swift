@@ -109,6 +109,7 @@ public struct WalkthroughBuilder: Sendable {
     public private(set) var strokes: [Stroke] = []
     public private(set) var scopes: [ScopeChange] = []
     public private(set) var semantics: [SemanticHit] = []
+    public private(set) var breaks: [SessionTime] = []
     private var requests: [FrameRequest] = []
     private var captured: [String: CapturedFrame] = [:]
     private var lastSceneAt: SessionTime = -.infinity
@@ -137,7 +138,10 @@ public struct WalkthroughBuilder: Sendable {
             guard change.magnitude >= Self.sceneThreshold, change.at - lastSceneAt >= Self.sceneSpacing else { return nil }
             lastSceneAt = change.at
             return request(at: change.at + Self.sceneSettle, reason: .scene)
-        case .utterance, .context, .command, .clock:
+        case .command(let command):
+            if command.command == .split { breaks.append(command.at) }
+            return nil
+        case .utterance, .context, .clock:
             return nil
         }
     }
@@ -277,7 +281,7 @@ public struct WalkthroughBuilder: Sendable {
 
         let transcriptReady = finish.transcript == .ready && finish.transcriptFailure == nil
         let asks = transcriptReady
-            ? Walkthrough.Asks(status: .ready, engine: AskExtractor.engine, items: AskExtractor.asks(from: segments, pointers: pointers, drawings: drawings))
+            ? Walkthrough.Asks(status: .ready, engine: AskExtractor.engine, items: AskExtractor.asks(from: segments, pointers: pointers, drawings: drawings, breaks: breaks.map(Walkthrough.milliseconds)))
             : Walkthrough.Asks(status: .unavailable, items: [])
 
         let context = appContext()
@@ -465,6 +469,7 @@ public struct WalkthroughBuilder: Sendable {
             }
         }
         events += scopes.map { Walkthrough.Event(t: Walkthrough.milliseconds($0.at), kind: .scope, detail: $0.scope.rawValue) }
+        events += breaks.map { Walkthrough.Event(t: Walkthrough.milliseconds($0), kind: .break) }
         events.sort { $0.t < $1.t }
         return events.isEmpty ? nil : events
     }

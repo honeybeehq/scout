@@ -41,6 +41,7 @@ public enum AskExtractor {
         var score = 0
         var hasRequest = false
         var continuing = false
+        var openedByBreak = false
 
         mutating func take(_ sentence: String, from segment: Walkthrough.Segment, score value: Int) {
             sentences.append(sentence)
@@ -50,16 +51,28 @@ public enum AskExtractor {
         }
     }
 
-    public static func asks(from segments: [Walkthrough.Segment], pointers: [Walkthrough.Pointer], drawings: [Walkthrough.Drawing]) -> [Walkthrough.Ask] {
+    public static func asks(from segments: [Walkthrough.Segment], pointers: [Walkthrough.Pointer], drawings: [Walkthrough.Drawing], breaks: [Int] = []) -> [Walkthrough.Ask] {
         var found: [Thought] = []
         var current = Thought()
         var previousEnd: Int?
+        var pendingBreaks = breaks.sorted()[...]
         func close() {
-            if !current.sentences.isEmpty, current.score >= 1 { found.append(current) }
+            guard !current.sentences.isEmpty else { return }
+            if current.score >= 1 || current.openedByBreak { found.append(current) }
             current = Thought()
         }
         for segment in segments {
-            if let previousEnd, segment.start - previousEnd >= thoughtGap { close() }
+            var broken = false
+            while let next = pendingBreaks.first, next <= segment.start {
+                pendingBreaks.removeFirst()
+                broken = true
+            }
+            if broken {
+                close()
+                current.openedByBreak = true
+            } else if let previousEnd, segment.start - previousEnd >= thoughtGap {
+                close()
+            }
             previousEnd = segment.end
             for sentence in Self.sentences(in: segment.text) {
                 if isClosing(sentence) {
@@ -77,6 +90,8 @@ public enum AskExtractor {
                 if value > 0 {
                     current.take(sentence, from: segment, score: value)
                     current.continuing = true
+                } else if current.openedByBreak {
+                    current.take(sentence, from: segment, score: 0)
                 } else {
                     current.continuing = false
                 }
@@ -84,7 +99,7 @@ public enum AskExtractor {
         }
         close()
         if found.count > maximumAsks {
-            let kept = Set(found.indices.sorted { found[$0].score > found[$1].score || (found[$0].score == found[$1].score && $0 < $1) }.prefix(maximumAsks))
+            let kept = Set(found.indices.sorted { (found[$0].openedByBreak ? 1 : 0, found[$0].score, -$0) > (found[$1].openedByBreak ? 1 : 0, found[$1].score, -$1) }.prefix(maximumAsks))
             found = found.indices.filter(kept.contains).map { found[$0] }
         }
         return found.enumerated().map { index, thought in

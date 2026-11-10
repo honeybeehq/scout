@@ -488,6 +488,7 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         case navigate
         case appSwitch
         case key
+        case `break`
     }
 
     public struct Event: Codable, Hashable, Sendable {
