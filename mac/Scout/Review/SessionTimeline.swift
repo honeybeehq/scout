@@ -53,6 +53,7 @@ struct SessionTimeline: View {
                     if case .active(let location) = phase { hoverX = location.x } else { hoverX = nil }
                 }
 
+                Playhead(review: review, scale: scale)
                 ForEach(Array(review.tasks.enumerated()), id: \.element.id) { index, card in
                     taskLabel(card, index: index, scale: scale)
                     if !card.isLocked {
@@ -64,7 +65,6 @@ struct SessionTimeline: View {
                 if let hoverX, draggingEdge == nil {
                     hoverMarker(at: hoverX, scale: scale)
                 }
-                Playhead(review: review, scale: scale)
             }
             .coordinateSpace(.named("timeline"))
         }

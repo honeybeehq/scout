@@ -10,12 +10,28 @@ struct TaskList: View {
         ScrollViewReader { proxy in
             ScoutScroll {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack {
+                    HStack(spacing: 8) {
                         Text("Tasks").eyebrowStyle(Palette.textTertiary)
-                        Spacer()
+                        Spacer(minLength: 0)
                         Text(summary)
                             .font(Typography.caption.monospacedDigit())
                             .foregroundStyle(Palette.textTertiary)
+                            .lineLimit(1)
+                        let leftoverCount = review.leftoverSpeech.count
+                        if leftoverCount > 0 && !review.tasks.isEmpty {
+                            Button {
+                                withAnimation(Motion.smooth) { proxy.scrollTo(Self.leftoversID, anchor: .top) }
+                            } label: {
+                                Label("\(leftoverCount) not in a task", systemImage: "arrow.down")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(Typography.caption.monospacedDigit())
+                                    .foregroundStyle(Palette.caution)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                            }
+                            .buttonStyle(.plain)
+                            .help("Jump to speech that isn't in a task")
+                        }
                     }
                     .padding(.horizontal, 10)
                     .padding(.top, 4)
@@ -43,6 +59,7 @@ struct TaskList: View {
                     if !leftovers.isEmpty {
                         Text("Not in a task yet")
                             .eyebrowStyle()
+                            .id(Self.leftoversID)
                             .padding(.horizontal, 10)
                             .padding(.top, 14)
                         ForEach(leftovers) { utterance in
@@ -79,6 +96,8 @@ struct TaskList: View {
             }
         }
     }
+
+    static let leftoversID = "leftovers"
 
     private var summary: String {
         let count = review.tasks.count
@@ -184,7 +203,8 @@ struct StateLine: View {
         case .sent: Palette.positive
         case .failed, .copiedInstead: Palette.negative
         case .needsDestination: Palette.caution
-        case .countdown, .sending: Palette.accentText
+        case .countdown: Palette.accentText
+        case .sending: Palette.textSecondary
         default: Palette.textTertiary
         }
     }
