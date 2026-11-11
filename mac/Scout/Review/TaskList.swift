@@ -120,7 +120,7 @@ private struct TaskRow: View {
                 .frame(width: 24, height: 20)
                 .background(selected ? Palette.ink : Palette.fillRaised, in: .rect(cornerRadius: Radius.tag + 1, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(card.title)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Palette.text)
@@ -128,24 +128,19 @@ private struct TaskRow: View {
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 6) {
-                    Text(SessionTimeline.clock(card.snippet.range.start))
+                HStack(spacing: 8) {
+                    Text("\(SessionTimeline.clock(card.snippet.range.start)) · \(String(format: "%.0f s", card.snippet.range.duration))")
                         .monospacedDigit()
-                    Text("·")
-                    Text(String(format: "%.0f s", card.snippet.range.duration))
-                        .monospacedDigit()
-                    if let app = card.snippet.primaryContext?.app.name {
-                        Text("·")
-                        Text(app).lineLimit(1)
-                    }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Palette.textTertiary)
+                        .fixedSize()
+                    Spacer(minLength: 0)
+                    StateLine(card: card)
                 }
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Palette.textTertiary)
-                StateLine(card: card)
             }
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 9)
+        .padding(.vertical, 8)
         .padding(.leading, 11)
         .padding(.trailing, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -171,6 +166,17 @@ struct StateLine: View {
             Text(text).lineLimit(1).foregroundStyle(card.state == .needsDestination ? Palette.textSecondary : tint)
         }
         .font(.system(size: 11, weight: .semibold))
+        .fixedSize()
+        .help(detail)
+    }
+
+    private var detail: String {
+        switch card.state {
+        case .sent(let destination): "Sent to \(destination)"
+        case .failed(let message): "Couldn't send: \(message)"
+        case .copiedInstead(let reason): "Not sent, copied to the clipboard instead: \(reason)"
+        default: card.destination.map { "To \($0.label)" } ?? text
+        }
     }
 
     private var symbol: String {
@@ -187,14 +193,14 @@ struct StateLine: View {
 
     private var text: String {
         switch card.state {
-        case .sent(let destination): "Sent to \(destination)"
+        case .sent: "Sent"
         case .failed: "Couldn't send"
-        case .copiedInstead: "Not sent, copied instead"
+        case .copiedInstead: "Copied instead"
         case .sending: "Sending…"
         case .countdown: "Sending soon"
         case .needsDestination: "Needs a destination"
         case .preparing: "Preparing"
-        case .held, .withdrawn: card.destination.map { "To \($0.label)" } ?? "Ready"
+        case .held, .withdrawn: "Ready"
         }
     }
 
