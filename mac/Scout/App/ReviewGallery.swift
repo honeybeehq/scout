@@ -31,7 +31,50 @@ enum ReviewGallery {
                 }
             }
         }
+        await captureLiveWindow(model: model, frame: frame, into: directory)
         NSApp.terminate(nil)
+    }
+
+    private static func captureLiveWindow(model: AppModel, frame: CGImage?, into directory: URL) async {
+        guard let review = fixtures.first(where: { $0.name == "three" })?.make(model.dispatcher), let card = review.selectedTask else { return }
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+        let player = ReviewPlayer()
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: windowSize), styleMask: [.titled, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.titlebarAppearsTransparent = true
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: ReviewSurface(review: review, player: player).environment(model).environment(\.stillFrame, frame))
+        var log: [String] = []
+        func capture(_ name: String, size: CGSize = windowSize) async {
+            window.setContentSize(size)
+            try? await Task.sleep(for: .milliseconds(400))
+            guard let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try? bitmap.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("live-\(name).png"))
+            log.append("\(name): " + review.tasks.enumerated().map { index, task in
+                "\(index + 1) \(String(format: "%.1f-%.1f", task.snippet.range.start, task.snippet.range.end)) excluded=\(task.excludedTargetIDs.count) edited=\(task.transcriptOverride != nil)"
+            }.joined(separator: " | "))
+        }
+        await capture("01-open")
+        await capture("02-minimum", size: ReviewWindow.minimumSize)
+        review.playhead = card.snippet.range.start + 4
+        review.split(card, at: review.playhead)
+        await capture("03-split")
+        review.join(card)
+        await capture("04-joined")
+        review.delete(card)
+        await capture("05-deleted")
+        review.undo()
+        review.select(card)
+        await capture("06-undone")
+        review.beginTextEdit()
+        card.excludedTargetIDs = []
+        card.transcriptOverride = nil
+        review.edited(card)
+        await capture("07-included-original")
+        player.loopsTask = false
+        await capture("08-loop-off")
+        try? log.joined(separator: "\n").write(to: directory.appendingPathComponent("live-log.txt"), atomically: true, encoding: .utf8)
+        window.close()
     }
 
     private static func render(_ view: some View, scheme: ColorScheme, to url: URL) {
@@ -93,6 +136,7 @@ enum ReviewGallery {
             var ledger = SessionLedger(replaying: signals.sorted { $0.time < $1.time })
             ledger.extend(to: duration)
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("scout-review-gallery/\(name)", isDirectory: true)
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let sessionID = "gallery-\(name)"
             let cards = tasks.enumerated().map { index, task -> SnippetCard in
                 let card = SnippetCard(snippet: ledger.snippet(id: "task-\(index)", range: TimeRange(start: task.start, end: task.end)), sessionID: sessionID, sessionDirectory: directory)

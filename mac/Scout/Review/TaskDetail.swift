@@ -125,6 +125,7 @@ private struct TitleField: View {
                     review.edited(card)
                 }
             ), axis: .vertical)
+            .lineLimit(1...6)
             .textFieldStyle(.plain)
             .font(.system(size: 19, weight: .bold))
             .foregroundStyle(Palette.text)

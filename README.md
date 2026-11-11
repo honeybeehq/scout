@@ -64,6 +64,9 @@ open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aif
 # read-only live destination search, picker images and search report; no hotkeys, delivery or clipboard changes
 ~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-picker --picker-query=needle
 
+# the review window from fixture sessions (1, 3 and 8 tasks, every delivery state, a 5-minute session, leftover speech only, no session), light and dark, all four sizes, at the default and the minimum window size, plus live-window frames after split, join, delete and undo
+~/Applications/Scout.app/Contents/MacOS/Scout --review-gallery=/tmp/scout-review
+
 # capture UX: hotkey, follow, keep-both, ⌃⌥E/⌃⌥⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
 ~/Applications/Scout.app/Contents/MacOS/Scout --capture-ux-demo=$HOME/.cache/scout-capture-ux --capture-ux-audio=/tmp/narration.aiff --dry-run-delivery
 ```

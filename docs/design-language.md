@@ -103,3 +103,5 @@ Short, direct, second person. Say what happens, not what the feature is called: 
 `--design-gallery=<dir>` added to a `--simulate-session` run renders every surface with `ImageRenderer` in light and dark at all four sizes, plus a frame sequence of the recording bar with `bar-frames.json` (window frame and every control's position per frame). Use it to review design changes when the screen can't be captured.
 
 `--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding, five long recent tasks with a walkthrough, and recording) in light and dark at all four sizes, then quits. It needs no session and no permissions.
+
+`--review-gallery=<dir>` renders the review window from fixture sessions (1, 3 and 8 tasks with every delivery state and long titles, a five-minute session, leftover speech only, and no session) in light and dark at all four sizes, at the default and the minimum window size, then hosts the 3-task fixture in a live window and saves frames after split, join, delete, undo and include, with `live-log.txt`. It skips the global hotkey, the bridge and session pruning, so it can run beside an everyday Scout.
