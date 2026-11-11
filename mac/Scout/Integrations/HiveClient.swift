@@ -13,6 +13,17 @@ struct HiveSession: Identifiable, Hashable, Sendable {
     var isWaitingForYou: Bool
     var isRunning: Bool
     var workspaceTag: String?
+    var isChampion = false
+
+    var pickerTarget: ApiaryTarget {
+        var target = ApiaryTarget(kind: "session", id: id, sessionID: id, title: isChampion ? name : displayTitle, handle: handle, subtitle: projectName)
+        target.name = name
+        target.sessionTitle = title
+        target.championName = isChampion ? name : nil
+        target.workspaceID = workspaceTag.map { String($0.dropFirst("apiary:workspace=".count)) }
+        target.viaApiary = false
+        return target
+    }
 
     var displayTitle: String {
         if let title, !title.isEmpty { return title }
@@ -60,8 +71,8 @@ nonisolated struct HiveClient: Sendable {
         FileManager.default.fileExists(atPath: socketPath)
     }
 
-    func activeSessions(limit: Int = 50) async throws -> [HiveSession] {
-        let result = try await call(verb: "list", params: ["lifecycle": "active"])
+    func activeSessions(limit: Int = 50, timeout: Duration = .seconds(8)) async throws -> [HiveSession] {
+        let result = try await call(verb: "list", params: ["lifecycle": "active"], timeout: timeout)
         let views = (result["views"] as? [[String: Any]]) ?? []
         return views
             .compactMap(Self.session(from:))
@@ -112,7 +123,8 @@ nonisolated struct HiveClient: Sendable {
             isWorking: state?["working"] as? Bool ?? false,
             isWaitingForYou: state?["waitingForYou"] as? Bool ?? false,
             isRunning: (runtime?["state"] as? String) == "running",
-            workspaceTag: tags.first { $0.hasPrefix("apiary:workspace=") }
+            workspaceTag: tags.first { $0.hasPrefix("apiary:workspace=") },
+            isChampion: tags.contains("apiary:role=champion")
         )
     }
 

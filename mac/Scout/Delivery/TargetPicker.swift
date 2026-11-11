@@ -20,10 +20,17 @@ final class TargetPickerModel {
 
     private(set) var phase: Phase = .finishing
     private(set) var walkthrough: FinishedWalkthrough?
-    private(set) var targets: [ApiaryTarget] = []
+    private(set) var targets: [ApiaryTarget] = [] {
+        didSet {
+            searchIndex = targets.map(\.searchText)
+            filterTargets()
+        }
+    }
+    @ObservationIgnored private var searchIndex: [String] = []
+    private(set) var filtered: [ApiaryTarget] = []
     private(set) var source: Source = .loading
     var query = "" {
-        didSet { selection = 0 }
+        didSet { selection = 0; filterTargets() }
     }
     var selection = 0
     private(set) var queued: DeliveryMode?
@@ -37,12 +44,10 @@ final class TargetPickerModel {
     var onChoose: ((ApiaryTarget, DeliveryMode) -> Void)?
     var onDismiss: (() -> Void)?
 
-    var filtered: [ApiaryTarget] {
+    private func filterTargets() {
         let words = query.lowercased().split(whereSeparator: \.isWhitespace)
-        guard !words.isEmpty else { return targets }
-        return targets.filter { target in
-            let haystack = [target.title, target.handle, target.subtitle, target.kind].compactMap { $0 }.joined(separator: " ").lowercased()
-            return words.allSatisfy { haystack.contains($0) }
+        filtered = words.isEmpty ? targets : zip(targets, searchIndex).compactMap { target, text in
+            words.allSatisfy { text.contains($0) } ? target : nil
         }
     }
 
@@ -51,7 +56,7 @@ final class TargetPickerModel {
         return rows.indices.contains(selection) ? rows[selection] : nil
     }
 
-    var canPaste: Bool { source == .apiary }
+    var canPaste: Bool { source == .apiary && selected?.viaApiary == true }
 
     var isCompact: Bool { confirmation != nil || progress != nil }
 
@@ -445,7 +450,7 @@ struct TargetPickerView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 1) {
-                        ForEach(Array(rows.prefix(200).enumerated()), id: \.element.key) { index, target in
+                        ForEach(Array(rows.enumerated()), id: \.element.key) { index, target in
                             row(target, selected: index == model.selection)
                                 .contentShape(.rect)
                                 .onTapGesture {
@@ -476,23 +481,32 @@ struct TargetPickerView: View {
         HStack(spacing: 9) {
             StatusDot(tone: target.focused ? .active : (target.open ? .neutral : .neutral), size: 5)
                 .opacity(target.focused || target.open ? 1 : 0.4)
-            Text(target.title)
-                .font(.system(size: 13, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? Palette.text : Palette.textSecondary)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(target.title)
+                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? Palette.text : Palette.textSecondary)
+                    .lineLimit(1)
+                if let workspace = target.workspaceLabel {
+                    Text(workspace)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textTertiary)
+                        .lineLimit(1)
+                        .help(workspace)
+                }
+            }
             if target.focused {
                 Text("focused chat")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textTertiary)
             }
             Spacer(minLength: 6)
-            Text(target.kind == "session" ? (target.handle ?? "") : target.kind)
+            Text(target.championName != nil || target.kind == "champion" ? "Champion" : (target.handle ?? target.kind))
                 .font(Typography.mono)
                 .foregroundStyle(Palette.textQuaternary)
                 .lineLimit(1)
         }
         .padding(.horizontal, 8)
-        .frame(height: 30)
+        .frame(height: target.workspaceLabel == nil ? 30 : 44)
         .background(selected ? Palette.selection : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
     }
 

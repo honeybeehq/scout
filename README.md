@@ -61,6 +61,9 @@ open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aif
 # the menu bar panel in fixed states (empty, busy, recording), light and dark, all four sizes
 ~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-panel
 
+# read-only live destination search, picker images and search report; no hotkeys, delivery or clipboard changes
+~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-picker --picker-query=needle
+
 # capture UX: hotkey, follow, keep-both, ⌃⌥E/⌃⌥⇧E, pin, draw, finish, with timings (add --capture-ux-video for flow.mp4)
 ~/Applications/Scout.app/Contents/MacOS/Scout --capture-ux-demo=$HOME/.cache/scout-capture-ux --capture-ux-audio=/tmp/narration.aiff --dry-run-delivery
 ```

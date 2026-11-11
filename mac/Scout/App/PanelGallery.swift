@@ -7,8 +7,61 @@ enum PanelGallery {
         return ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.map { URL(fileURLWithPath: String($0.dropFirst(prefix.count)), isDirectory: true) }
     }
 
-    static func run(into directory: URL) async {
+    static func run(model: AppModel, into directory: URL) async {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--picker-query=") }) {
+            let loadStarted = ContinuousClock.now
+            await model.loadTargets(pressedAt: loadStarted)
+            let loadMs = ApiaryBridge.milliseconds(.now - loadStarted)
+            let picker = model.picker.model
+            picker.query = String(argument.dropFirst("--picker-query=".count))
+            let query = picker.query
+            let started = ContinuousClock.now
+            for index in 0..<1000 { picker.query = index.isMultiple(of: 2) ? query : query.uppercased() }
+            let elapsed = ApiaryBridge.milliseconds(.now - started)
+            picker.query = query
+            let matches = picker.filtered
+            let queries = Set([query, query.uppercased(), String(query.prefix(3))] + matches.flatMap { target in
+                [target.name, target.displayName, target.subtitle, target.sessionTitle, target.championName, target.championID, target.id, target.sessionID, target.handle, target.workspaceID, target.workspaceName].compactMap { $0 }
+            })
+            var searches: [String: [String]] = [:]
+            for query in queries.sorted() {
+                picker.query = query
+                searches[query] = picker.filtered.map(\.key)
+            }
+            picker.query = query
+            let report: [String: Any] = [
+                "query": picker.query,
+                "total": picker.targets.count,
+                "loadMs": loadMs,
+                "searches": searches,
+                "uniqueKeys": Set(picker.targets.map(\.key)).count,
+                "canPaste": picker.canPaste,
+                "filter1000Ms": elapsed,
+                "matches": picker.filtered.map { ["kind": $0.kind, "id": $0.id, "title": $0.title, "sessionId": $0.sessionID ?? "", "workspace": $0.workspaceLabel ?? "", "viaApiary": $0.viaApiary] },
+            ]
+            if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: directory.appendingPathComponent("picker-report.json"))
+            }
+            for scheme in DesignGallery.schemes {
+                NSApp.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+                let host = NSHostingView(rootView: TargetPickerView().environment(picker).environment(\.colorScheme, scheme))
+                host.frame = CGRect(origin: .zero, size: TargetPickerController.size)
+                let panel = PickerPanel(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+                panel.contentView = host
+                panel.setFrameOrigin(CGPoint(x: -10_000, y: -10_000))
+                panel.orderFrontRegardless()
+                host.layoutSubtreeIfNeeded()
+                try? await Task.sleep(for: .milliseconds(200))
+                if let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+                    host.cacheDisplay(in: host.bounds, to: rep)
+                    try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("picker-\(scheme == .dark ? "dark" : "light").png"))
+                }
+                panel.orderOut(nil)
+            }
+            NSApp.terminate(nil)
+            return
+        }
         try? await Task.sleep(for: .milliseconds(300))
         for scheme in DesignGallery.schemes {
             NSApp.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)

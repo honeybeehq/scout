@@ -80,6 +80,14 @@ nonisolated struct ApiaryTarget: Hashable, Sendable {
     var subtitle: String?
     var focused: Bool
     var open: Bool
+    var name: String?
+    var displayName: String?
+    var sessionTitle: String?
+    var championName: String?
+    var championID: String?
+    var workspaceID: String?
+    var workspaceName: String?
+    var viaApiary = true
 
     init(kind: String, id: String, sessionID: String?, title: String, handle: String? = nil, subtitle: String? = nil, focused: Bool = false, open: Bool = false) {
         self.kind = kind
@@ -109,13 +117,27 @@ nonisolated struct ApiaryTarget: Hashable, Sendable {
             kind: kind,
             id: id,
             sessionID: text("sessionId") ?? (kind == "session" ? id : nil),
-            title: text("title") ?? text("handle") ?? id,
+            title: text("title") ?? text("championName") ?? text("displayName") ?? text("name") ?? text("handle") ?? id,
             handle: text("handle"),
             subtitle: text("subtitle"),
             focused: flag("focused"),
             open: flag("open")
         )
+        name = text("name")
+        displayName = text("displayName")
+        sessionTitle = text("sessionTitle")
+        championName = text("championName") ?? (kind == "champion" ? title : nil)
+        championID = text("championId") ?? (kind == "champion" ? id : nil)
+        workspaceID = text("workspaceId")
+        workspaceName = text("workspaceName")
     }
+
+    var searchText: String {
+        [title, name, displayName, sessionTitle, championName, championID, id, sessionID, handle, subtitle, kind, workspaceID, workspaceName]
+            .compactMap { $0 }.joined(separator: " ").lowercased()
+    }
+
+    var workspaceLabel: String? { workspaceName ?? workspaceID }
 
     var key: String { "\(kind):\(id)" }
 
@@ -179,7 +201,7 @@ actor ApiaryBridge {
         return ApiaryTarget(target).map { var target = $0; target.focused = true; return target }
     }
 
-    func listTargets(limit: Int = 200) async throws -> [ApiaryTarget] {
+    func listTargets(limit: Int = 500) async throws -> [ApiaryTarget] {
         let answer = try await call("listTargets", .object(["limit": .number(Double(limit))]), timeout: .milliseconds(800))
         guard case .object(let fields) = answer, case .array(let rows)? = fields["targets"] else { return [] }
         return rows.compactMap(ApiaryTarget.init)

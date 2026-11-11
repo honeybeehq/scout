@@ -67,6 +67,10 @@ final class AppModel {
         } else {
             shortcut = .startScouting
         }
+        if let directory = PanelGallery.directory {
+            Task { await PanelGallery.run(model: self, into: directory) }
+            return
+        }
         let hotkey = GlobalHotkey { [weak self] in self?.toggleScouting(input: GlobalHotkey.lastPressTime) }
         self.hotkey = hotkey
         shortcutRegistered = hotkey.register(shortcut)
@@ -87,9 +91,6 @@ final class AppModel {
         }
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
-        }
-        if let directory = PanelGallery.directory {
-            Task { await PanelGallery.run(into: directory) }
         }
         if let directory = SimulationMode.deliveryCheck {
             Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }
@@ -230,27 +231,11 @@ final class AppModel {
         }
     }
 
-    @ObservationIgnored private var prefetched: [ApiaryTarget] = []
+    @ObservationIgnored private var prefetched = TargetDirectory(targets: [], source: .loading)
 
     private func prefetchTargets() async {
-        prefetched = []
-        guard await apiary.connect() != nil else { return }
-        async let focused = try? apiary.focusedChat()
-        async let listed = try? apiary.listTargets()
-        prefetched = Self.ordered(await listed ?? [], focused: await focused)
-    }
-
-    private static func ordered(_ listed: [ApiaryTarget], focused: ApiaryTarget?) -> [ApiaryTarget] {
-        var rows = listed
-        guard let focused else { return rows }
-        if let index = rows.firstIndex(where: { $0.kind == focused.kind && $0.id == focused.id }) {
-            var row = rows.remove(at: index)
-            row.focused = true
-            rows.insert(row, at: 0)
-        } else {
-            rows.insert(focused, at: 0)
-        }
-        return rows
+        prefetched = TargetDirectory(targets: [], source: .loading)
+        prefetched = await TargetDirectory.load(apiary: apiary, hive: integrations.hiveClient)
     }
 
     private func connectTasks(of session: ScoutingSession) {
@@ -444,10 +429,10 @@ final class AppModel {
         finishPressedAt = pressedAt
         pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
         picker.model.reset(with: finished)
-        if !prefetched.isEmpty { picker.model.setTargets(prefetched, source: .apiary) }
+        if !prefetched.targets.isEmpty { picker.model.setTargets(prefetched.targets, source: prefetched.source) }
         picker.open(near: NSEvent.mouseLocation)
         pickerTimings["pickerShown"] = ApiaryBridge.milliseconds(.now - pressedAt)
-        if !prefetched.isEmpty { pickerTimings["targetsListed"] = pickerTimings["pickerShown"] }
+        if !prefetched.targets.isEmpty { pickerTimings["targetsListed"] = pickerTimings["pickerShown"] }
         DispatchQueue.main.async { [weak self] in
             self?.pickerTimings["pickerPainted"] = ApiaryBridge.milliseconds(.now - pressedAt)
         }
@@ -467,28 +452,11 @@ final class AppModel {
         pickerTimings["pickerShown"] = ApiaryBridge.milliseconds(.now - pressedAt)
     }
 
-    private func loadTargets(pressedAt: ContinuousClock.Instant) async {
-        let model = picker.model
-        if await apiary.connect() != nil {
-            async let focused = try? apiary.focusedChat()
-            async let listed = try? apiary.listTargets()
-            let focus = await focused
-            let rows = Self.ordered(await listed ?? [], focused: focus)
-            if !rows.isEmpty {
-                model.setTargets(rows, source: .apiary)
-                pickerTimings["targetsRefreshed"] = ApiaryBridge.milliseconds(.now - pressedAt)
-                if pickerTimings["targetsListed"] == nil { pickerTimings["targetsListed"] = pickerTimings["targetsRefreshed"] }
-                return
-            }
-        }
-        let hive = integrations.hiveClient
-        guard hive.isInstalled, let sessions = try? await hive.activeSessions(limit: 200) else {
-            model.setTargets([], source: .none)
-            return
-        }
-        let rows = sessions.map { ApiaryTarget(kind: "session", id: $0.id, sessionID: $0.id, title: $0.displayTitle, handle: $0.handle, subtitle: $0.projectName) }
-        model.setTargets(rows, source: .hive)
-        pickerTimings["targetsListed"] = ApiaryBridge.milliseconds(.now - pressedAt)
+    func loadTargets(pressedAt: ContinuousClock.Instant) async {
+        let result = await TargetDirectory.load(apiary: apiary, hive: integrations.hiveClient)
+        picker.model.setTargets(result.targets, source: result.source)
+        pickerTimings["targetsRefreshed"] = ApiaryBridge.milliseconds(.now - pressedAt)
+        if pickerTimings["targetsListed"] == nil { pickerTimings["targetsListed"] = pickerTimings["targetsRefreshed"] }
     }
 
     @ObservationIgnored private var chosen: (target: ApiaryTarget, mode: DeliveryMode, at: ContinuousClock.Instant)?
@@ -511,7 +479,7 @@ final class AppModel {
     private func deliver(_ finished: FinishedWalkthrough, to target: ApiaryTarget, mode: DeliveryMode) {
         let model = picker.model
         model.began()
-        let viaApiary = model.source == .apiary
+        let viaApiary = model.source == .apiary && target.viaApiary
         let bound = model.isBound
         let delivery = WalkthroughDelivery(apiary: apiary, hive: integrations.hiveClient)
         let started = ContinuousClock.now
