@@ -8,33 +8,35 @@ struct TaskDetail: View {
     let player: ReviewPlayer
     let card: SnippetCard
 
-    var body: some View {
-        VStack(spacing: 0) {
-            ScoutScroll(indicators: .automatic) {
-                HStack(alignment: .top, spacing: 28) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        PlayerPanel(review: review, player: player, card: card)
-                        HandoffBar(review: review, card: card)
-                        PinsSection(review: review, player: player, card: card)
-                    }
-                    .frame(minWidth: 380, maxWidth: .infinity, alignment: .top)
+    static let detailWidth: CGFloat = 340
 
-                    VStack(alignment: .leading, spacing: 20) {
+    var body: some View {
+        HStack(spacing: 0) {
+            StageColumn(review: review, player: player, card: card)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Rectangle().fill(Palette.hairline).frame(width: 1)
+            VStack(spacing: 0) {
+                ScoutScroll(indicators: .automatic) {
+                    VStack(alignment: .leading, spacing: 22) {
                         TitleField(review: review, card: card)
                         TranscriptField(review: review, card: card)
                         TargetsSection(review: review, card: card)
                         ContextSection(card: card)
                     }
-                    .frame(width: 380, alignment: .top)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 18)
+                    .padding(.bottom, 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(24)
+                HandoffBar(review: review, card: card)
             }
+            .frame(width: Self.detailWidth)
+            .background(Palette.surface)
         }
     }
 }
 
-private struct PlayerPanel: View {
-    @Environment(AppModel.self) private var model
+private struct StageColumn: View {
     let review: SessionReview
     let player: ReviewPlayer
     let card: SnippetCard
@@ -42,7 +44,7 @@ private struct PlayerPanel: View {
     @Environment(\.stillFrame) private var stillFrame
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 14) {
             ZStack {
                 if still, let stillFrame {
                     Image(decorative: stillFrame, scale: 1)
@@ -71,69 +73,15 @@ private struct PlayerPanel: View {
                 }
             }
             .aspectRatio(aspect, contentMode: .fit)
-            .frame(maxHeight: 420)
             .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.stroke))
             .onTapGesture { player.toggle() }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            HStack(spacing: 12) {
-                Button {
-                    player.toggle()
-                } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Palette.onInk)
-                        .frame(width: 34, height: 30)
-                        .background(Palette.ink, in: .rect(cornerRadius: Radius.control, style: .continuous))
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .buttonStyle(.plain)
-                .disabled(review.video == nil)
-                .help("Play or pause (Space)")
-
-                KeyHint("space")
-                Text("\(Text(SessionTimeline.clock(max(0, review.playhead - card.snippet.range.start), precise: true)).foregroundStyle(Palette.text)) / \(SessionTimeline.clock(card.snippet.range.duration, precise: true))")
-                    .font(.system(size: 12.5, weight: .bold).monospacedDigit())
-                    .foregroundStyle(Palette.textTertiary)
-                    .fixedSize()
-
-                Spacer(minLength: 0)
-
-                if !review.confirmingDiscard {
-                    Button {
-                        player.loopsTask.toggle()
-                    } label: {
-                        Label("Loop task", systemImage: "repeat")
-                            .font(.system(size: 12, weight: .semibold))
-                            .fixedSize()
-                            .foregroundStyle(player.loopsTask ? Palette.text : Palette.textTertiary)
-                    }
-                    .buttonStyle(QuietButtonStyle())
-                    .accessibilityAddTraits(player.loopsTask ? .isSelected : [])
-
-                    Button {
-                        player.pause()
-                        if let second = review.split(card, at: review.playhead) {
-                            review.selectedTaskID = card.snippet.id
-                            _ = second
-                        }
-                    } label: {
-                        Label("Split here", systemImage: "scissors")
-                            .font(.system(size: 12, weight: .semibold))
-                            .fixedSize()
-                    }
-                    .buttonStyle(QuietButtonStyle())
-                    .disabled(!review.canSplit(card, at: review.playhead))
-                }
-
-                DiscardControl(question: "Discard session?", help: review.canDiscard ? "Discard session: delete its recording and tasks. Nothing is sent or copied." : "Sessions with sent tasks, or a video still being prepared, can't be discarded.", compact: true, asking: Bindable(review).confirmingDiscard) {
-                    player.detach()
-                    model.discard(review)
-                }
-                .disabled(!review.canDiscard)
-                .opacity(review.canDiscard ? 1 : 0.5)
-            }
+            PinsSection(review: review, player: player, card: card)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(20)
     }
 
     private var aspect: CGFloat {
@@ -150,10 +98,12 @@ private struct TitleField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Task").eyebrowStyle(Palette.textTertiary)
+            Text(position)
+                .font(Typography.caption.monospacedDigit())
+                .foregroundStyle(Palette.textTertiary)
             if still {
                 Text(card.title)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 19, weight: .bold))
                     .foregroundStyle(Palette.text)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -167,7 +117,7 @@ private struct TitleField: View {
                 }
             ), axis: .vertical)
             .textFieldStyle(.plain)
-            .font(.system(size: 20, weight: .bold))
+            .font(.system(size: 19, weight: .bold))
             .foregroundStyle(Palette.text)
             .disabled(card.isLocked)
             .focused($focused)
@@ -178,6 +128,12 @@ private struct TitleField: View {
             }
         }
     }
+
+    private var position: String {
+        let range = card.snippet.range
+        let number = (review.tasks.firstIndex { $0 === card } ?? 0) + 1
+        return "Task \(number) of \(review.tasks.count) · \(SessionTimeline.clock(range.start))–\(SessionTimeline.clock(range.end))"
+    }
 }
 
 private struct TranscriptField: View {
@@ -187,8 +143,8 @@ private struct TranscriptField: View {
     @State private var width: CGFloat = 340
     @Environment(\.stillRender) private var still
 
-    static let fontSize: CGFloat = 14.5
-    static let lineSpacing: CGFloat = 4
+    static let fontSize: CGFloat = 13.5
+    static let lineSpacing: CGFloat = 3
 
     static func height(for text: String, width: CGFloat) -> CGFloat {
         let style = NSMutableParagraphStyle()
@@ -204,24 +160,28 @@ private struct TranscriptField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(spacing: 6) {
                 Text("What you said").eyebrowStyle(Palette.textTertiary)
                 if card.transcriptOverride != nil {
-                    StateTag(text: "Edited", tone: .caution)
-                    Spacer()
+                    Text("· Edited")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textTertiary)
+                    Spacer(minLength: 0)
                     if !card.isLocked {
                         Button("Use the original") {
                             card.transcriptOverride = nil
                             review.edited(card)
                         }
                         .buttonStyle(QuietButtonStyle())
+                        .padding(.vertical, -6)
                     }
                 }
             }
+            .frame(height: 14)
             if card.isLocked {
                 Text(card.transcript)
-                    .font(.system(size: 14.5))
-                    .lineSpacing(4)
+                    .font(.system(size: Self.fontSize))
+                    .lineSpacing(Self.lineSpacing)
                     .foregroundStyle(Palette.textSecondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -348,6 +308,7 @@ private struct PinsSection: View {
         if !marks.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Pins").eyebrowStyle(Palette.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 ScoutScroll(axis: .horizontal) {
                     HStack(spacing: 10) {
                         ForEach(Array(marks.enumerated()), id: \.element.id) { index, mark in
@@ -369,11 +330,12 @@ private struct PinThumbnail: View {
     let mark: Mark
     let number: Int
     @State private var image: CGImage?
+    @Environment(\.stillFrame) private var stillFrame
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack {
-                if let image {
+                if let image = image ?? stillFrame {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -381,7 +343,7 @@ private struct PinThumbnail: View {
                     Palette.fill
                 }
             }
-            .frame(width: 168, height: 104)
+            .frame(width: 128, height: 80)
             .clipShape(.rect(cornerRadius: Radius.control, style: .continuous))
             .overlay(alignment: .topLeading) {
                 PinBadge(number: number)
@@ -392,7 +354,7 @@ private struct PinThumbnail: View {
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(1)
-                .frame(width: 168, alignment: .leading)
+                .frame(width: 128, alignment: .leading)
         }
         .task(id: mark.id) {
             image = await review.frame(at: mark.at, maximumSize: CGSize(width: 480, height: 300))
@@ -407,32 +369,28 @@ private struct ContextSection: View {
         VStack(alignment: .leading, spacing: 8) {
             if card.snippet.primaryContext != nil || card.project != nil {
                 Text("Where").eyebrowStyle(Palette.textTertiary)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     if let context = card.snippet.primaryContext {
-                        HStack(spacing: 6) {
-                            let location = context.location ?? context.windowTitle
-                            if let location, location.hasPrefix(context.app.name) {
-                                Text(location).font(.system(size: 13, weight: .semibold))
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            } else {
-                                Text(context.app.name).font(.system(size: 13, weight: .semibold))
-                                if let location, location != context.app.name {
-                                    Text(location)
-                                        .font(Typography.mono)
-                                        .foregroundStyle(Palette.textSecondary)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                }
-                            }
+                        Text(context.app.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Palette.text)
+                        if let location = context.location ?? context.windowTitle, location != context.app.name {
+                            Text(location)
+                                .font(isAddress(location) ? Typography.mono : .system(size: 12.5))
+                                .foregroundStyle(Palette.textSecondary)
+                                .lineLimit(2)
+                                .truncationMode(.middle)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
                         }
                     }
                     if let project = card.project {
-                        Text("Repo \(project.rootPath)" + (project.gitBranch.map { " · \($0)" } ?? ""))
+                        Text(project.rootPath.replacingOccurrences(of: NSHomeDirectory(), with: "~") + (project.gitBranch.map { " · \($0)" } ?? ""))
                             .font(Typography.mono)
                             .foregroundStyle(Palette.textTertiary)
                             .lineLimit(1)
                             .truncationMode(.head)
+                            .padding(.top, 2)
                     }
                 }
             }
@@ -451,6 +409,10 @@ private struct ContextSection: View {
             }
         }
     }
+
+    private func isAddress(_ text: String) -> Bool {
+        text.contains("://") || text.hasPrefix("/") || text.hasPrefix("~")
+    }
 }
 
 private struct HandoffBar: View {
@@ -459,52 +421,57 @@ private struct HandoffBar: View {
     let card: SnippetCard
 
     var body: some View {
-        HStack(spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             if case .sent(let destination) = card.state {
-                Label("Sent to \(destination)", systemImage: "checkmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Palette.positive)
-                    .lineLimit(1)
-                Spacer()
-                Button("Copy task") { copy() }
-                    .buttonStyle(SecondaryButtonStyle())
+                HStack(spacing: 10) {
+                    Label("Sent to \(destination)", systemImage: "checkmark")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(Palette.positive)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 0)
+                    Button("Copy task") { copy() }
+                        .buttonStyle(SecondaryButtonStyle())
+                }
             } else {
-                DestinationPicker(card: card)
-                    .frame(maxWidth: 300, alignment: .leading)
-                Spacer()
                 if let message = card.state.problem {
-                    HStack(spacing: 6) {
-                        StatusDot(tone: .negative, size: 5)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        StatusDot(tone: .negative, size: 6)
                         Text(message).lineLimit(2)
                     }
                     .help(message)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                 }
-                if card.state == .sending {
-                    ProgressView().controlSize(.small)
-                }
-                Button("Copy") { copy() }
-                    .buttonStyle(QuietButtonStyle())
-                Button {
-                    Task {
-                        await model.dispatcher.send(card)
-                        review.save()
+                DestinationPicker(card: card)
+                HStack(spacing: 8) {
+                    Button("Copy") { copy() }
+                        .buttonStyle(SecondaryButtonStyle())
+                    Spacer(minLength: 0)
+                    if card.state == .sending {
+                        ProgressView().controlSize(.small)
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Text("Send task")
-                        KeyHint("⌘↩", emphasized: true)
+                    Button {
+                        Task {
+                            await model.dispatcher.send(card)
+                            review.save()
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(card.state == .sending ? "Sending…" : "Send task")
+                            KeyHint("⌘↩", emphasized: true)
+                        }
                     }
+                    .buttonStyle(PrimaryButtonStyle(large: false))
+                    .disabled(card.destination == nil || card.isLocked)
+                    .keyboardShortcut(.return, modifiers: .command)
                 }
-                .buttonStyle(PrimaryButtonStyle(large: false))
-                .disabled(card.destination == nil || card.isLocked)
-                .keyboardShortcut(.return, modifiers: .command)
             }
         }
-        .padding(.horizontal, 12)
-        .frame(height: 52)
-        .surfaceCard(Palette.surface)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface)
+        .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 
     private func copy() {
@@ -531,11 +498,13 @@ struct DestinationPicker: View {
                 Text(card.destination?.label ?? "Choose destination")
                     .lineLimit(1)
                     .truncationMode(.middle)
+                Spacer(minLength: 0)
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .bold)).opacity(0.7)
             }
             .font(.system(size: 12.5, weight: .bold))
             .foregroundStyle(missing ? Palette.onCaution : Palette.text)
             .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 28)
             .background(missing ? Palette.cautionFill : Palette.canvas, in: .rect(cornerRadius: Radius.control, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(missing ? Color.clear : Palette.stroke))

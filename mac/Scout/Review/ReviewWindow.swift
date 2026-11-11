@@ -6,24 +6,35 @@ struct ReviewWindow: View {
     @Environment(AppModel.self) private var model
     @State private var player = ReviewPlayer()
 
+    static let minimumSize = CGSize(width: 1140, height: 700)
+
     var body: some View {
-        ZStack {
-            Palette.canvas
-                .ignoresSafeArea()
-            if let review = model.review {
-                ReviewContent(review: review, player: player)
-                    .id(review.sessionID)
-            } else {
-                EmptyReview()
-            }
-        }
-        .frame(minWidth: 1140, minHeight: 700)
+        ReviewSurface(review: model.review, player: player)
+        .frame(minWidth: Self.minimumSize.width, minHeight: Self.minimumSize.height)
         .scaledToUISize()
         .onAppear { model.windowOpened() }
         .onDisappear {
             player.detach()
             model.review?.save()
             model.windowClosed()
+        }
+    }
+}
+
+struct ReviewSurface: View {
+    let review: SessionReview?
+    let player: ReviewPlayer
+
+    var body: some View {
+        ZStack {
+            Palette.canvas
+                .ignoresSafeArea()
+            if let review {
+                ReviewContent(review: review, player: player)
+                    .id(review.sessionID)
+            } else {
+                EmptyReview()
+            }
         }
     }
 }
@@ -42,7 +53,7 @@ private struct ReviewContent: View {
             }
             HStack(spacing: 0) {
                 TaskList(review: review, player: player, onFocusRoot: { rootFocused = true })
-                    .frame(width: 300)
+                    .frame(width: 272)
                     .background(Palette.surface)
                 Rectangle().fill(Palette.hairline).frame(width: 1)
                 if let card = review.selectedTask {
@@ -139,6 +150,13 @@ private struct ReviewHeader: View {
             }
             Spacer()
 
+            DiscardControl(question: "Discard session?", help: review.canDiscard ? "Discard session: delete its recording and tasks. Nothing is sent or copied." : "Sessions with sent tasks, or a video still being prepared, can't be discarded.", compact: true, asking: Bindable(review).confirmingDiscard) {
+                player.detach()
+                model.discard(review)
+            }
+            .disabled(!review.canDiscard)
+            .opacity(review.canDiscard ? 1 : 0.5)
+
             ScoutMenu {
                 ForEach(sessions) { summary in
                     Button {
@@ -225,63 +243,120 @@ private struct TimelinePanel: View {
     let player: ReviewPlayer
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Text("Timeline").eyebrowStyle(Palette.textTertiary)
-                Text("Drag a task's edge to trim it. Edges snap to pauses in your speech.")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
-                    .lineLimit(1)
-                Spacer()
-                if let card = review.selectedTask {
-                    toolbarButton("Split", symbol: "scissors", shortcut: "⌘B", enabled: review.canSplit(card, at: review.playhead)) {
-                        player.pause()
-                        review.split(card, at: review.playhead)
-                    }
-                    .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut("b", modifiers: .command))
-                    toolbarButton("Join next", symbol: "arrow.right.to.line.compact", shortcut: "⌘J", enabled: review.canJoin(card)) {
-                        review.join(card)
-                    }
-                    .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut("j", modifiers: .command))
-                    toolbarButton("Delete", symbol: "trash", shortcut: "⌘⌫", enabled: !card.isLocked) {
-                        player.pause()
-                        review.delete(card)
-                    }
-                    .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut(.delete, modifiers: .command))
-                }
-                toolbarButton("Undo", symbol: "arrow.uturn.backward", shortcut: "⌘Z", enabled: review.canUndo) {
-                    review.undo()
-                }
-                .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut("z", modifiers: .command))
-            }
+        VStack(spacing: 6) {
+            TransportBar(review: review, player: player)
             SessionTimeline(review: review, player: player)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
         .background(Palette.sunken)
         .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
+}
 
-    private func toolbarButton(_ title: String, symbol: String, shortcut: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+private struct TransportBar: View {
+    let review: SessionReview
+    let player: ReviewPlayer
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button {
+                player.toggle()
+            } label: {
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Palette.onInk)
+                    .frame(width: 32, height: 28)
+                    .background(Palette.ink, in: .rect(cornerRadius: Radius.control, style: .continuous))
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .disabled(review.video == nil)
+            .help("Play or pause (Space)")
+            KeyHint("space")
+
+            if let card = review.selectedTask {
+                Text("\(Text(SessionTimeline.clock(max(0, review.playhead - card.snippet.range.start), precise: true)).foregroundStyle(Palette.text)) / \(SessionTimeline.clock(card.snippet.range.duration, precise: true))")
+                    .font(Typography.numeric)
+                    .foregroundStyle(Palette.textTertiary)
+                    .fixedSize()
+                    .padding(.horizontal, 6)
+            }
+
+            TransportButton(title: "Loop task", symbol: "repeat", on: player.loopsTask) {
+                player.loopsTask.toggle()
+            }
+            .accessibilityAddTraits(player.loopsTask ? .isSelected : [])
+
+            Rectangle().fill(Palette.stroke).frame(width: 1, height: 16).padding(.horizontal, 4)
+
+            if let card = review.selectedTask {
+                TransportButton(title: "Split", symbol: "scissors", shortcut: "⌘B", enabled: review.canSplit(card, at: review.playhead)) {
+                    player.pause()
+                    review.split(card, at: review.playhead)
+                }
+                .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut("b", modifiers: .command))
+                .help("Split the task at the playhead (⌘B)")
+                TransportButton(title: "Join next", symbol: "arrow.right.to.line.compact", shortcut: "⌘J", enabled: review.canJoin(card)) {
+                    review.join(card)
+                }
+                .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut("j", modifiers: .command))
+                .help("Join with the next task (⌘J)")
+                TransportButton(title: "Delete", symbol: "trash", shortcut: "⌘⌫", enabled: !card.isLocked) {
+                    player.pause()
+                    review.delete(card)
+                }
+                .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut(.delete, modifiers: .command))
+                .help("Delete this task (⌘⌫)")
+            }
+            TransportButton(title: "Undo", symbol: "arrow.uturn.backward", shortcut: "⌘Z", enabled: review.canUndo) {
+                review.undo()
+            }
+            .keyboardShortcut(review.isEditingText ? nil : KeyboardShortcut("z", modifiers: .command))
+            .help("Undo (⌘Z)")
+
+            Spacer(minLength: 12)
+            ViewThatFits(in: .horizontal) {
+                Text("Drag a task's edge to trim it. Edges snap to pauses; hold ⌥ to place freely.")
+                Text("Drag an edge to trim it.")
+                Color.clear.frame(width: 0, height: 0)
+            }
+            .font(Typography.caption)
+            .foregroundStyle(Palette.textTertiary)
+            .lineLimit(1)
+        }
+        .frame(height: 30)
+    }
+}
+
+private struct TransportButton: View {
+    let title: String
+    let symbol: String
+    var shortcut: String?
+    var enabled = true
+    var on = false
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: symbol)
                 Text(title)
-                KeyHint(shortcut)
+                if let shortcut { KeyHint(shortcut) }
             }
             .font(.system(size: 12, weight: .semibold))
+            .fixedSize()
             .padding(.leading, 9)
-            .padding(.trailing, 5)
+            .padding(.trailing, shortcut == nil ? 9 : 5)
             .frame(height: 26)
-            .background(Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(enabled ? Palette.stroke : Palette.hairline))
+            .background(on ? Palette.fillStrong : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(on ? Palette.text.opacity(0.5) : enabled ? Palette.stroke : Palette.hairline))
             .foregroundStyle(enabled ? Palette.text : Palette.textQuaternary)
-            .opacity(enabled ? 1 : 0.6)
+            .contentShape(.rect(cornerRadius: Radius.control))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
-        .help("\(title) (\(shortcut))")
     }
 }
 
