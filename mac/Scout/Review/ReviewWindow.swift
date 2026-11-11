@@ -207,8 +207,9 @@ private struct ReviewHeader: View {
                     }
                 } label: {
                     HStack(spacing: 8) {
+                        if review.unsentCount == 0 { Image(systemName: "checkmark") }
                         Text(sendLabel).monospacedDigit()
-                        KeyHint("⌥⌘↩")
+                        if sendableCount > 0 { KeyHint("⌥⌘↩") }
                     }
                 }
                 .buttonStyle(SecondaryButtonStyle())

@@ -360,7 +360,8 @@ private struct PinThumbnail: View {
                     .padding(6)
             }
             .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
-            Text(mark.target?.displayName ?? "Pinned spot")
+            Text("\(SessionTimeline.clock(mark.at))  \(mark.target?.displayName ?? "Pinned spot")")
+                .monospacedDigit()
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(Palette.textSecondary)
                 .lineLimit(2)
