@@ -18,7 +18,8 @@ struct ScoutingPill: View {
 
     static let barHeight: CGFloat = 36
     static let barWidth: CGFloat = Slot.inset * 2 + Slot.clock + Slot.levels + Slot.transcript + Slot.task + Slot.capture + Slot.discard + Slot.finish + Slot.spacing * 6
-    static let windowSize = CGSize(width: barWidth, height: barHeight + 8)
+    static let shadowMargin: CGFloat = 8
+    static let windowSize = CGSize(width: barWidth, height: barHeight + shadowMargin)
     static let cornerRadius: CGFloat = 12
 
     var body: some View {
@@ -82,10 +83,13 @@ struct ScoutingPill: View {
         .padding(.horizontal, Slot.inset)
         .frame(width: Self.barWidth, height: Self.barHeight)
         .barSlot("bar")
+        .frame(maxHeight: .infinity, alignment: .bottom)
         .background(Palette.hud, in: NotchShape(radius: Self.cornerRadius))
         .overlay(NotchShape(radius: Self.cornerRadius).strokeBorder(Palette.stroke).padding(.top, -2).clipped())
         .shadow(color: .black.opacity(0.22), radius: 3, y: 1)
-        .frame(width: Self.windowSize.width, height: Self.windowSize.height, alignment: .top)
+        .padding(.bottom, Self.shadowMargin)
+        .frame(width: Self.windowSize.width, alignment: .top)
+        .frame(minHeight: Self.windowSize.height)
         .coordinateSpace(.named(BarLayoutProbe.space))
         .scaledToUISize()
         .animation(Motion.snappy, value: confirming)

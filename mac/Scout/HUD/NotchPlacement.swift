@@ -2,7 +2,6 @@ import CoreGraphics
 
 nonisolated struct NotchGeometry: Equatable, Sendable {
     var frame: CGRect
-    var visibleFrame: CGRect
     var safeAreaTop: CGFloat
     var auxiliaryTopLeft: CGRect?
     var auxiliaryTopRight: CGRect?
@@ -14,17 +13,14 @@ nonisolated struct NotchGeometry: Equatable, Sendable {
         return CGRect(x: left.maxX, y: frame.maxY - safeAreaTop, width: right.minX - left.maxX, height: safeAreaTop)
     }
 
-    var barTop: CGFloat {
-        let menuBarBottom = visibleFrame.maxY
-        guard hasNotch else { return menuBarBottom }
-        return min(menuBarBottom, frame.maxY - safeAreaTop)
-    }
+    var notchBand: CGFloat { notch?.height ?? 0 }
 
     var barCenterX: CGFloat { notch?.midX ?? frame.midX }
 
     func barFrame(size: CGSize) -> CGRect {
         let width = min(size.width, frame.width)
+        let height = (size.height + notchBand).rounded(.up)
         let x = min(max(barCenterX - width / 2, frame.minX), frame.maxX - width)
-        return CGRect(x: x.rounded(), y: (barTop - size.height).rounded(), width: width, height: size.height)
+        return CGRect(x: x.rounded(), y: frame.maxY - height, width: width, height: height)
     }
 }

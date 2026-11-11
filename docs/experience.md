@@ -43,7 +43,7 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
 
 **Start.** Press `⌃⌥S` from any app, or click *Start scouting* in the menu bar panel. Recording starts at once: the recording bar appears at the top of the display and the capture frame outlines what is under it. There is no mode picker and no window or screen to choose.
 
-**The recording bar** (36 pt high, solid, top corners flush with the menu bar):
+**The recording bar** (36 pt high, solid, top corners flush with the top edge of the screen):
 
 ```
  ● 0:42  ▂▅▇▃▁  …and the total should be bold too   ⤢ Following · Safari — Checkout  ⌃⌥E   Discard   Finish ⌃⌥S
@@ -51,7 +51,7 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
 
 From left to right: recording dot and elapsed time, voice level, the last words heard (unfinished words in grey), what is being captured, Discard, and Finish. In manual mode a `Task 3 · Next ⌃⌥B` chip sits before the capture button. When ⌃⌥B is caught, the transcript slot shows `+ New ask  Keep talking.` (`New task` when splitting into tasks) for 1.6 seconds, then the words come back.
 
-The bar hangs from the top centre of the display being captured, directly under the menu bar. On a MacBook with a notch it sits under the notch and is centred on it, so it is never hidden. It stays put while the capture moves within a display and jumps to another display only when the capture does. Every control has a fixed slot, so nothing shifts when you hover, the transcript grows, the capture scope changes or the Discard question shows; long text truncates inside its slot. The bar never takes focus, is excluded from the recording, and can't be dragged.
+The bar hangs from the very top edge of the display being captured, centred and drawn over the menu bar. On a MacBook with a notch it wraps around the notch: it is centred on the notch, grows by the notch's height, and puts its controls in the row just below it, so nothing is hidden. It stays on top when an auto-hiding menu bar slides down and over full-screen apps. It stays put while the capture moves within a display and jumps to another display only when the capture does. Every control has a fixed slot, so nothing shifts when you hover, the transcript grows, the capture scope changes or the Discard question shows; long text truncates inside its slot. The bar never takes focus, is excluded from the recording, and can't be dragged.
 
 **What is captured.** Scout follows the pointer. The captured area is the pane under the pointer, or the window when Scout can't tell panes apart, or the screen when no window is under it. Panes are split views found through Accessibility; inside Apiary they come from the Apiary bridge. At the shortcut, the frame starts on the window under the pointer and narrows to the pane as soon as it is known. When the pointer rests in another area for 250 ms, the frame glides there (120 ms) and the recording moves to that display if it changed. Outside the frame the screen is dimmed a little, so it is always clear what the recording is about.
 
