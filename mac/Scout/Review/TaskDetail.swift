@@ -243,7 +243,7 @@ private struct TargetsSection: View {
         if !targets.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Pointed at").eyebrowStyle(Palette.textTertiary)
-                FlowLayout(spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(targets) { target in
                         TargetChip(target: target, excluded: card.excludedTargetIDs.contains(target.id), locked: card.isLocked) {
                             if card.excludedTargetIDs.contains(target.id) {
@@ -269,40 +269,37 @@ private struct TargetChip: View {
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(target.displayName)
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(excluded ? Palette.textTertiary : Palette.text)
-                        .strikethrough(excluded, color: Palette.textTertiary)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                    if excluded { StateTag(text: "Left out", tone: .neutral) }
+                Text(target.displayName)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(excluded ? Palette.textTertiary : Palette.text)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Group {
+                    if excluded {
+                        Text("Left out of the task").font(.system(size: 11, weight: .medium))
+                    } else if let source = target.source {
+                        Text(source.description).font(Typography.mono)
+                    } else if let parent = target.ancestry.first {
+                        Text("in \(parent)").font(.system(size: 11))
+                    }
                 }
-                if let source = target.source {
-                    Text(source.description)
-                        .font(Typography.mono)
-                        .foregroundStyle(Palette.textTertiary)
-                } else if let parent = target.ancestry.first {
-                    Text("in \(parent)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Palette.textTertiary)
-                }
+                .foregroundStyle(Palette.textTertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
             }
+            .help(target.source.map { "\(target.displayName) · \($0.description)" } ?? target.displayName)
+            Spacer(minLength: 0)
             if !locked {
-                Spacer(minLength: 0)
-                Button(action: toggle) {
-                    Image(systemName: excluded ? "plus" : "xmark")
-                        .font(.system(size: 9.5, weight: .bold))
-                        .frame(width: 24, height: 24)
-                        .background(Palette.fillRaised, in: .rect(cornerRadius: Radius.tag + 1))
-                }
-                .buttonStyle(.plain)
-                .help(excluded ? "Include again" : "Leave out of the task")
+                Button(excluded ? "Include" : "Leave out", action: toggle)
+                    .buttonStyle(QuietButtonStyle())
+                    .fixedSize()
+                    .help(excluded ? "Include this in the task again" : "Leave this out of the task")
             }
         }
         .padding(.leading, 12)
-        .padding(.trailing, locked ? 12 : 8)
+        .padding(.trailing, locked ? 12 : 4)
         .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(excluded ? Palette.fill : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(excluded ? Palette.hairline : Palette.stroke))
     }
@@ -520,51 +517,5 @@ struct DestinationPicker: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .disabled(card.isLocked)
-    }
-}
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? .infinity
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var widest: CGFloat = 0
-        for subview in subviews {
-            let size = Self.size(of: subview, within: width)
-            if x > 0, x + size.width > width {
-                y += rowHeight + spacing
-                x = 0
-                rowHeight = 0
-            }
-            x += size.width + spacing
-            widest = max(widest, x - spacing)
-            rowHeight = max(rowHeight, size.height)
-        }
-        return CGSize(width: widest, height: y + rowHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = Self.size(of: subview, within: bounds.width)
-            if x > bounds.minX, x + size.width > bounds.maxX {
-                y += rowHeight + spacing
-                x = bounds.minX
-                rowHeight = 0
-            }
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-    }
-
-    private static func size(of subview: LayoutSubview, within width: CGFloat) -> CGSize {
-        let ideal = subview.sizeThatFits(.unspecified)
-        return ideal.width > width ? subview.sizeThatFits(ProposedViewSize(width: width, height: nil)) : ideal
     }
 }

@@ -65,7 +65,7 @@ private struct ReviewContent: View {
                         Text("No tasks yet")
                             .font(.system(size: 19, weight: .bold))
                             .foregroundStyle(Palette.text)
-                        Text(review.leftoverSpeech.isEmpty ? "Nothing in this session became a task." : "Turn what you said into a task from the list on the left, or add it to a task nearby.")
+                        Text(review.leftoverSpeech.isEmpty ? "Nothing in this session became a task." : "Turn what you said into a task with New task in the list on the left.")
                             .font(.system(size: 13))
                             .foregroundStyle(Palette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -349,7 +349,7 @@ private struct TransportButton: View {
     let symbol: String
     var shortcut: String?
     var enabled = true
-    var on = false
+    var on: Bool?
     let action: () -> Void
 
     var body: some View {
@@ -358,14 +358,15 @@ private struct TransportButton: View {
                 Image(systemName: symbol)
                 Text(title)
                 if let shortcut { KeyHint(shortcut) }
+                if let on { Text(on ? "On" : "Off").foregroundStyle(on ? Palette.text : Palette.textTertiary).monospacedDigit() }
             }
             .font(.system(size: 12, weight: .semibold))
             .fixedSize()
             .padding(.leading, 9)
             .padding(.trailing, shortcut == nil ? 9 : 5)
             .frame(height: 26)
-            .background(on ? Palette.fillStrong : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(on ? Palette.text.opacity(0.5) : enabled ? Palette.stroke : Palette.hairline))
+            .background(on == true ? Palette.fillStrong : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(enabled ? Palette.stroke : Palette.hairline))
             .foregroundStyle(enabled ? Palette.text : Palette.textQuaternary)
             .contentShape(.rect(cornerRadius: Radius.control))
         }
