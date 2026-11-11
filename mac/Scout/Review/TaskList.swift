@@ -32,8 +32,8 @@ struct TaskList: View {
                             }
                     }
 
-                    if review.tasks.isEmpty {
-                        Text(review.leftoverSpeech.isEmpty ? "No tasks in this session." : "No tasks yet. Pick up speech below.")
+                    if review.tasks.isEmpty && review.leftoverSpeech.isEmpty {
+                        Text("No tasks in this session.")
                             .font(.system(size: 12.5))
                             .foregroundStyle(Palette.textTertiary)
                             .padding(10)
@@ -67,6 +67,11 @@ struct TaskList: View {
                     }
                 }
                 .padding(8)
+            }
+            .overlay(alignment: .bottom) {
+                LinearGradient(colors: [Palette.surface.opacity(0), Palette.surface], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 18)
+                    .allowsHitTesting(false)
             }
             .onChange(of: review.selectedTask?.id) { _, id in
                 guard let id else { return }
@@ -168,7 +173,7 @@ struct StateLine: View {
         case .copiedInstead: "Not sent, copied instead"
         case .sending: "Sending…"
         case .countdown: "Sending soon"
-        case .needsDestination: "Needs destination"
+        case .needsDestination: "Needs a destination"
         case .preparing: "Preparing"
         case .held, .withdrawn: card.destination.map { "To \($0.label)" } ?? "Ready"
         }

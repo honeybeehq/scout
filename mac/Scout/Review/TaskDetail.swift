@@ -13,11 +13,10 @@ struct TaskDetail: View {
     var body: some View {
         HStack(spacing: 0) {
             StageColumn(review: review, player: player, card: card)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             Rectangle().fill(Palette.hairline).frame(width: 1)
             VStack(spacing: 0) {
                 ScoutScroll(indicators: .automatic) {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 20) {
                         VStack(alignment: .leading, spacing: 10) {
                             TitleField(review: review, card: card)
                             ContextSection(card: card)
@@ -31,6 +30,11 @@ struct TaskDetail: View {
                     .padding(.bottom, 20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [Palette.surface.opacity(0), Palette.surface], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 18)
+                        .allowsHitTesting(false)
+                }
                 HandoffBar(review: review, card: card)
             }
             .frame(width: Self.detailWidth)
@@ -39,10 +43,10 @@ struct TaskDetail: View {
     }
 }
 
-private struct StageColumn: View {
+struct StageColumn: View {
     let review: SessionReview
     let player: ReviewPlayer
-    let card: SnippetCard
+    var card: SnippetCard?
     @Environment(\.stillRender) private var still
     @Environment(\.stillFrame) private var stillFrame
 
@@ -79,12 +83,13 @@ private struct StageColumn: View {
             .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.stroke))
             .onTapGesture { player.toggle() }
-
-            PinsSection(review: review, player: player, card: card)
-                .fixedSize(horizontal: false, vertical: true)
+            if let card {
+                PinsSection(review: review, player: player, card: card)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(20)
     }
 
@@ -264,11 +269,15 @@ private struct TargetChip: View {
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(target.displayName)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .strikethrough(excluded)
-                    .lineLimit(2)
-                    .truncationMode(.tail)
+                HStack(spacing: 6) {
+                    Text(target.displayName)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(excluded ? Palette.textTertiary : Palette.text)
+                        .strikethrough(excluded, color: Palette.textTertiary)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                    if excluded { StateTag(text: "Left out", tone: .neutral) }
+                }
                 if let source = target.source {
                     Text(source.description)
                         .font(Typography.mono)
@@ -294,9 +303,8 @@ private struct TargetChip: View {
         .padding(.leading, 12)
         .padding(.trailing, locked ? 12 : 8)
         .padding(.vertical, 8)
-        .background(excluded ? Color.clear : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
-        .opacity(excluded ? 0.5 : 1)
+        .background(excluded ? Palette.fill : Palette.surface, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(excluded ? Palette.hairline : Palette.stroke))
     }
 }
 
@@ -312,7 +320,7 @@ private struct PinsSection: View {
                 Text("Pins").eyebrowStyle(Palette.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 ScoutScroll(axis: .horizontal) {
-                    HStack(spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
                         ForEach(Array(marks.enumerated()), id: \.element.id) { index, mark in
                             PinThumbnail(review: review, mark: mark, number: index + 1)
                                 .onTapGesture {
@@ -445,7 +453,7 @@ private struct HandoffBar: View {
                 }
                 DestinationPicker(card: card)
                 HStack(spacing: 8) {
-                    Button("Copy") { copy() }
+                    Button("Copy task") { copy() }
                         .buttonStyle(SecondaryButtonStyle())
                     Spacer(minLength: 0)
                     if card.state == .sending {

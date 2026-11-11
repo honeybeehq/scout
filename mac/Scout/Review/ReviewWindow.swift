@@ -59,14 +59,21 @@ private struct ReviewContent: View {
                 if let card = review.selectedTask {
                     TaskDetail(review: review, player: player, card: card)
                 } else {
-                    VStack(spacing: 10) {
-                        Image(systemName: "rectangle.stack")
-                            .font(.system(size: 30))
-                            .foregroundStyle(Palette.textTertiary)
-                        Text(review.leftoverSpeech.isEmpty ? "Nothing to review in this session." : "No tasks yet. Pick up speech from the list on the left.")
+                    StageColumn(review: review, player: player)
+                    Rectangle().fill(Palette.hairline).frame(width: 1)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("No tasks yet")
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundStyle(Palette.text)
+                        Text(review.leftoverSpeech.isEmpty ? "Nothing in this session became a task." : "Turn what you said into a task from the list on the left, or add it to a task nearby.")
+                            .font(.system(size: 13))
                             .foregroundStyle(Palette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(20)
+                    .frame(width: TaskDetail.detailWidth, alignment: .topLeading)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .background(Palette.surface)
                 }
             }
             TimelinePanel(review: review, player: player)
@@ -193,19 +200,21 @@ private struct ReviewHeader: View {
                 .help("Choose one destination for every task still waiting")
             }
 
-            Button {
-                Task {
-                    await model.sendAll(in: review)
+            if !review.tasks.isEmpty {
+                Button {
+                    Task {
+                        await model.sendAll(in: review)
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(sendLabel).monospacedDigit()
+                        KeyHint("⌥⌘↩")
+                    }
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    Text(sendLabel).monospacedDigit()
-                    KeyHint("⌥⌘↩")
-                }
+                .buttonStyle(SecondaryButtonStyle())
+                .disabled(sendableCount == 0)
+                .keyboardShortcut(.return, modifiers: [.command, .option])
             }
-            .buttonStyle(SecondaryButtonStyle())
-            .disabled(sendableCount == 0)
-            .keyboardShortcut(.return, modifiers: [.command, .option])
         }
         .padding(.leading, 84)
         .padding(.trailing, 16)
@@ -319,14 +328,16 @@ private struct TransportBar: View {
             .help("Undo (⌘Z)")
 
             Spacer(minLength: 12)
-            ViewThatFits(in: .horizontal) {
-                Text("Drag a task's edge to trim it. Edges snap to pauses; hold ⌥ to place freely.")
-                Text("Drag an edge to trim it.")
-                Color.clear.frame(width: 0, height: 0)
+            if !review.tasks.isEmpty {
+                ViewThatFits(in: .horizontal) {
+                    Text("Drag a task's edge to trim it. Edges snap to pauses; hold ⌥ to place freely.")
+                    Text("Drag an edge to trim it.")
+                    Color.clear.frame(width: 0, height: 0)
+                }
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textTertiary)
+                .lineLimit(1)
             }
-            .font(Typography.caption)
-            .foregroundStyle(Palette.textTertiary)
-            .lineLimit(1)
         }
         .frame(height: 30)
     }
