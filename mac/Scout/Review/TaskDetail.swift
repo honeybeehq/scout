@@ -18,10 +18,13 @@ struct TaskDetail: View {
             VStack(spacing: 0) {
                 ScoutScroll(indicators: .automatic) {
                     VStack(alignment: .leading, spacing: 22) {
-                        TitleField(review: review, card: card)
+                        VStack(alignment: .leading, spacing: 10) {
+                            TitleField(review: review, card: card)
+                            ContextSection(card: card)
+                        }
                         TranscriptField(review: review, card: card)
                         TargetsSection(review: review, card: card)
-                        ContextSection(card: card)
+                        RuntimeNotes(card: card)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 18)
@@ -76,11 +79,12 @@ private struct StageColumn: View {
             .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.stroke))
             .onTapGesture { player.toggle() }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             PinsSection(review: review, player: player, card: card)
                 .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
     }
 
@@ -163,9 +167,7 @@ private struct TranscriptField: View {
             HStack(spacing: 6) {
                 Text("What you said").eyebrowStyle(Palette.textTertiary)
                 if card.transcriptOverride != nil {
-                    Text("· Edited")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textTertiary)
+                    StateTag(text: "Edited", tone: .neutral)
                     Spacer(minLength: 0)
                     if !card.isLocked {
                         Button("Use the original") {
@@ -353,8 +355,10 @@ private struct PinThumbnail: View {
             Text(mark.target?.displayName ?? "Pinned spot")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(Palette.textSecondary)
-                .lineLimit(1)
-                .frame(width: 128, alignment: .leading)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 128, alignment: .topLeading)
         }
         .task(id: mark.id) {
             image = await review.frame(at: mark.at, maximumSize: CGSize(width: 480, height: 300))
@@ -366,52 +370,48 @@ private struct ContextSection: View {
     let card: SnippetCard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if card.snippet.primaryContext != nil || card.project != nil {
-                Text("Where").eyebrowStyle(Palette.textTertiary)
-                VStack(alignment: .leading, spacing: 3) {
-                    if let context = card.snippet.primaryContext {
-                        Text(context.app.name)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Palette.text)
-                        if let location = context.location ?? context.windowTitle, location != context.app.name {
-                            Text(location)
-                                .font(isAddress(location) ? Typography.mono : .system(size: 12.5))
-                                .foregroundStyle(Palette.textSecondary)
-                                .lineLimit(2)
-                                .truncationMode(.middle)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    if let project = card.project {
-                        Text(project.rootPath.replacingOccurrences(of: NSHomeDirectory(), with: "~") + (project.gitBranch.map { " · \($0)" } ?? ""))
-                            .font(Typography.mono)
-                            .foregroundStyle(Palette.textTertiary)
-                            .lineLimit(1)
-                            .truncationMode(.head)
-                            .padding(.top, 2)
-                    }
+        if card.snippet.primaryContext != nil || card.project != nil {
+            VStack(alignment: .leading, spacing: 3) {
+                if let context = card.snippet.primaryContext {
+                    let location = (context.location ?? context.windowTitle).flatMap { $0 == context.app.name ? nil : $0 }
+                    (Text(context.app.name).fontWeight(.semibold).foregroundStyle(Palette.text) + Text(location.map { "  \($0)" } ?? "").foregroundStyle(Palette.textSecondary))
+                        .font(.system(size: 12.5))
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                if let project = card.project {
+                    Text(project.rootPath.replacingOccurrences(of: NSHomeDirectory(), with: "~") + (project.gitBranch.map { " · \($0)" } ?? ""))
+                        .font(Typography.mono)
+                        .foregroundStyle(Palette.textTertiary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
                 }
             }
-            if !card.runtimeNotes.isEmpty {
-                Text("From the app").eyebrowStyle(Palette.textTertiary).padding(.top, 8)
+        }
+    }
+}
+
+private struct RuntimeNotes: View {
+    let card: SnippetCard
+
+    var body: some View {
+        if !card.runtimeNotes.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("From the app").eyebrowStyle(Palette.textTertiary)
                 ForEach(card.runtimeNotes, id: \.self) { note in
                     Label {
                         Text(note)
                     } icon: {
                         Image(systemName: "exclamationmark.triangle").foregroundStyle(Palette.negative)
                     }
-                        .font(Typography.mono)
-                        .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(2)
+                    .font(Typography.mono)
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineLimit(2)
                 }
             }
         }
-    }
-
-    private func isAddress(_ text: String) -> Bool {
-        text.contains("://") || text.hasPrefix("/") || text.hasPrefix("~")
     }
 }
 

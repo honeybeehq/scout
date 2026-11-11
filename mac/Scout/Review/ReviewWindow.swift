@@ -200,10 +200,10 @@ private struct ReviewHeader: View {
             } label: {
                 HStack(spacing: 8) {
                     Text(sendLabel).monospacedDigit()
-                    KeyHint("⌥⌘↩", emphasized: true)
+                    KeyHint("⌥⌘↩")
                 }
             }
-            .buttonStyle(PrimaryButtonStyle(large: false))
+            .buttonStyle(SecondaryButtonStyle())
             .disabled(sendableCount == 0)
             .keyboardShortcut(.return, modifiers: [.command, .option])
         }
@@ -284,10 +284,12 @@ private struct TransportBar: View {
                     .padding(.horizontal, 6)
             }
 
-            TransportButton(title: "Loop task", symbol: "repeat", on: player.loopsTask) {
-                player.loopsTask.toggle()
+            if review.selectedTask != nil {
+                TransportButton(title: "Loop task", symbol: "repeat", on: player.loopsTask) {
+                    player.loopsTask.toggle()
+                }
+                .accessibilityAddTraits(player.loopsTask ? .isSelected : [])
             }
-            .accessibilityAddTraits(player.loopsTask ? .isSelected : [])
 
             Rectangle().fill(Palette.stroke).frame(width: 1, height: 16).padding(.horizontal, 4)
 
