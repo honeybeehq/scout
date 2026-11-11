@@ -55,6 +55,10 @@ final class AppModel {
 
     private var hotkey: GlobalHotkey?
 
+    static var rendersOnly: Bool {
+        PanelGallery.directory != nil || ReviewGallery.directory != nil
+    }
+
     private static let shortcutKey = "shortcut.startScouting"
 
     init() {
@@ -73,10 +77,10 @@ final class AppModel {
         }
         let hotkey = GlobalHotkey { [weak self] in self?.toggleScouting(input: GlobalHotkey.lastPressTime) }
         self.hotkey = hotkey
-        shortcutRegistered = hotkey.register(shortcut)
+        shortcutRegistered = Self.rendersOnly ? false : hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
         dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
-        bridge.start()
+        if !Self.rendersOnly { bridge.start() }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             hud.prepare(model: self)
@@ -85,12 +89,17 @@ final class AppModel {
         picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
         picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
         ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
-        Task.detached(priority: .background) {
-            ScoutPaths.prune()
-            WalkthroughBundle.sweepPartials()
+        if !Self.rendersOnly {
+            Task.detached(priority: .background) {
+                ScoutPaths.prune()
+                WalkthroughBundle.sweepPartials()
+            }
         }
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {
             Task { await SnapshotMode.captureSettings(model: self, into: directory, pane: pane) }
+        }
+        if let directory = ReviewGallery.directory {
+            Task { await ReviewGallery.run(model: self, into: directory) }
         }
         if let directory = SimulationMode.deliveryCheck {
             Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }

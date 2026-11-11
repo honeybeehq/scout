@@ -168,7 +168,7 @@ enum DesignGallery {
             .write(to: directory.appendingPathComponent("\(name).png"))
     }
 
-    private static func mockFrame() -> CGImage? {
+    static func mockFrame() -> CGImage? {
         let renderer = ImageRenderer(content: MockPage().frame(width: 960, height: 600).environment(\.colorScheme, .light))
         renderer.scale = 1
         return renderer.cgImage
