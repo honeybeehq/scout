@@ -98,6 +98,10 @@ final class SessionReview {
         tasks.contains(where: \.needsAttention) || !leftoverSpeech.isEmpty
     }
 
+    var isPreparing: Bool {
+        tasks.contains { $0.state == .preparing }
+    }
+
     var leftoverSpeech: [Utterance] {
         ledger.utterances(outside: tasks.map(\.snippet.range) + discardedRanges).filter { !isFiller($0) }
     }

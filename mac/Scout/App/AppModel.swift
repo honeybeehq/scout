@@ -27,6 +27,7 @@ final class AppModel {
     private(set) var review: SessionReview?
     private var reviews: [String: SessionReview] = [:]
     private var latestSessionID: String?
+    @ObservationIgnored private var opensOnceSettled: Set<String> = []
     var openOnboarding: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
     var openReviewWindow: (() -> Void)?
@@ -79,7 +80,7 @@ final class AppModel {
         self.hotkey = hotkey
         shortcutRegistered = Self.rendersOnly ? false : hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
-        dispatcher.onCardChanged = { [weak self] card in self?.reviews[card.sessionID]?.cardChanged(card) }
+        dispatcher.onCardChanged = { [weak self] card in self?.cardChanged(card) }
         if !Self.rendersOnly { bridge.start() }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -348,6 +349,7 @@ final class AppModel {
                 if shouldOpenReview(review) {
                     show(review)
                 } else {
+                    if review.isPreparing { opensOnceSettled.insert(review.sessionID) }
                     if self.review == nil { self.review = review }
                     stackChanged()
                 }
@@ -568,6 +570,13 @@ final class AppModel {
     func revealLastWalkthrough() {
         guard let lastWalkthrough else { return }
         NSWorkspace.shared.activateFileViewerSelecting([lastWalkthrough.directory])
+    }
+
+    private func cardChanged(_ card: SnippetCard) {
+        guard let review = reviews[card.sessionID] else { return }
+        review.cardChanged(card)
+        guard !review.isPreparing, opensOnceSettled.remove(review.sessionID) != nil else { return }
+        if !isScouting, shouldOpenReview(review) { show(review) }
     }
 
     private func shouldOpenReview(_ review: SessionReview) -> Bool {
