@@ -104,6 +104,10 @@ nonisolated struct HiveClient: Sendable {
         return result["beeId"] as? String
     }
 
+    func stop(_ beeID: String) async throws {
+        _ = try await call(verb: "stop", params: ["beeId": beeID])
+    }
+
     private static func session(from view: [String: Any]) -> HiveSession? {
         guard let bee = view["bee"] as? [String: Any],
               let id = bee["id"] as? String,

@@ -83,6 +83,7 @@ final class Dispatcher {
                     card.attachments = await SnippetMedia.attachments(for: card.deliverableSnippet, video: video, displays: card.sessionDisplays, into: directory)
                 }
             }
+            card.attachments = try await SnippetMedia.optimiseAttachments(for: card, existing: card.attachments, into: card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)"))
             task = try compose(card)
         } catch {
             card.state = .failed(error.localizedDescription)

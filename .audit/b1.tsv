@@ -1,0 +1,6 @@
+ts	phase	decision	why	evidence	result
+2026-11-12T14:44:30Z	design	Use existing review snapshots and edits	Keeps undo and persistence consistent with manual edits	mac/Scout/Review/SessionReview.swift	open
+2026-11-12T14:56:37Z	verify	Verified synthetic 31-task accept, undo and persistence	Recorded playtest unavailable; mini SSH denies publickey	.proof/b1/replay-final/report.json	five accepted; two invalid; one undo step
+2026-11-12T14:56:38Z	design	Use asks.agent.json as a second asks set	Preserves original walkthrough AskExtractor output byte for byte	mac/Scout/Review/WalkthroughReview.swift	adapter replay passed
+2026-11-12T14:59:00Z	verify	Verified socket spawn, failure and cancellation without a model call	Exercises the real HiveClient and coordinator without sending recording data	.proof/b1/agent-replay	success, failure, cancel passed; timeout running
+2026-11-12T14:59:59Z	verify	Mini checks remain blocked by SSH authentication	Both supplied targets rejected trmd publickey; orchestrator authorized local compile and replay	.proof/b1/build.log	local native build passed; minis pending

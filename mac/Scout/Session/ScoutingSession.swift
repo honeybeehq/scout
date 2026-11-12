@@ -375,6 +375,7 @@ final class ScoutingSession {
                 openSnippet = snippet
             case .closed(let snippet):
                 closedRanges.append(snippet.range)
+                if let boundary = snippet.closedBy { ledger.recordBoundary(boundary) }
                 if openSnippet?.id == snippet.id { openSnippet = nil }
                 closedCount += 1
                 let immediate = sendNextClosedImmediately

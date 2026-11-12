@@ -1,0 +1,113 @@
+{
+  "schema": "walkthrough.v1",
+  "id": "wt_optimise_fixture",
+  "createdAt": "2026-11-12T14:00:00Z",
+  "duration": 30000,
+  "title": "Optimise adapter fixture",
+  "status": "ready",
+  "recorder": {
+    "app": "Scout",
+    "version": "fixture",
+    "platform": "macOS"
+  },
+  "capture": {
+    "permissions": {},
+    "scopes": []
+  },
+  "transcript": {
+    "status": "ready",
+    "engine": "fixture",
+    "segments": [
+      {
+        "id": "s1",
+        "start": 0,
+        "end": 4000,
+        "text": "Make the first control clearer."
+      },
+      {
+        "id": "s2",
+        "start": 6000,
+        "end": 10000,
+        "text": "Add a tooltip to it."
+      },
+      {
+        "id": "s3",
+        "start": 12000,
+        "end": 16000,
+        "text": "Fix the second control."
+      },
+      {
+        "id": "s4",
+        "start": 18000,
+        "end": 22000,
+        "text": "Explain the third control."
+      }
+    ]
+  },
+  "frames": [],
+  "pointers": [
+    {
+      "id": "p1",
+      "t": 2000,
+      "via": "pin",
+      "at": {
+        "x": 20,
+        "y": 30
+      },
+      "source": "none",
+      "label": "First control"
+    },
+    {
+      "id": "p2",
+      "t": 14000,
+      "via": "pin",
+      "at": {
+        "x": 40,
+        "y": 50
+      },
+      "source": "none",
+      "label": "Second control"
+    }
+  ],
+  "drawings": [],
+  "asks": {
+    "status": "ready",
+    "engine": "scout-heuristic-1",
+    "items": [
+      {
+        "id": "a1",
+        "text": "Make the first control clearer and add a tooltip",
+        "segments": [
+          "s1",
+          "s2"
+        ],
+        "pointers": [
+          "p1"
+        ]
+      },
+      {
+        "id": "a2",
+        "text": "Fix the second control",
+        "segments": [
+          "s3"
+        ],
+        "pointers": [
+          "p2"
+        ]
+      },
+      {
+        "id": "a3",
+        "text": "Explain the third control",
+        "segments": [
+          "s4"
+        ]
+      }
+    ]
+  },
+  "events": [
+    {
+      "t": 11000,
+      "kind": "break"
+    }
+  ]
+}

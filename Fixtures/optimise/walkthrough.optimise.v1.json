@@ -1,0 +1,49 @@
+{
+  "v": 1,
+  "engine": "agent",
+  "model": "fixture",
+  "startedAt": "2026-11-12T14:00:00Z",
+  "finishedAt": "2026-11-12T14:01:00Z",
+  "proposals": [
+    {
+      "id": "split",
+      "kind": "split",
+      "tasks": [
+        "a1"
+      ],
+      "at": 5000,
+      "why": "Two separate requests in the original ask."
+    },
+    {
+      "id": "pointer",
+      "kind": "attach",
+      "tasks": [
+        "a3"
+      ],
+      "pointers": [
+        14000
+      ],
+      "why": "The preceding pin names the control."
+    },
+    {
+      "id": "detach",
+      "kind": "detach",
+      "tasks": [
+        "a2"
+      ],
+      "pointers": [
+        14000
+      ],
+      "why": "The pin belongs to the following ask."
+    },
+    {
+      "id": "cut",
+      "kind": "merge",
+      "tasks": [
+        "a1",
+        "a2"
+      ],
+      "why": "This merge must be flagged for crossing the cut."
+    }
+  ]
+}

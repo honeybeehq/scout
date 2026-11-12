@@ -5,6 +5,7 @@ public struct SessionLedger: Codable, Hashable, Sendable {
     public private(set) var marks: [Mark] = []
     public private(set) var focuses: [Focus] = []
     public private(set) var contexts: [ContextChange] = []
+    public private(set) var markedCuts: [SessionTime]? = []
     public private(set) var end: SessionTime = 0
 
     public init() {}
@@ -23,7 +24,9 @@ public struct SessionLedger: Codable, Hashable, Sendable {
             insert(focus, into: &focuses) { $0.range.start }
         case .context(let change):
             insert(change, into: &contexts) { $0.at }
-        case .visualChange, .command, .clock:
+        case .command(let command):
+            if command.command == .split { markedCuts = (markedCuts ?? []) + [command.at] }
+        case .visualChange, .clock:
             break
         }
         end = max(end, signal.time)
@@ -32,6 +35,11 @@ public struct SessionLedger: Codable, Hashable, Sendable {
     public mutating func replaceUtterances(with replacement: [Utterance]) {
         utterances = replacement.sorted { $0.range.start < $1.range.start }
         end = max(end, utterances.map(\.range.end).max() ?? end)
+    }
+
+    public mutating func recordBoundary(_ boundary: Breakpoint) {
+        guard boundary.isHard, boundary.reasons.contains(where: { $0.kind == .command || $0.kind == .cuePhrase }) else { return }
+        if !(markedCuts ?? []).contains(boundary.at) { markedCuts = (markedCuts ?? []) + [boundary.at] }
     }
 
     public mutating func extend(to time: SessionTime) {

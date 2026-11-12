@@ -66,6 +66,7 @@ final class SnippetCard: Identifiable {
     }
     private(set) var titleIsCustom = false
     var transcriptOverride: String?
+    var optimiseAttachments: OptimiseAttachments?
     var excludedTargetIDs: Set<String> = []
     var isUserEditing = false
     var holdRequested = false
@@ -111,6 +112,11 @@ final class SnippetCard: Identifiable {
             return mark
         }
         snippet.focuses.removeAll { excludedTargetIDs.contains($0.target.id) }
+        if let selection = optimiseAttachments {
+            snippet.marks.removeAll { (selection.excludedPointers ?? []).contains(Walkthrough.milliseconds($0.at)) }
+            for mark in selection.attachedMarks ?? [] where !snippet.marks.contains(where: { $0.id == mark.id }) { snippet.marks.append(mark) }
+            snippet.focuses.removeAll { (selection.excludedPointers ?? []).contains(Walkthrough.milliseconds(($0.range.start + $0.range.end) / 2)) }
+        }
         return snippet
     }
 
@@ -143,6 +149,7 @@ final class SnippetCard: Identifiable {
         sessionDisplays = source.sessionDisplays
         runtimeNotes = source.runtimeNotes
         excludedTargetIDs = source.excludedTargetIDs
+        optimiseAttachments = source.optimiseAttachments
         holdRequested = true
         state = destination == nil ? .needsDestination : .held
     }

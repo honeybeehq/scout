@@ -461,14 +461,18 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         public var pointers: [String]?
         public var drawings: [String]?
         public var frame: String?
+        public var frames: [String]?
+        public var question: String?
 
-        public init(id: String, text: String, segments: [String]? = nil, pointers: [String]? = nil, drawings: [String]? = nil, frame: String? = nil) {
+        public init(id: String, text: String, segments: [String]? = nil, pointers: [String]? = nil, drawings: [String]? = nil, frame: String? = nil, frames: [String]? = nil, question: String? = nil) {
             self.id = id
             self.text = text
             self.segments = segments
             self.pointers = pointers
             self.drawings = drawings
             self.frame = frame
+            self.frames = frames
+            self.question = question
         }
     }
 

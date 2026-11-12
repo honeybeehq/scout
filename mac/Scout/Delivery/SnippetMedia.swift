@@ -51,6 +51,38 @@ enum SnippetMedia {
         return attachments
     }
 
+    static func optimiseAttachments(for card: SnippetCard, existing: [ComposedTask.Attachment], into directory: URL) async throws -> [ComposedTask.Attachment] {
+        guard let selection = card.optimiseAttachments else { return existing }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let marks = card.deliverableSnippet.marks
+        var result = existing.filter { !$0.url.lastPathComponent.hasPrefix("optimise-") }.filter { attachment in
+            guard attachment.url.lastPathComponent.hasPrefix("pin-"), let number = Int(attachment.url.deletingPathExtension().lastPathComponent.dropFirst(4)), marks.indices.contains(number - 1) else { return true }
+            return !(selection.excludedFrames ?? []).contains(Walkthrough.milliseconds(marks[number - 1].at))
+        }
+        if let video = card.sessionVideo {
+            let generator = AVAssetImageGenerator(asset: AVURLAsset(url: video.url))
+            generator.maximumSize = CGSize(width: 1600, height: 1600)
+            generator.appliesPreferredTrackTransform = true
+            for milliseconds in selection.frames {
+                let time = CMTime(seconds: max(0, Double(milliseconds) / 1000 - video.range.start), preferredTimescale: 600)
+                let image = try await generator.image(at: time).image
+                let url = directory.appendingPathComponent("optimise-\(milliseconds).png")
+                if write(image, to: url) { result.append(.init(kind: .image, url: url)) }
+            }
+        }
+        if card.sessionVideo == nil {
+            for milliseconds in selection.frames {
+                guard let path = selection.frameFiles?[milliseconds] else { continue }
+                let url = URL(fileURLWithPath: path)
+                if FileManager.default.fileExists(atPath: url.path) { result.append(.init(kind: .image, url: url)) }
+            }
+        }
+        let pointerFile = directory.appendingPathComponent("optimise-evidence.json")
+        try JSONEncoder().encode(selection).write(to: pointerFile, options: .atomic)
+        result.append(.init(kind: .file, url: pointerFile))
+        return result
+    }
+
     private static func shot(_ frame: CGImage, mark: Mark, display: CaptureDisplay) -> CGImage {
         let image = outlined(frame, mark: mark, display: display) ?? frame
         return display.cropped(image) ?? image

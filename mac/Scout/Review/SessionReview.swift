@@ -24,6 +24,13 @@ final class SessionReview {
     private(set) var isFinishing: Bool
     private(set) var filmstrip: [CGImage] = []
     private(set) var saveError: String?
+    var optimise: OptimiseReview {
+        if let optimiser { return optimiser }
+        let value = OptimiseReview(review: self)
+        optimiser = value
+        return value
+    }
+    private var optimiser: OptimiseReview?
     var selectedTaskID: String?
     var playhead: SessionTime = 0
     var isEditingText = false
@@ -35,7 +42,14 @@ final class SessionReview {
     private let dispatcher: Dispatcher
     private let isFiller: (Utterance) -> Bool
     private weak var session: ScoutingSession?
-    private var undoStack: [[Snapshot]] = []
+    private var undoStack: [UndoStep] = []
+    private var groupingUndo = false
+    var undoDepth: Int { undoStack.count }
+    private struct UndoStep {
+        let snapshots: [Snapshot]
+        let proposalIDs: [String]
+    }
+    var walkthrough: Walkthrough?
     private var saveTask: Task<Void, Never>?
 
     private struct Snapshot {
@@ -45,6 +59,7 @@ final class SessionReview {
         let titleIsCustom: Bool
         let transcriptOverride: String?
         let excludedTargetIDs: Set<String>
+        let optimiseAttachments: OptimiseAttachments?
     }
 
     init(session: ScoutingSession, dispatcher: Dispatcher) {
@@ -209,6 +224,17 @@ final class SessionReview {
         let range = card.snippet.range.union(next.snippet.range)
         let override: String? = card.transcriptOverride != nil || next.transcriptOverride != nil ? [card.transcript, next.transcript].joined(separator: " ") : nil
         card.excludedTargetIDs.formUnion(next.excludedTargetIDs)
+        if let extra = next.optimiseAttachments {
+            var selection = card.optimiseAttachments ?? OptimiseAttachments()
+            selection.frames = Array(Set(selection.frames + extra.frames)).sorted()
+            selection.pointers = Array(Set(selection.pointers + extra.pointers)).sorted()
+            selection.excludedFrames = Array(Set((selection.excludedFrames ?? []) + (extra.excludedFrames ?? []))).sorted()
+            selection.excludedPointers = Array(Set((selection.excludedPointers ?? []) + (extra.excludedPointers ?? []))).sorted()
+            selection.attachedMarks = (selection.attachedMarks ?? []) + (extra.attachedMarks ?? [])
+            selection.frameFiles = (selection.frameFiles ?? [:]).merging(extra.frameFiles ?? [:]) { first, _ in first }
+            selection.question = selection.question ?? extra.question
+            card.optimiseAttachments = selection
+        }
         card.replaceSnippet(ledger.snippet(id: card.snippet.id, range: range))
         card.transcriptOverride = override
         tasks.removeAll { $0 === next }
@@ -343,7 +369,9 @@ final class SessionReview {
     }
 
     func undo() {
-        guard let snapshots = undoStack.popLast() else { return }
+        guard let step = undoStack.popLast() else { return }
+        let snapshots = step.snapshots
+        optimiser?.didUndo(step.proposalIDs)
         let restored = Set(snapshots.map { ObjectIdentifier($0.card) })
         for card in tasks where !restored.contains(ObjectIdentifier(card)) && !card.isLocked {
             dispatcher.withdraw(card)
@@ -360,10 +388,12 @@ final class SessionReview {
             card.restoreTitle(snapshot.title, custom: snapshot.titleIsCustom)
             card.transcriptOverride = snapshot.transcriptOverride
             card.excludedTargetIDs = snapshot.excludedTargetIDs
+            card.optimiseAttachments = snapshot.optimiseAttachments
         }
         sortTasks()
         if selectedTask == nil, let first = tasks.first { select(first) }
         scheduleSave()
+        try? saveAgentAsks()
     }
 
     func sessionTime(forVideoTime seconds: Double) -> SessionTime {
@@ -432,6 +462,76 @@ final class SessionReview {
         }
     }
 
+    var optimiseMarkedCuts: [SessionTime] {
+        (ledger.markedCuts ?? []) + tasks.compactMap { $0.snippet.closedBy }.filter { $0.isHard && $0.reasons.contains { $0.kind == .command || $0.kind == .cuePhrase } }.map(\.at)
+    }
+
+    func optimiseValidation(_ proposal: OptimiseProposal) -> String? {
+        if tasks.contains(where: { proposal.tasks.contains($0.snippet.id) && $0.isLocked }) { return "Sent or sending tasks cannot change." }
+        if proposal.kind == .split, let at = proposal.at {
+            let time = Double(at) / 1000
+            if ledger.utterances.contains(where: { $0.range.start < time && time < $0.range.end }) { return "Split between utterances so speech stays intact." }
+        }
+        if proposal.kind == .attach {
+            if !(proposal.frames ?? []).isEmpty && video == nil && walkthrough == nil { return "This recording has no frames." }
+            if video == nil, let walkthrough {
+                let frames = Set(walkthrough.frames.map(\.t))
+                if !(proposal.frames ?? []).allSatisfy(frames.contains) { return "A referenced still frame does not exist." }
+            }
+            let times = Set(ledger.marks.map { Walkthrough.milliseconds($0.at) })
+            if !(proposal.pointers ?? []).allSatisfy(times.contains) { return "A referenced pointer does not exist." }
+        }
+        return proposal.validationMessage(tasks: tasks.map(\.snippet), markedCuts: optimiseMarkedCuts, duration: duration)
+    }
+
+    func applyOptimise(_ proposal: OptimiseProposal) throws {
+        if let message = optimiseValidation(proposal) {
+            throw NSError(domain: "Scout.Optimise", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+        }
+        let selected = tasks.filter { proposal.tasks.contains($0.snippet.id) }
+        guard selected.allSatisfy({ !$0.isLocked }), let first = selected.first else {
+            throw NSError(domain: "Scout.Optimise", code: 2, userInfo: [NSLocalizedDescriptionKey: "Sent or sending tasks cannot change."])
+        }
+        switch proposal.kind {
+        case .merge:
+            for _ in selected.dropFirst() { join(first) }
+        case .split:
+            guard split(first, at: Double(proposal.at!) / 1000) != nil else { return }
+        case .drop:
+            delete(first)
+        case .retitle:
+            recordUndo()
+            first.restoreTitle(proposal.title!, custom: true)
+        case .flag, .attach, .detach:
+            recordUndo()
+            var attachments = first.optimiseAttachments ?? OptimiseAttachments()
+            if proposal.kind == .flag { attachments.question = proposal.question }
+            if proposal.kind == .attach {
+                if let walkthrough {
+                    var files = attachments.frameFiles ?? [:]
+                    for frame in walkthrough.frames where (proposal.frames ?? []).contains(frame.t) { files[frame.t] = directory.appendingPathComponent(frame.file).path }
+                    attachments.frameFiles = files
+                }
+                attachments.excludedFrames = (attachments.excludedFrames ?? []).filter { !(proposal.frames ?? []).contains($0) }
+                attachments.excludedPointers = (attachments.excludedPointers ?? []).filter { !(proposal.pointers ?? []).contains($0) }
+                attachments.attachedMarks = (attachments.attachedMarks ?? []) + ledger.marks.filter { (proposal.pointers ?? []).contains(Walkthrough.milliseconds($0.at)) }
+                attachments.frames = Array(Set(attachments.frames + (proposal.frames ?? []))).sorted()
+                attachments.pointers = Array(Set(attachments.pointers + (proposal.pointers ?? []))).sorted()
+            }
+            if proposal.kind == .detach {
+                attachments.excludedFrames = Array(Set((attachments.excludedFrames ?? []) + (proposal.frames ?? []))).sorted()
+                attachments.excludedPointers = Array(Set((attachments.excludedPointers ?? []) + (proposal.pointers ?? []))).sorted()
+                attachments.attachedMarks = (attachments.attachedMarks ?? []).filter { !(proposal.pointers ?? []).contains(Walkthrough.milliseconds($0.at)) }
+                attachments.frames.removeAll { (proposal.frames ?? []).contains($0) }
+                attachments.pointers.removeAll { (proposal.pointers ?? []).contains($0) }
+            }
+            first.optimiseAttachments = attachments
+            first.attachments = []
+        }
+        if let title = proposal.title, proposal.kind == .merge { first.restoreTitle(title, custom: true) }
+        scheduleSave()
+    }
+
     private func gap(around utterance: Utterance) -> (SessionTime, SessionTime) {
         let middle = (utterance.range.start + utterance.range.end) / 2
         let lower = tasks.filter { $0.snippet.range.start <= middle }.map(\.snippet.range.end).max() ?? 0
@@ -452,10 +552,28 @@ final class SessionReview {
         "task-" + UUID().uuidString.prefix(6).lowercased()
     }
 
+    func groupOptimiseUndo(ids: [String], _ action: () throws -> Void) rethrows {
+        if groupingUndo {
+            try action()
+            return
+        }
+        recordUndo()
+        groupingUndo = true
+        defer {
+            groupingUndo = false
+            if !undoStack.isEmpty {
+                let step = undoStack.removeLast()
+                undoStack.append(UndoStep(snapshots: step.snapshots, proposalIDs: ids))
+            }
+        }
+        try action()
+    }
+
     private func recordUndo() {
-        undoStack.append(tasks.map {
-            Snapshot(card: $0, snippet: $0.snippet, title: $0.title, titleIsCustom: $0.titleIsCustom, transcriptOverride: $0.transcriptOverride, excludedTargetIDs: $0.excludedTargetIDs)
-        })
+        guard !groupingUndo else { return }
+        undoStack.append(UndoStep(snapshots: tasks.map {
+            Snapshot(card: $0, snippet: $0.snippet, title: $0.title, titleIsCustom: $0.titleIsCustom, transcriptOverride: $0.transcriptOverride, excludedTargetIDs: $0.excludedTargetIDs, optimiseAttachments: $0.optimiseAttachments)
+        }, proposalIDs: []))
         if undoStack.count > 60 { undoStack.removeFirst() }
         for card in tasks { dispatcher.hold(card) }
     }

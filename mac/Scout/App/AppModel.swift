@@ -60,7 +60,7 @@ final class AppModel {
     private var hotkey: GlobalHotkey?
 
     static var rendersOnly: Bool {
-        PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil
+        OptimiseReplay.output != nil || PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil
     }
 
     private static let shortcutKey = "shortcut.startScouting"
@@ -75,6 +75,10 @@ final class AppModel {
             shortcut = saved
         } else {
             shortcut = .startScouting
+        }
+        if let output = OptimiseReplay.output {
+            Task { await OptimiseReplay.run(dispatcher: dispatcher, output: output) }
+            return
         }
         if let directory = PanelGallery.directory {
             Task { await PanelGallery.run(model: self, into: directory) }
@@ -688,6 +692,7 @@ final class AppModel {
                 card.restoreTitle(task.title, custom: task.titleIsCustom)
                 card.transcriptOverride = task.transcriptOverride
                 card.excludedTargetIDs = Set(task.excludedTargetIDs)
+                card.optimiseAttachments = task.optimiseAttachments
                 card.runtimeNotes = task.runtimeNotes ?? []
                 card.project = task.project
                 card.sessionVideo = video
