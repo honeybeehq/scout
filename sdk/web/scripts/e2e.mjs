@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync, spawn } from "node:child_process"
 import { randomUUID } from "node:crypto"
-import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -373,6 +373,42 @@ async function main() {
       return msg.message
     })
 
+    await step("game canvas: entity, pin, snapshot and perf", async () => {
+      await page.goto(`${origin}/game.html`)
+      await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("registered"))
+      const from = bridge.records.length
+      const canvas = await page.locator("canvas").boundingBox()
+      await page.mouse.move(canvas.x + 260, canvas.y + 180)
+      bridge.setAim(true)
+      const hover = (await bridge.waitFor((entry) => incoming("hover")(entry) && entry.msg.element?.kind === "game", { from })).msg
+      assert(hover.element.label === "Asteroid A-17", JSON.stringify(hover))
+      const pin = await bridge.pin()
+      assert(pin.reply?.element?.game?.entity.id === "asteroid-17", JSON.stringify(pin))
+      const state = (await bridge.waitFor((entry) => incoming("gameState")(entry) && entry.msg.id === pin.id, { from })).msg
+      assert(state.game.save.seed === 42 && state.game.scene === "ring", JSON.stringify(state))
+      bridge.broadcast({ type: "snapshot", id: "task-close-fixture" })
+      await bridge.waitFor((entry) => incoming("gameState")(entry) && entry.msg.id === "task-close-fixture", { from })
+      const perfFrom = bridge.records.length
+      await page.locator("#hitch").click()
+      const perf = (await bridge.waitFor((entry) => incoming("signal")(entry) && entry.msg.kind === "perf", { from: perfFrom })).msg
+      const proof = join(root, "../../.audit/game")
+      mkdirSync(proof, { recursive: true })
+      writeFileSync(join(proof, "game-message.json"), JSON.stringify(state, null, 2))
+      writeFileSync(join(proof, "bridge.json"), JSON.stringify(bridge.records.slice(from), null, 2))
+      await page.evaluate((evidence) => { document.querySelector("#evidence").textContent = evidence }, `Pinned: ${pin.reply.element.label} [${pin.reply.element.game.entity.id}]\nPerf: ${perf.message}\nSnapshot: ${state.game.scene}, seed ${state.game.seed}, save ${state.game.saveStatus}`)
+      await page.mouse.move(canvas.x + 260, canvas.y + 180)
+      await sleep(300)
+      await page.screenshot({ path: join(proof, "canvas-pin.png") })
+      await page.locator("#large-save").check()
+      bridge.broadcast({ type: "snapshot", id: "oversized-save" })
+      const oversized = (await bridge.waitFor((entry) => incoming("gameState")(entry) && entry.msg.id === "oversized-save", { from })).msg
+      assert(!("save" in oversized.game) && oversized.game.saveStatus.includes("exceeds"), JSON.stringify(oversized))
+      bridge.setAim(false)
+      await page.goto(`${origin}/checkout`)
+      await page.waitForSelector("[data-testid=pay-now]")
+      return `Asteroid A-17; ${perf.message}; pin + task-close snapshot; .audit/game/canvas-pin.png`
+    })
+
     await step("session off: no hover when moving", async () => {
       bridge.setSession(false)
       await sleep(300)
@@ -384,6 +420,21 @@ async function main() {
       assert(sent.length === 0, `sent after session end: ${sent.join(", ")}`)
       assert(!overlay, "overlay still mounted")
       return "0 messages"
+    })
+
+    await step("game privacy: idle snapshot and pin disclose nothing", async () => {
+      await page.goto(`${origin}/game.html`)
+      await page.waitForFunction(() => document.querySelector("#status")?.textContent.includes("registered"))
+      const from = bridge.records.length
+      await page.mouse.move(300, 330)
+      bridge.broadcast({ type: "snapshot", id: "idle-snapshot" })
+      bridge.broadcast({ type: "pin", id: "idle-game-pin", at: Date.now() })
+      await page.locator("#hitch").click()
+      await sleep(400)
+      const sent = bridge.records.slice(from).filter((entry) => entry.dir === "in").map((entry) => entry.msg)
+      assert(!sent.some((msg) => ["hover", "gameState", "signal"].includes(msg.type)), JSON.stringify(sent))
+      assert(sent.find((msg) => msg.id === "idle-game-pin")?.element === null, JSON.stringify(sent))
+      return "No entity, snapshot or perf data sent while idle"
     })
 
     await step("privacy: no input values, query strings or secrets sent", async () => {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 import { WebSocketServer } from "ws"
 
 const LOOPBACK_HOST = /^(localhost|127\.0\.0\.1|\[::1\]|.+\.localhost)$/i
-const CAPABILITIES = ["session", "aim", "pin", "highlight"]
+const CAPABILITIES = ["session", "aim", "pin", "highlight", "snapshot"]
 
 function loopbackOrigin(origin) {
   if (!origin || origin === "null") return true
@@ -89,6 +89,8 @@ export async function startMockBridge({
           pendingPins.get(message.id)?.(message)
           break
         case "context":
+        case "gameStateDone":
+        case "gameState":
         case "signal":
           break
         default:

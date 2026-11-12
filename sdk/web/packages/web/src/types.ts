@@ -22,6 +22,8 @@ export type SafeProps = Record<string, string | number | boolean | null>
 
 export interface ElementDescriptor {
   id: string
+  kind?: "game"
+  game?: GameDescription
   role: string | null
   label: string | null
   text: string | null
@@ -73,10 +75,36 @@ export interface ScoutConfig {
 export interface ScoutHandle {
   readonly connected: boolean
   readonly active: boolean
+  game(config: GameConfig): () => void
   stop(): void
 }
 
 export interface PathRoots {
   projectRoot?: string | undefined
   serverRoot?: string | undefined
+}
+
+export interface GameDescription {
+  entity: { id: string; kind: string; label: string }
+  layer?: string
+  scene?: string
+  extra?: unknown
+}
+
+export interface GameSnapshot {
+  scene: string
+  seed?: string | number
+  frame: number
+  clock: number
+  position: unknown
+  save?: unknown
+  extra?: unknown
+}
+
+export interface GameConfig {
+  canvas: HTMLCanvasElement
+  name: string
+  build: string
+  describe(point: { x: number; y: number }): GameDescription | null
+  snapshot(): GameSnapshot | Promise<GameSnapshot>
 }

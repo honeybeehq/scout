@@ -10,6 +10,8 @@ public struct Target: Codable, Hashable, Sendable, Identifiable {
 
     public var id: String
     public var provider: Provider
+    public var kind: String?
+    public var game: JSONValue?
     public var role: String?
     public var label: String?
     public var identifier: String?
@@ -22,6 +24,8 @@ public struct Target: Codable, Hashable, Sendable, Identifiable {
     public init(
         id: String,
         provider: Provider,
+        kind: String? = nil,
+        game: JSONValue? = nil,
         role: String? = nil,
         label: String? = nil,
         identifier: String? = nil,
@@ -33,6 +37,8 @@ public struct Target: Codable, Hashable, Sendable, Identifiable {
     ) {
         self.id = id
         self.provider = provider
+        self.kind = kind
+        self.game = game
         self.role = role
         self.label = label
         self.identifier = identifier

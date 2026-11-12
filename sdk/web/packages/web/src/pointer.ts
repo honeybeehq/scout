@@ -4,6 +4,7 @@ import type { Viewport } from "./types"
 interface Sample {
   at: number
   element: Element | null
+  point: { x: number; y: number; localX?: number; localY?: number }
 }
 
 export interface PointerTracker {
@@ -11,6 +12,7 @@ export interface PointerTracker {
   readonly changedAt: number
   readonly inside: boolean
   readonly viewport: Viewport | null
+  pointAt(at: number): { x: number; y: number; localX?: number; localY?: number } | null
   elementAt(at: number): Element | null
   stop(): void
 }
@@ -25,7 +27,7 @@ function snapZoom(estimate: number): number | null {
   return Math.abs(level - estimate) / level < 0.03 ? level : null
 }
 
-export function trackPointer(onChange: (element: Element | null) => void): PointerTracker {
+export function trackPointer(onChange: (element: Element | null) => void, needsPointUpdates: (element: Element | null) => boolean = () => false): PointerTracker {
   const samples: Sample[] = []
   const views = new Set<Window>()
   let x = 0
@@ -45,10 +47,12 @@ export function trackPointer(onChange: (element: Element | null) => void): Point
     frame = 0
     const leaf = !inside ? null : positioned ? deepElementAt(x, y) : hoveredLeaf()
     const element = leaf ? promote(leaf) : null
-    if (element === current) return
+    if (element === current && !needsPointUpdates(element)) return
     current = element
     changedAt = eventAt || Date.now()
-    samples.push({ at: changedAt, element })
+    const bounds = element && needsPointUpdates(element) ? element.getBoundingClientRect() : null
+    const offset = bounds ? frameOffset(element?.ownerDocument.defaultView ?? window) : { x: 0, y: 0 }
+    samples.push({ at: changedAt, element, point: { x, y, ...(bounds ? { localX: x - bounds.x - offset.x, localY: y - bounds.y - offset.y } : {}) } })
     if (samples.length > MAX_SAMPLES) samples.shift()
     onChange(element)
   }
@@ -127,6 +131,9 @@ export function trackPointer(onChange: (element: Element | null) => void): Point
     },
     get viewport() {
       return viewport
+    },
+    pointAt(at: number) {
+      return [...samples].reverse().find((sample) => sample.at <= at + SAMPLE_SLACK_MS)?.point ?? null
     },
     elementAt(at: number) {
       for (let index = samples.length - 1; index >= 0; index -= 1) {

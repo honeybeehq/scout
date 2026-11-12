@@ -60,6 +60,8 @@ nonisolated struct BridgeElement: Codable, Sendable, Equatable {
     }
 
     var id: String
+    var kind: String?
+    var game: JSONValue?
     var role: String?
     var label: String?
     var text: String?
@@ -121,6 +123,8 @@ extension BridgeElement {
         Target(
             id: "web:\(clientID):\(id)",
             provider: .web,
+            kind: kind,
+            game: game,
             role: role.map { $0.prefix(1).uppercased() + $0.dropFirst() },
             label: label ?? text,
             identifier: testId,
@@ -140,5 +144,18 @@ extension Target {
         if merged.label == nil { merged.label = fallback?.label }
         if merged.role == nil { merged.role = fallback?.role }
         return merged
+    }
+}
+
+nonisolated enum BridgeGameState {
+    static func payload(from data: Data) -> Data? {
+        guard data.count <= 525312,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let game = object["game"] as? [String: Any],
+              game["name"] is String, game["build"] is String, game["scene"] is String,
+              game["frame"] is NSNumber, game["clock"] is NSNumber, game["position"] != nil,
+              let payload = try? JSONSerialization.data(withJSONObject: game, options: [.withoutEscapingSlashes]), payload.count <= 524288 else { return nil }
+        if let save = game["save"], let bytes = try? JSONSerialization.data(withJSONObject: save, options: [.fragmentsAllowed, .withoutEscapingSlashes]), bytes.count > 262144 { return nil }
+        return payload
     }
 }

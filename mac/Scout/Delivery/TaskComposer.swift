@@ -90,6 +90,24 @@ enum TaskComposer {
         if snippet.range.duration > 0 {
             details.append("**When:** \(format(snippet.range.start))–\(format(snippet.range.end)) into the session")
         }
+        var gameAttachments: [ComposedTask.Attachment] = []
+        let snapshots = sessionDirectory.appendingPathComponent("game-snapshots")
+        let candidates = (try? FileManager.default.contentsOfDirectory(at: snapshots, includingPropertiesForKeys: nil)) ?? []
+        let scoped = candidates.filter { url in
+            guard let data = try? Data(contentsOf: url), let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+            if let project { return state["_scoutProjectRoot"] as? String == project.rootPath }
+            guard let clientID = state["_scoutClientID"] as? String else { return false }
+            return snippet.targets.contains { $0.id.hasPrefix("web:\(clientID):") }
+        }
+        let closed = scoped.first { $0.deletingPathExtension().lastPathComponent == snippet.id }
+        let selected = closed ?? scoped.compactMap { url -> (URL, Double)? in
+            guard let at = Double(url.deletingPathExtension().lastPathComponent), at >= snippet.range.start, at <= snippet.range.end + 1 else { return nil }
+            return (url, at)
+        }.sorted { $0.1 < $1.1 }.last?.0
+        if let selected, let attached = try? attachGameState(from: selected, into: directory), let block = try? gameStateBlock(in: directory) {
+            gameAttachments = attached
+            details.append(block)
+        }
         let lines = ["## \(title)", "", quote(snippet.transcript), ""] + details.map { $0 + "\n" }
         let markdown = lines.joined(separator: "\n").trimmingCharacters(in: .newlines)
 
@@ -98,10 +116,44 @@ enum TaskComposer {
         let snippetURL = directory.appendingPathComponent("snippet.json")
         try encoder.encode(snippet).write(to: snippetURL)
         let taskURL = directory.appendingPathComponent("task.md")
-        try markdown.write(to: taskURL, atomically: true, encoding: .utf8)
+        try (markdown + (gameAttachments.isEmpty ? "" : "\n\n" + gameAttachments.map(\.line).joined(separator: "\n"))).write(to: taskURL, atomically: true, encoding: .utf8)
 
-        let attachments = extraAttachments + [.init(kind: .file, url: snippetURL)]
+        let attachments = extraAttachments + gameAttachments + [.init(kind: .file, url: snippetURL)]
         return ComposedTask(title: title, markdown: markdown, directory: directory, attachments: attachments)
+    }
+
+    static func gameStateBlock(in directory: URL) throws -> String {
+        let data = try Data(contentsOf: directory.appendingPathComponent("game-state.json"))
+        let state = (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        let fields = ["name", "build", "scene", "seed", "frame", "clock", "position", "saveStatus"]
+        return (["**Game state**"] + fields.compactMap { key in
+            guard let value = state[key] else { return nil }
+            let rendered = (value as? String) ?? (try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys, .withoutEscapingSlashes])).flatMap { String(data: $0, encoding: .utf8) } ?? "unknown"
+            return "- \(key): \(rendered)"
+        }).joined(separator: "\n")
+    }
+
+    static func attachGameState(from source: URL, into directory: URL) throws -> [ComposedTask.Attachment] {
+        let data = try Data(contentsOf: source)
+        guard var state = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        state.removeValue(forKey: "_scoutProjectRoot")
+        state.removeValue(forKey: "_scoutClientID")
+        var attachments: [ComposedTask.Attachment] = []
+        if let save = state.removeValue(forKey: "save") {
+            let saveData = try JSONSerialization.data(withJSONObject: save, options: [.fragmentsAllowed, .sortedKeys, .withoutEscapingSlashes])
+            if saveData.count <= 262144 {
+                let url = directory.appendingPathComponent("save.json")
+                try saveData.write(to: url, options: .atomic)
+                state["saveFile"] = "save.json"
+                attachments.append(.init(kind: .file, url: url))
+            } else {
+                state["saveStatus"] = "omitted: exceeds 256 KiB"
+            }
+        }
+        if state["saveFile"] == nil { try? FileManager.default.removeItem(at: directory.appendingPathComponent("save.json")) }
+        let url = directory.appendingPathComponent("game-state.json")
+        try JSONSerialization.data(withJSONObject: state, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
+        return [.init(kind: .file, url: url)] + attachments
     }
 
     private static func quote(_ text: String) -> String {

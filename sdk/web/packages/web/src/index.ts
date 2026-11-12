@@ -16,7 +16,7 @@ const INSTANCE = Symbol.for("scout.web.instance")
 
 type Host = Window & { [INSTANCE]?: ScoutHandle }
 
-const idle: ScoutHandle = { connected: false, active: false, stop() {} }
+const idle: ScoutHandle = { connected: false, active: false, game: () => () => {}, stop() {} }
 
 function parentRunsScout(): boolean {
   try {
@@ -40,3 +40,11 @@ export function startScout(options: ScoutConfig = {}): ScoutHandle {
 }
 
 if (typeof window !== "undefined" && window.__SCOUT__) startScout()
+
+export const scout = {
+  game(config: import("./types").GameConfig): () => void {
+    if (typeof window === "undefined") return () => {}
+    const handle = (window as Host)[INSTANCE] ?? (window.__SCOUT__ ? startScout() : null)
+    return handle?.game(config) ?? (() => {})
+  },
+}
