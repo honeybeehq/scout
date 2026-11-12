@@ -5,10 +5,68 @@
   "startedAt": "2026-11-10T18:40:11Z",
   "finishedAt": "2026-11-10T18:41:50Z",
   "proposals": [
-    { "id": "w1", "kind": "merge", "tasks": ["task-2", "task-3"], "at": 141000, "crossesMarkedCut": true, "title": "Fix the checkout controls on narrow windows: pay button and cart drawer", "why": "Both happen on the narrow checkout layout and share one component." },
-    { "id": "w2", "kind": "attach", "tasks": ["task-2"], "frames": [106000, 118500], "pointers": [100400], "why": "These are the moments the pay button is cut off." },
-    { "id": "w3", "kind": "retitle", "tasks": ["task-4"], "title": "Show order dates in the user's locale", "why": "Names the fix, not the symptom." },
-    { "id": "w4", "kind": "flag", "tasks": ["task-4"], "question": "Which screens besides Order history show dates?", "why": "You said 'everywhere' but only showed one screen." },
-    { "id": "w5", "kind": "drop", "tasks": ["task-5"], "why": "You said it was fine after all at 4:12." }
+    {
+      "id": "w1",
+      "kind": "merge",
+      "tasks": [
+        "task-2",
+        "task-3"
+      ],
+      "at": 141000,
+      "crossesMarkedCut": true,
+      "title": "Fix the checkout controls on narrow windows: pay button and cart drawer",
+      "why": "Both happen on the narrow checkout layout and share one component."
+    },
+    {
+      "id": "w2",
+      "kind": "attach",
+      "tasks": [
+        "task-2"
+      ],
+      "frames": [
+        106000,
+        118500
+      ],
+      "pointers": [
+        106000
+      ],
+      "why": "These are the moments the pay button is cut off."
+    },
+    {
+      "id": "w3",
+      "kind": "retitle",
+      "tasks": [
+        "task-4"
+      ],
+      "title": "Show order dates in the user's locale",
+      "why": "Names the fix, not the symptom."
+    },
+    {
+      "id": "w6",
+      "kind": "split",
+      "tasks": [
+        "task-4"
+      ],
+      "at": 200500,
+      "title": "Use the user's locale for dates in the order export too",
+      "why": "After the pause you moved on to the export, which is a separate fix."
+    },
+    {
+      "id": "w4",
+      "kind": "flag",
+      "tasks": [
+        "task-4"
+      ],
+      "question": "Which screens besides Order history show dates?",
+      "why": "You said 'everywhere' but only showed one screen."
+    },
+    {
+      "id": "w5",
+      "kind": "drop",
+      "tasks": [
+        "task-5"
+      ],
+      "why": "You said it was fine after all at 4:12."
+    }
   ]
 }

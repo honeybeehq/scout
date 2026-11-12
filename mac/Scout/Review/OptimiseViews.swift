@@ -85,6 +85,14 @@ struct OptimisePanel: View {
                     .monospacedDigit()
                 Spacer(minLength: 0)
             }
+            if let error = optimise.error {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    StatusDot(tone: .negative, size: 5)
+                    Text(error).fixedSize(horizontal: false, vertical: true)
+                }
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textSecondary)
+            }
             if !counts.detail.isEmpty {
                 Text(counts.accepted > 0 && review.canUndo ? counts.detail + " · ⌘Z undoes" : counts.detail)
                     .font(Typography.caption.monospacedDigit())
@@ -145,7 +153,7 @@ struct OptimisePanel: View {
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(Palette.text)
             }
-            Text("\(message) Your tasks are as you left them.")
+            Text(message.localizedCaseInsensitiveContains("unchanged") ? message : "\(message) Your tasks are as you left them.")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -269,7 +277,7 @@ private struct Elapsed: View {
     }
 
     private func text(_ seconds: TimeInterval) -> some View {
-        Text("\(SessionTimeline.clock(max(0, seconds))) of \(SessionTimeline.clock(OptimiseReview.timeLimit))")
+        Text("\(SessionTimeline.clock(max(0, seconds))) of \(SessionTimeline.clock(180))")
             .monospacedDigit()
             .fixedSize()
     }
@@ -283,7 +291,7 @@ struct SuggestionsSection: View {
     var body: some View {
         let optimise = review.optimise
         let pending = optimise.proposals(for: card.snippet.id)
-        let decided = optimise.decidedProposals(for: card.snippet.id)
+        let decided = optimise.proposals.filter { $0.tasks.contains(card.snippet.id) && [.accepted, .rejected].contains(optimise.status(for: $0)) }
         if !pending.isEmpty || !decided.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
@@ -301,7 +309,7 @@ struct SuggestionsSection: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 ForEach(decided) { proposal in
-                    DecidedLine(review: review, proposal: proposal)
+                    DecidedLine(review: review, proposal: proposal, taskID: card.snippet.id)
                 }
             }
             .animation(Motion.smooth, value: pending.map(\.id))
@@ -324,7 +332,7 @@ private struct SuggestionCard: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Palette.textSecondary)
                     .frame(width: 14)
-                Text(Wording.heading(proposal, in: review))
+                Text(Wording.heading(proposal, in: review, from: card.snippet.id))
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Palette.text)
                     .monospacedDigit()
@@ -494,7 +502,9 @@ private struct SuggestionBody: View {
 
     private func excerpt(_ task: SnippetCard, before at: SessionTime) -> String {
         let text = task.snippet.utterances.filter { $0.range.end <= at + 0.05 }.map(\.text).joined(separator: " ")
-        return text.isEmpty ? "" : "…" + String(text.suffix(64)).trimmingCharacters(in: .whitespaces)
+        guard text.count > 64 else { return text }
+        let tail = text.suffix(64)
+        return "…" + (tail.firstIndex(of: " ").map { String(tail[tail.index(after: $0)...]) } ?? String(tail))
     }
 
     private func excerpt(_ task: SnippetCard, after at: SessionTime) -> String {
@@ -625,6 +635,7 @@ private struct PointerLine: View {
 private struct DecidedLine: View {
     let review: SessionReview
     let proposal: OptimiseProposal
+    var taskID: String?
 
     var body: some View {
         let status = review.optimise.status(for: proposal)
@@ -645,8 +656,8 @@ private struct DecidedLine: View {
         .background(Palette.fill, in: .rect(cornerRadius: Radius.control, style: .continuous))
     }
 
-    private func line(_ status: OptimiseReview.Status) -> String {
-        let heading = Wording.heading(proposal, in: review)
+    private func line(_ status: OptimiseReview.ProposalStatus) -> String {
+        let heading = Wording.heading(proposal, in: review, from: taskID)
         switch status {
         case .accepted: return Wording.done(proposal, heading: heading)
         case .rejected: return "Dismissed: \(heading.prefix(1).lowercased() + heading.dropFirst())"
@@ -669,8 +680,9 @@ enum Wording {
         }
     }
 
-    static func heading(_ proposal: OptimiseProposal, in review: SessionReview) -> String {
-        let numbers = proposal.tasks.dropFirst().compactMap { id in review.tasks.firstIndex { $0.snippet.id == id }.map { String($0 + 1) } }
+    static func heading(_ proposal: OptimiseProposal, in review: SessionReview, from taskID: String? = nil) -> String {
+        let others = proposal.tasks.filter { $0 != (taskID ?? proposal.tasks.first) }
+        let numbers = others.compactMap { id in review.tasks.firstIndex { $0.snippet.id == id }.map { String($0 + 1) } }
         let frames = proposal.frames?.count ?? 0
         let pointers = proposal.pointers?.count ?? 0
         let things = [frames > 0 ? (frames == 1 ? "a frame" : "\(frames) frames") : nil, pointers > 0 ? (pointers == 1 ? "a pointer" : "\(pointers) pointers") : nil].compactMap { $0 }.joined(separator: " and ")

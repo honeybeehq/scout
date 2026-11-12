@@ -12,7 +12,7 @@ enum OptimiseGallery {
         var name: String
         var fixture: String
         var select: String
-        var prepare: (SessionReview, URL) throws -> Void
+        var prepare: (SessionReview, URL) async throws -> Void
     }
 
     static func run(model: AppModel, fixtures: URL, into directory: URL) async {
@@ -23,7 +23,7 @@ enum OptimiseGallery {
         let shots: [Shot] = [
             Shot(name: "1-idle", fixture: "eight", select: "task-5") { _, _ in },
             Shot(name: "2-running", fixture: "eight", select: "task-5") { review, _ in
-                review.optimise.showRunning(phase: "Claude is reading 8 tasks and 14 frames", startedAt: Date().addingTimeInterval(-42))
+                await run(review, socket: argument("--optimise-hang-socket="), until: { $0 == .running })
             },
             Shot(name: "3-proposals-merge", fixture: "eight", select: "task-5") { review, _ in try review.optimise.loadProposals(from: eight) },
             Shot(name: "3-proposals-split-flag", fixture: "eight", select: "task-7") { review, _ in try review.optimise.loadProposals(from: eight) },
@@ -44,9 +44,10 @@ enum OptimiseGallery {
                 review.optimise.reject("p6")
             },
             Shot(name: "5-failure", fixture: "eight", select: "task-5") { review, _ in
-                review.optimise.showFailure("Claude didn't answer within 3 minutes.")
+                await run(review, socket: "/tmp/scout-optimise-gallery-no-hive.sock", until: { if case .failed = $0 { true } else { false } })
             },
             Shot(name: "6-walkthrough-proposals", fixture: "walkthrough", select: "task-2") { review, _ in try review.optimise.loadProposals(from: walkthrough) },
+            Shot(name: "6-walkthrough-split", fixture: "walkthrough", select: "task-4") { review, _ in try review.optimise.loadProposals(from: walkthrough) },
             Shot(name: "6-walkthrough-drop", fixture: "walkthrough", select: "task-5") { review, _ in try review.optimise.loadProposals(from: walkthrough) },
         ]
         var log: [String] = []
@@ -56,7 +57,7 @@ enum OptimiseGallery {
             for shot in shots {
                 guard let review = ReviewGallery.fixtures.first(where: { $0.name == shot.fixture })?.make(model.dispatcher) else { continue }
                 do {
-                    try shot.prepare(review, directory)
+                    try await shot.prepare(review, directory)
                 } catch {
                     log.append("\(shot.name): \(error)")
                 }
@@ -70,12 +71,25 @@ enum OptimiseGallery {
                 }
                 if scheme == .light {
                     log.append("\(shot.name): state=\(review.optimise.state) undo=\(review.undoDepth) tasks=" + review.tasks.map { "\($0.snippet.id)[\(String(format: "%.1f-%.1f", $0.snippet.range.start, $0.snippet.range.end))] \($0.title)" }.joined(separator: " | "))
-                    log.append("   proposals: " + review.optimise.proposals.map { "\($0.id)=\(review.optimise.status(for: $0))" }.joined(separator: " "))
+                    log.append("   proposals: " + review.optimise.proposals.map { "\($0.id)=\(review.optimise.status(for: $0))" + (review.optimise.validationMessage(for: $0).map { "(\($0))" } ?? "") }.joined(separator: " ") + (review.optimise.error.map { " error=\($0)" } ?? ""))
                 }
+                if review.optimise.state == .running { review.optimise.cancel() }
             }
         }
         try? log.joined(separator: "\n").write(to: directory.appendingPathComponent("optimise-log.txt"), atomically: true, encoding: .utf8)
         await recordLive(model: model, fixture: eight, frame: frame, into: directory)
+    }
+
+    static func argument(_ prefix: String) -> String? {
+        ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count)) }
+    }
+
+    static func run(_ review: SessionReview, socket: String?, until done: (OptimiseReview.State) -> Bool) async {
+        if let socket { setenv("HIVE_V2_SOCKET_PATH", socket, 1) }
+        review.optimise.start()
+        for _ in 0..<100 where !done(review.optimise.state) {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     private static func recordLive(model: AppModel, fixture: URL, frame: CGImage?, into directory: URL) async {
@@ -108,9 +122,15 @@ enum OptimiseGallery {
         }
         select("task-5")
         await hold(1.2, "idle")
-        review.optimise.showRunning(phase: "Claude is reading 8 tasks and 14 frames", startedAt: Date())
-        await hold(2.4, "running")
-        try? review.optimise.loadProposals(from: fixture)
+        if let socket = argument("--optimise-hang-socket=") { setenv("HIVE_V2_SOCKET_PATH", socket, 1) }
+        review.optimise.start()
+        await hold(2.4, "running (agent never answers): \(review.optimise.state)")
+        review.optimise.cancel()
+        await hold(1.2, "cancelled: \(review.optimise.state) tasks unchanged")
+        if let socket = argument("--optimise-success-socket=") { setenv("HIVE_V2_SOCKET_PATH", socket, 1) }
+        review.optimise.start()
+        await hold(0.6, "start pressed: \(review.optimise.state)")
+        await hold(2.4, "after run: \(review.optimise.state) \(review.optimise.error ?? "")")
         await hold(2.0, "proposals on task 6")
         withAnimation(Motion.smooth) { review.optimise.accept("p1") }
         await hold(2.0, "accepted merge p1")
