@@ -486,9 +486,19 @@ private struct LastWalkthroughRow: View {
                         .help("Open the asks as tasks and let Claude suggest merges, splits and titles. Sends the transcript and frames to Claude, never the video.")
                     Button("Copy", action: actions.copyWalkthrough)
                         .buttonStyle(QuietButtonStyle())
-                    Button("Show in Finder", action: actions.revealWalkthrough)
+                    ViewThatFits(in: .horizontal) {
+                        Button("Show in Finder", action: actions.revealWalkthrough)
+                            .buttonStyle(QuietButtonStyle())
+                            .fixedSize()
+                        Button(action: actions.revealWalkthrough) {
+                            Image(systemName: "folder")
+                        }
                         .buttonStyle(QuietButtonStyle())
+                        .help("Show in Finder")
+                        .accessibilityLabel("Show in Finder")
+                    }
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
             }
         }

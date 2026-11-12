@@ -544,7 +544,7 @@ private struct TaskChip: View {
                 Text(title)
                     .font(.system(size: 12, weight: emphasised ? .bold : .semibold))
                     .foregroundStyle(emphasised ? Palette.text : Palette.textSecondary)
-                    .lineLimit(2)
+                    .lineLimit(emphasised ? 4 : 2)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(SessionTimeline.clock(range.start))–\(SessionTimeline.clock(range.end)) · \(String(format: "%.0f s", range.duration))")
                     .font(.system(size: 10.5, weight: .medium).monospacedDigit())
