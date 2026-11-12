@@ -17,6 +17,7 @@ struct TaskDetail: View {
             VStack(spacing: 0) {
                 ScoutScroll(indicators: .automatic) {
                     VStack(alignment: .leading, spacing: 20) {
+                        SuggestionsSection(review: review, player: player, card: card)
                         VStack(alignment: .leading, spacing: 10) {
                             TitleField(review: review, card: card)
                             ContextSection(card: card)

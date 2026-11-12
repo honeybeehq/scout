@@ -43,6 +43,7 @@ struct SessionTimeline: View {
                 Canvas { context, size in
                     drawFilmstrip(in: &context, scale: scale)
                     drawTasks(in: &context, scale: scale)
+                    drawSuggestions(in: &context, scale: scale)
                     drawSpeech(in: &context, scale: scale)
                     drawContexts(in: &context, scale: scale)
                     drawRuler(in: &context, scale: scale, size: size)
@@ -137,6 +138,34 @@ struct SessionTimeline: View {
                 context.stroke(shape, with: context.shade(Palette.canvas), lineWidth: 5)
             }
             context.stroke(shape, with: context.shade(color.opacity(selected ? 1 : 0.5)), lineWidth: selected ? 2.5 : 1)
+        }
+    }
+
+    private func drawSuggestions(in context: inout GraphicsContext, scale: TimelineScale) {
+        guard let selected = review.selectedTask else { return }
+        for proposal in review.optimise.proposals(for: selected.snippet.id) {
+            let cards = proposal.tasks.compactMap { id in review.tasks.first { $0.snippet.id == id } }
+            switch proposal.kind {
+            case .merge:
+                guard let first = cards.first else { continue }
+                let range = cards.dropFirst().reduce(first.snippet.range) { $0.union($1.snippet.range) }
+                let rect = CGRect(x: scale.x(range.start) - 3, y: Self.filmTop - 4, width: scale.x(range.end) - scale.x(range.start) + 6, height: Self.filmHeight + 8)
+                context.stroke(Path(roundedRect: rect, cornerRadius: 6, style: .continuous), with: context.shade(Palette.ink), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+            case .split:
+                guard let at = proposal.at else { continue }
+                let x = scale.x(Double(at) / 1000)
+                var line = Path()
+                line.move(to: CGPoint(x: x, y: Self.filmTop - 4))
+                line.addLine(to: CGPoint(x: x, y: Self.filmTop + Self.filmHeight + 4))
+                context.stroke(line, with: context.shade(Palette.ink), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+            default:
+                break
+            }
+            if proposal.crossesMarkedCut == true, let at = proposal.at {
+                let x = scale.x(Double(at) / 1000)
+                let tick = Path(roundedRect: CGRect(x: x - 1.5, y: Self.filmTop - 6, width: 3, height: Self.filmHeight + 12), cornerRadius: 1.5)
+                context.fill(tick, with: context.shade(Palette.cautionFill))
+            }
         }
     }
 

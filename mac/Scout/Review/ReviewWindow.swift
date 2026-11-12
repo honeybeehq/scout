@@ -52,9 +52,12 @@ private struct ReviewContent: View {
                 SaveErrorBanner(review: review, error: error)
             }
             HStack(spacing: 0) {
-                TaskList(review: review, player: player, onFocusRoot: { rootFocused = true })
-                    .frame(width: 272)
-                    .background(Palette.surface)
+                VStack(spacing: 0) {
+                    TaskList(review: review, player: player, onFocusRoot: { rootFocused = true })
+                    OptimisePanel(review: review, player: player)
+                }
+                .frame(width: 272)
+                .background(Palette.surface)
                 Rectangle().fill(Palette.hairline).frame(width: 1)
                 if let card = review.selectedTask {
                     TaskDetail(review: review, player: player, card: card)

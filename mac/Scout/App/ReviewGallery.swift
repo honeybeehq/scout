@@ -13,6 +13,11 @@ enum ReviewGallery {
     static func run(model: AppModel, into directory: URL) async {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? await Task.sleep(for: .milliseconds(300))
+        if let fixtures = OptimiseGallery.fixtures {
+            await OptimiseGallery.run(model: model, fixtures: fixtures, into: directory)
+            NSApp.terminate(nil)
+            return
+        }
         let frame = DesignGallery.mockFrame()
         let reviews = fixtures.map { ($0.name, $0.make(model.dispatcher)) }
         for scheme in DesignGallery.schemes {
@@ -77,7 +82,7 @@ enum ReviewGallery {
         window.close()
     }
 
-    private static func render(_ view: some View, scheme: ColorScheme, to url: URL) {
+    static func render(_ view: some View, scheme: ColorScheme, to url: URL) {
         let renderer = ImageRenderer(content: view.environment(\.stillRender, true).environment(\.colorScheme, scheme))
         renderer.scale = 2
         guard let image = renderer.cgImage else { return }

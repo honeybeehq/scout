@@ -676,6 +676,19 @@ final class AppModel {
         return opened ? url : nil
     }
 
+    func optimiseLastWalkthrough() {
+        guard let lastWalkthrough, !isScouting else { return }
+        do {
+            let review = try SessionReview.openWalkthrough(directory: lastWalkthrough.directory, dispatcher: dispatcher)
+            reviews[review.sessionID] = review
+            if let first = review.tasks.first { review.select(first) }
+            show(review)
+            review.optimise.start()
+        } catch {
+            walkthroughProblem = "The walkthrough couldn't be opened for Optimise: \(error.localizedDescription)"
+        }
+    }
+
     func revealLastWalkthrough() {
         guard let lastWalkthrough else { return }
         NSWorkspace.shared.activateFileViewerSelecting([lastWalkthrough.directory])

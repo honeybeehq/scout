@@ -38,7 +38,7 @@ struct TaskList: View {
                     .padding(.bottom, 6)
 
                     ForEach(Array(review.tasks.enumerated()), id: \.element.id) { index, card in
-                        TaskRow(card: card, index: index, selected: card.snippet.id == review.selectedTask?.snippet.id)
+                        TaskRow(card: card, index: index, selected: card.snippet.id == review.selectedTask?.snippet.id, suggestions: review.optimise.proposals(for: card.snippet.id).count)
                             .id(card.id)
                             .onTapGesture {
                                 player.pause()
@@ -111,6 +111,7 @@ private struct TaskRow: View {
     let card: SnippetCard
     let index: Int
     let selected: Bool
+    var suggestions = 0
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -134,6 +135,7 @@ private struct TaskRow: View {
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Palette.textTertiary)
                         .fixedSize()
+                    if suggestions > 0 { SuggestionCount(count: suggestions) }
                     Spacer(minLength: 0)
                     StateLine(card: card)
                 }

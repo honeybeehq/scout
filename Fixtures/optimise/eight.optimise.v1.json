@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "engine": "hive-agent",
+  "model": "claude-opus-5-5",
+  "startedAt": "2026-11-10T18:31:02Z",
+  "finishedAt": "2026-11-10T18:32:14Z",
+  "proposals": [
+    { "id": "p1", "kind": "merge", "tasks": ["task-5", "task-6"], "title": "Cart and search keep stale state after you remove or clear something", "why": "You described the same stale-state bug on two screens of one simulator flow, two seconds apart." },
+    { "id": "p2", "kind": "retitle", "tasks": ["task-3"], "title": "Put the avatar menu above the sticky header on Orders", "why": "Says what to change instead of what you saw." },
+    { "id": "p3", "kind": "detach", "tasks": ["task-3"], "pointers": [29700], "why": "You crossed the Pay now button on the way to the avatar. You didn't mean it." },
+    { "id": "p4", "kind": "split", "tasks": ["task-7"], "at": 71100, "title": "Explain why a promo code fails", "why": "Two asks: accept spaces, and say why a code fails. They can go to different agents." },
+    { "id": "p5", "kind": "flag", "tasks": ["task-7"], "question": "Should spaces be trimmed silently, or rejected with a message?", "why": "You said both, a few words apart." },
+    { "id": "p6", "kind": "merge", "tasks": ["task-3", "task-4"], "at": 37500, "crossesMarkedCut": true, "title": "Tidy the header: avatar menu layering and the Settings name", "why": "Both are header polish on the same page, and you kept talking about the header after the cut." },
+    { "id": "p7", "kind": "attach", "tasks": ["task-6"], "frames": [59800, 62300], "why": "These frames show the empty state before and after you typed." }
+  ]
+}

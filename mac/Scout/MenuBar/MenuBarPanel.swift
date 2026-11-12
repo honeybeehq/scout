@@ -40,6 +40,7 @@ struct MenuBarPanelActions {
     var copyWalkthrough: () -> Void = {}
     var revealWalkthrough: () -> Void = {}
     var revealDebugData: () -> Void = {}
+    var optimiseWalkthrough: () -> Void = {}
     var openSetup: () -> Void = {}
     var openSettings: () -> Void = {}
     var checkForUpdates: () -> Void = {}
@@ -87,6 +88,7 @@ struct MenuBarPanel: View {
             copyWalkthrough: { model.copyLastWalkthrough() },
             revealWalkthrough: { model.revealLastWalkthrough() },
             revealDebugData: { model.revealDebugData() },
+            optimiseWalkthrough: { model.optimiseLastWalkthrough() },
             openSetup: {
                 model.onboarding.restart()
                 model.openOnboarding?()
@@ -478,6 +480,10 @@ private struct LastWalkthroughRow: View {
                     Button("Send…", action: actions.sendWalkthrough)
                         .buttonStyle(SecondaryButtonStyle())
                         .disabled(isScouting)
+                    Button("Optimise…", action: actions.optimiseWalkthrough)
+                        .buttonStyle(QuietButtonStyle())
+                        .disabled(isScouting)
+                        .help("Open the asks as tasks and let Claude suggest merges, splits and titles. Sends the transcript and frames to Claude, never the video.")
                     Button("Copy", action: actions.copyWalkthrough)
                         .buttonStyle(QuietButtonStyle())
                     Button("Show in Finder", action: actions.revealWalkthrough)
