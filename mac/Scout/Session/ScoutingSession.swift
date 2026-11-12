@@ -59,6 +59,7 @@ final class ScoutingSession {
     private var pointerTracker: PointerTracker?
     private var ticker: Task<Void, Never>?
     private var sendNextClosedImmediately = false
+    private var cuts: [SessionTime] = []
     private var startTask: Task<Void, Never>?
     private var recorderStart: Task<Void, Never>?
     private var stopRequested = false
@@ -328,7 +329,7 @@ final class ScoutingSession {
             ingest(.command(CommandSignal(at: utterance.range.end, command: .split)))
         case nil:
             flushDwells(at: clock.now)
-            ingest(.utterance(utterance))
+            for part in utterance.split(at: cuts) { ingest(.utterance(part)) }
         }
     }
 
@@ -342,6 +343,7 @@ final class ScoutingSession {
         walkthrough?.record(signal)
         if case .mark(let mark) = signal { pointing?.pin(mark) }
         if case .context(let change) = signal { context = change.context }
+        if case .command(let command) = signal, command.command == .split { cuts.append(command.at) }
         handle(segmenter.ingest(signal))
     }
 

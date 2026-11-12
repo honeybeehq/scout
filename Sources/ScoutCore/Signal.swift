@@ -24,6 +24,29 @@ public struct Utterance: Codable, Hashable, Sendable, Identifiable {
         self.text = text
         self.words = words
     }
+
+    public func split(at cuts: [SessionTime]) -> [Utterance] {
+        let inside = cuts.filter { $0 > range.start && $0 < range.end }.sorted()
+        guard !inside.isEmpty else { return [self] }
+        var pieces: [Utterance] = []
+        for (lower, upper) in zip([-SessionTime.infinity] + inside, inside + [SessionTime.infinity]) {
+            let span = TimeRange(start: max(range.start, lower), end: min(range.end, upper))
+            let id = pieces.isEmpty ? self.id : "\(self.id)-\(pieces.count + 1)"
+            if words.isEmpty {
+                let middle = (range.start + range.end) / 2
+                if middle > lower, middle <= upper { pieces.append(Utterance(id: id, range: span, text: text)) }
+                continue
+            }
+            let taken = words.filter { $0.range.end > lower && $0.range.end <= upper }.map { word in
+                Word(text: word.text, range: TimeRange(start: max(word.range.start, span.start), end: word.range.end), confidence: word.confidence)
+            }
+            guard let first = taken.first, let last = taken.last else { continue }
+            let start = lower.isInfinite ? span.start : first.range.start
+            let end = upper.isInfinite ? span.end : last.range.end
+            pieces.append(Utterance(id: id, range: TimeRange(start: start, end: end), text: taken.map(\.text).joined(separator: " "), words: taken))
+        }
+        return pieces
+    }
 }
 
 public struct ContextChange: Codable, Hashable, Sendable {
