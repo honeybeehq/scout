@@ -389,7 +389,6 @@ final class AppModel {
         stackChanged()
         let media = session.directory.appendingPathComponent("media", isDirectory: true)
         Task.detached(priority: .background) {
-            try? await Task.sleep(for: .seconds(120))
             try? FileManager.default.removeItem(at: media)
         }
     }
@@ -596,10 +595,9 @@ final class AppModel {
 
     private func removeSegments(of session: ScoutingSession) {
         guard session.video != nil else { return }
-        let media = session.directory.appendingPathComponent("media", isDirectory: true)
+        let directory = session.directory
         Task.detached(priority: .background) {
-            try? await Task.sleep(for: .seconds(120))
-            try? FileManager.default.removeItem(at: media)
+            await ScoutPaths.removeFinishedMedia(of: directory)
         }
     }
 

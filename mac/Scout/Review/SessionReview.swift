@@ -148,6 +148,7 @@ final class SessionReview {
     func videoFinished() {
         isFinishing = false
         refreshFromSession()
+        save()
     }
 
     func cardChanged(_ card: SnippetCard) {
