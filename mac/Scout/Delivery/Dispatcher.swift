@@ -121,7 +121,7 @@ final class Dispatcher {
     }
 
     func compose(_ card: SnippetCard) throws -> ComposedTask {
-        try TaskComposer.compose(card.deliverableSnippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
+        try TaskComposer.compose(card.deliverableSnippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, openQuestion: card.optimiseAttachments?.question, sessionDirectory: card.sessionDirectory, extraAttachments: card.attachments)
     }
 
     func hold(_ card: SnippetCard) {

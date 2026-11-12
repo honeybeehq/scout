@@ -69,7 +69,7 @@ enum TaskComposer {
         return String(remaining)
     }
 
-    static func compose(_ snippet: Snippet, title: String, project: ProjectReference?, runtimeNotes: [String] = [], sessionDirectory: URL, extraAttachments: [ComposedTask.Attachment] = []) throws -> ComposedTask {
+    static func compose(_ snippet: Snippet, title: String, project: ProjectReference?, runtimeNotes: [String] = [], openQuestion: String? = nil, sessionDirectory: URL, extraAttachments: [ComposedTask.Attachment] = []) throws -> ComposedTask {
         let directory = sessionDirectory.appendingPathComponent("snippets/\(snippet.id)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
@@ -86,6 +86,7 @@ enum TaskComposer {
         if !runtimeNotes.isEmpty {
             details.append((["**Runtime:**"] + runtimeNotes.prefix(5).map { "- `\($0)`" }).joined(separator: "\n"))
         }
+        if let openQuestion, !openQuestion.isEmpty { details.append("Open question: \(openQuestion)") }
         if snippet.range.duration > 0 {
             details.append("**When:** \(format(snippet.range.start))–\(format(snippet.range.end)) into the session")
         }

@@ -10,7 +10,7 @@ server = socket.socket(socket.AF_UNIX)
 server.bind(socket_path)
 server.listen(2)
 try:
-    for _ in range(2 if mode == "wait" else 1):
+    for _ in range(1 if mode == "failure" else 2):
         connection, _ = server.accept()
         with connection, connection.makefile("rwb") as stream:
             stream.write(b'{"protocol":"v2/2"}\n')
@@ -26,7 +26,8 @@ try:
             assert request["verb"] == "spawn"
             assert request["params"]["agent"] == "claude"
             prompt = request["params"]["prompt"]
-            assert "Full transcript:" in prompt and "Full ledger:" in prompt
+            assert "Full transcript:" in prompt and "optimise-ledger.json]" in prompt
+            assert "Full ledger:" not in prompt
             assert "[Attached video:" not in prompt
             if mode == "success":
                 destination = pathlib.Path(request["params"]["cwd"]) / "optimise.v1.json"

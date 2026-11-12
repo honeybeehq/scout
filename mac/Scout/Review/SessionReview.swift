@@ -371,7 +371,6 @@ final class SessionReview {
     func undo() {
         guard let step = undoStack.popLast() else { return }
         let snapshots = step.snapshots
-        optimiser?.didUndo(step.proposalIDs)
         let restored = Set(snapshots.map { ObjectIdentifier($0.card) })
         for card in tasks where !restored.contains(ObjectIdentifier(card)) && !card.isLocked {
             dispatcher.withdraw(card)
@@ -393,6 +392,7 @@ final class SessionReview {
         sortTasks()
         if selectedTask == nil, let first = tasks.first { select(first) }
         scheduleSave()
+        optimiser?.didUndo(step.proposalIDs)
         try? saveAgentAsks()
     }
 

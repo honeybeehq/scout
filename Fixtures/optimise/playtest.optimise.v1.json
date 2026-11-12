@@ -5,12 +5,88 @@
   "startedAt": "2026-11-12T14:00:00Z",
   "finishedAt": "2026-11-12T14:01:00Z",
   "proposals": [
-    {"id":"title-1","kind":"retitle","tasks":["task-1"],"title":"Make the playtest control easier to read","why":"The original title repeats the narration."},
-    {"id":"merge-cut","kind":"merge","tasks":["task-3","task-4"],"why":"Duplicate requests, but this deliberately lacks a marked-cut exception."},
-    {"id":"merge-exception","kind":"merge","tasks":["task-5","task-6"],"crossesMarkedCut":true,"why":"The explicit cut at 59 seconds separated duplicate requests about the same control; propose this exception for review."},
-    {"id":"split-8","kind":"split","tasks":["task-8"],"at":89000,"why":"Separate two concerns at the middle of this fixture task."},
-    {"id":"flag-12","kind":"flag","tasks":["task-12"],"question":"Which control should change?","why":"The intended target is unclear."},
-    {"id":"drop-20","kind":"drop","tasks":["task-20"],"why":"This fixture task duplicates the preceding request."},
-    {"id":"missing-task","kind":"retitle","tasks":["missing"],"title":"Never applied","why":"Exercises stale task validation."}
+    {
+      "id": "title-1",
+      "kind": "retitle",
+      "tasks": [
+        "task-1"
+      ],
+      "title": "Make the playtest control easier to read",
+      "why": "The original title repeats the narration."
+    },
+    {
+      "id": "attach-1",
+      "kind": "attach",
+      "tasks": [
+        "task-1"
+      ],
+      "pointers": [
+        2000
+      ],
+      "why": "The pin identifies this task\u2019s control."
+    },
+    {
+      "id": "flag-1",
+      "kind": "flag",
+      "tasks": [
+        "task-1"
+      ],
+      "question": "Should the label or tooltip change?",
+      "why": "Keep the clarification with this task."
+    },
+    {
+      "id": "merge-cut",
+      "kind": "merge",
+      "tasks": [
+        "task-3",
+        "task-4"
+      ],
+      "why": "Duplicate requests, but this deliberately lacks a marked-cut exception."
+    },
+    {
+      "id": "merge-exception",
+      "kind": "merge",
+      "tasks": [
+        "task-5",
+        "task-6"
+      ],
+      "crossesMarkedCut": true,
+      "why": "The explicit cut at 59 seconds separated duplicate requests about the same control; propose this exception for review."
+    },
+    {
+      "id": "split-8",
+      "kind": "split",
+      "tasks": [
+        "task-8"
+      ],
+      "at": 89000,
+      "why": "Separate two concerns at the middle of this fixture task."
+    },
+    {
+      "id": "flag-12",
+      "kind": "flag",
+      "tasks": [
+        "task-12"
+      ],
+      "question": "Which control should change?",
+      "why": "The intended target is unclear."
+    },
+    {
+      "id": "drop-20",
+      "kind": "drop",
+      "tasks": [
+        "task-20"
+      ],
+      "why": "This fixture task duplicates the preceding request."
+    },
+    {
+      "id": "missing-task",
+      "kind": "retitle",
+      "tasks": [
+        "missing"
+      ],
+      "title": "Never applied",
+      "why": "Exercises stale task validation."
+    }
   ]
 }
