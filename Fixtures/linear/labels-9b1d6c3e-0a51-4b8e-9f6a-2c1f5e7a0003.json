@@ -1,0 +1,25 @@
+{
+  "data": {
+    "team": {
+      "labels": {
+        "nodes": [
+          {
+            "id": "1abe0000-0000-4000-8000-000300000000",
+            "name": "Bug",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000300000001",
+            "name": "Balance",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000300000002",
+            "name": "Polish",
+            "parent": null
+          }
+        ]
+      }
+    }
+  }
+}

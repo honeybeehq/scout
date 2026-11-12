@@ -1,0 +1,28 @@
+{
+  "data": {
+    "team": {
+      "projects": {
+        "nodes": [
+          {
+            "id": "7a7a0000-0000-4000-8000-000100000000",
+            "name": "Platform",
+            "completedAt": null,
+            "canceledAt": null
+          },
+          {
+            "id": "7a7a0000-0000-4000-8000-000100000001",
+            "name": "Reliability",
+            "completedAt": null,
+            "canceledAt": null
+          },
+          {
+            "id": "7a7a0000-0000-4000-8000-000100000002",
+            "name": "Old auth",
+            "completedAt": "2026-03-01T10:00:00.000Z",
+            "canceledAt": null
+          }
+        ]
+      }
+    }
+  }
+}

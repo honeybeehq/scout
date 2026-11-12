@@ -173,6 +173,10 @@ The attachment lines follow Apiary's convention, so the task renders the same in
 - **Voice:** language (defaults to the system language, falls back to English), input device, voice commands on/off.
 - **Agents:** routing mode, default agent for new sessions (claude, codex, …), auto-send and its delay, project overrides (app or URL pattern → repo).
 - **Privacy:** which attachments to include (clip, pin screenshots, full frames), apps never to capture (password managers are excluded by default), redaction of on-screen text in screenshots.
+- **Linear:**
+  - **Account.** A personal API key. *Connect* checks the key with Linear before saving it, and stores it only in the Mac's Keychain. Afterwards the pane shows who is connected and a masked key (`lin_api_••••••••3f9a`), with *Test* and *Remove*.
+  - **Where issues go.** A default team and project, picked from the user's own workspace. Mappings per repo or app, added from recent sessions. A repo match wins over an app match, and anything else goes to the default team. Removing the key keeps the mappings, marked *Inactive*.
+  - **Filing.** The structure per mode (automatic: one issue per task; manual: parent issue with sub-issues), and the starting value of each task's *Include video* switch (off).
 - **SDKs:** bridge status, connected apps, pairing token, SDK install snippets.
 
 ## Menu bar panel

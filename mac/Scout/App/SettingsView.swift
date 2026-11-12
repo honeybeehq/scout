@@ -4,7 +4,7 @@ import SwiftUI
 
 struct SettingsView: View {
     enum Pane: String, CaseIterable {
-        case general, agents, sdks
+        case general, agents, linear, sdks
     }
 
     @Environment(AppModel.self) private var model
@@ -39,6 +39,7 @@ struct SettingsView: View {
                 switch pane {
                 case .general: GeneralSettings()
                 case .agents: AgentSettings()
+                case .linear: LinearSettings(scrollAnchor: SnapshotMode.linearScrollAnchor)
                 case .sdks: SDKSettings()
                 }
             }
@@ -55,6 +56,7 @@ extension SettingsView.Pane {
         switch self {
         case .general: "General"
         case .agents: "Agents"
+        case .linear: "Linear"
         case .sdks: "SDKs"
         }
     }
@@ -63,6 +65,7 @@ extension SettingsView.Pane {
         switch self {
         case .general: "gearshape.fill"
         case .agents: "arrow.turn.down.right"
+        case .linear: "checklist"
         case .sdks: "chevron.left.forwardslash.chevron.right"
         }
     }
@@ -96,7 +99,7 @@ private struct PaneTab: View {
     }
 }
 
-private struct SettingsSection<Content: View>: View {
+struct SettingsSection<Content: View>: View {
     var title: String
     @ViewBuilder var content: Content
 
@@ -114,7 +117,7 @@ private struct SettingsSection<Content: View>: View {
     }
 }
 
-private struct SettingRow<Trailing: View>: View {
+struct SettingRow<Trailing: View>: View {
     var title: String
     var detail: String?
     var divider = true
@@ -141,7 +144,7 @@ private struct SettingRow<Trailing: View>: View {
     }
 }
 
-private struct SettingNote: View {
+struct SettingNote: View {
     var text: String
 
     var body: some View {

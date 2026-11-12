@@ -1,0 +1,14 @@
+{
+  "data": {
+    "viewer": {
+      "id": "5f0c2a1e-7d34-4c55-a1b2-000000000001",
+      "name": "Ada Lovelace",
+      "email": "ada@acme.example",
+      "organization": {
+        "id": "5f0c2a1e-7d34-4c55-a1b2-0000000000aa",
+        "name": "Acme",
+        "urlKey": "acme"
+      }
+    }
+  }
+}

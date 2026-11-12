@@ -21,6 +21,7 @@ final class AppModel {
     private(set) var pickerTimings: [String: Double] = [:]
     @ObservationIgnored private var finishPressedAt: ContinuousClock.Instant?
     let preferences = Preferences()
+    let linear: LinearAccount
     private(set) var session: ScoutingSession?
     private(set) var lastWalkthrough: FinishedWalkthrough?
     private(set) var walkthroughProblem: String?
@@ -65,6 +66,7 @@ final class AppModel {
     init() {
         let integrations = Integrations()
         self.integrations = integrations
+        linear = SnapshotMode.makeLinearAccount()
         dispatcher = Dispatcher(integrations: integrations, bridge: bridge, preferences: preferences)
         if let data = UserDefaults.standard.data(forKey: Self.shortcutKey),
            let saved = try? JSONDecoder().decode(KeyShortcut.self, from: data) {

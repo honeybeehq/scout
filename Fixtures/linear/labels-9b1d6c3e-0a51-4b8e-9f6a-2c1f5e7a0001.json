@@ -1,0 +1,40 @@
+{
+  "data": {
+    "team": {
+      "labels": {
+        "nodes": [
+          {
+            "id": "1abe0000-0000-4000-8000-000100000000",
+            "name": "Bug",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000100000001",
+            "name": "Improvement",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000100000002",
+            "name": "Feature",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000100000003",
+            "name": "Performance",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000100000004",
+            "name": "Security",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-000100000005",
+            "name": "Tech debt",
+            "parent": null
+          }
+        ]
+      }
+    }
+  }
+}

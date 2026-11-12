@@ -1,0 +1,16 @@
+{
+  "data": {
+    "team": {
+      "projects": {
+        "nodes": [
+          {
+            "id": "7a7a0000-0000-4000-8000-000300000000",
+            "name": "Playtests Q4",
+            "completedAt": null,
+            "canceledAt": null
+          }
+        ]
+      }
+    }
+  }
+}
