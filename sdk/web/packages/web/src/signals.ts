@@ -3,7 +3,7 @@ import { stripQuery } from "./paths"
 
 export interface SignalRecord {
   at: number
-  kind: "error" | "console" | "network"
+  kind: "error" | "console" | "network" | "perf"
   message: string
   stack?: string | undefined
   level?: "warn" | "error"
@@ -157,6 +157,25 @@ export function captureSignals(push: (record: SignalRecord) => void): () => void
       proto.open = open
       proto.send = send
     })
+  }
+
+  let previous = 0
+  let frame = 0
+  const tick = (now: number) => {
+    if (previous && document.visibilityState === "visible" && now - previous > 50) {
+      record({ kind: "perf", message: `Frame hitch: ${Math.round(now - previous)} ms` })
+    }
+    previous = document.visibilityState === "visible" ? now : 0
+    frame = requestAnimationFrame(tick)
+  }
+  frame = requestAnimationFrame(tick)
+  cleanups.push(() => cancelAnimationFrame(frame))
+  if (typeof PerformanceObserver !== "undefined" && PerformanceObserver.supportedEntryTypes.includes("longtask")) {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) record({ kind: "perf", message: `Long task: ${Math.round(entry.duration)} ms` })
+    })
+    observer.observe({ type: "longtask" })
+    cleanups.push(() => observer.disconnect())
   }
 
   return () => cleanups.forEach((cleanup) => cleanup())

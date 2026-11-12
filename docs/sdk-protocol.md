@@ -147,3 +147,35 @@ Until it receives `session {active:true}`, an SDK sends only `hello` and replies
 ## What an SDK must never send
 
 Input values, passwords, `href` query strings and fragments, cookies, storage contents, request or response bodies, or anything from a page that has not received `session {active:true}`.
+
+## Dev-only canvas games
+
+A dev entry point, after the Vite SDK injection, can register a canvas:
+
+```ts
+import { scout } from "@scout/web"
+
+const unregister = scout.game({
+  canvas,
+  name: "My game",
+  build: "git-sha",
+  describe: ({ x, y }) => hitTest(x, y),
+  snapshot: () => ({ scene, seed, frame, clock, position, save, extra }),
+})
+```
+
+Keep the import and registration behind `import.meta.env.DEV` (use a dynamic import to exclude it from production). `scout.game` does not start the SDK without a dev-injected configuration or an explicitly started SDK. `startScout().game(...)` registers on a manually started SDK. Registration returns a cleanup function; stopping Scout clears registrations.
+
+`canvas` is explicit. `describe` receives CSS pixels from its top-left corner, before backing-store scaling or camera transforms. Map them into world coordinates in the adapter. It returns `{entity:{id,kind,label}, layer?, scene?, extra?}` or `null`. Entity IDs must be stable within a game session. Hover, aim and pin hit tests report normal element descriptors with `kind:"game"`, `game` containing that description, the entity kind as `role`, the entity label as `label`, and canvas bounds. Null falls back to the DOM canvas. Historical pin coordinates come from the pointer samples; state is sampled when the pin request arrives.
+
+`snapshot` may return a value or promise: `{scene, seed?, frame, clock, position, save?, extra?}`. `clock` is game seconds; position and extra are adapter-defined JSON. Saves must be JSON serializable. The SDK calls it at each pin and on Scout's `snapshot {id}` request at task close, only while the session is active. It sends:
+
+```json
+{"v":1,"type":"gameState","id":"pin-1","reason":"pin","at":1794490000000,"game":{"name":"My game","build":"git-sha","scene":"ring","seed":42,"frame":120,"clock":2,"position":{"x":12,"y":4},"save":{"version":1},"saveStatus":"included"}}
+```
+
+`reason` is `pin` or `taskClose`. The currently pointed game replies; over game HUD DOM, the last pointed game is used (or the sole registered game). `gameStateDone {id}` completes the request, including when no game or save is available. Scout accepts at most one state per solicited request, from the client it requested. Task-close requests carry a native task binding, so delayed replies cannot drift into the next task. Saves are capped at **256 KiB of UTF-8 JSON**; larger saves are omitted with `saveStatus:"omitted: exceeds 256 KiB"`. No save gives `absent`. The full game payload is capped at 512 KiB. Nonserializable snapshots or oversized full payloads are skipped; a broken adapter must not stop recording. Snapshot requests complete on `gameStateDone`, with a 750 ms native timeout; adapters should return promptly.
+
+`perf` joins the signal kinds and capabilities. It reports visible-page animation-frame gaps over 50 ms as `Frame hitch: N ms`, and browser long-task entries as `Long task: N ms` where supported. It uses the same 50-entry ring, 30-second replay, 20-per-second burst limit and consecutive-message deduplication as other signals, with an additional one-per-second perf limit so hitches leave room for errors. Hidden-page frame gaps are ignored. No signal, entity description or snapshot is transmitted before the session is active.
+
+Game adapters explicitly opt in to sending saves. They must construct the repro save themselves; Scout never reads storage, cookies or input values. Do not include credentials or unrelated player data in save or extra.

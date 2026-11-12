@@ -18,3 +18,4 @@ mac/Scout.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
 node_modules/
 .proof/
 site/dist/
+.audit/

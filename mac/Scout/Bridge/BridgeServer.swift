@@ -28,10 +28,19 @@ final class BridgeServer {
 
     var onHover: ((Client, BridgeElement, BridgeViewport?, Date) -> Void)?
     var onContext: ((Client) -> Void)?
+    var onGameState: ((Client, Data, String?, Date?) -> Void)?
     var onSignal: ((Client, BridgeSignalMessage) -> Void)?
 
     private var listener: NWListener?
     private var connections: [String: NWConnection] = [:]
+    private struct GameRequest {
+        var clientID: String
+        var taskID: String?
+        var at: Date?
+        var continuation: CheckedContinuation<Void, Never>?
+        var received = false
+    }
+    private var gameRequests: [String: GameRequest] = [:]
     private var pendingPins: [String: CheckedContinuation<PinReply?, Never>] = [:]
 
     struct PinReply {
@@ -75,11 +84,38 @@ final class BridgeServer {
         connections.values.forEach { $0.cancel() }
         connections = [:]
         clients = []
+        for id in Array(gameRequests.keys) { finishGameRequest(id) }
     }
 
     func setSession(active: Bool) {
         sessionActive = active
+        if active {
+            for index in clients.indices { clients[index].lastHoverAt = nil }
+        } else {
+            for id in Array(gameRequests.keys) { finishGameRequest(id) }
+        }
         broadcast(["type": "session", "active": active])
+    }
+
+    func requestGameState(taskID: String? = nil, projectRoot: String? = nil, clientID: String? = nil) async {
+        guard sessionActive else { return }
+        let candidates = clients.filter { client in
+            client.hello?.capabilities?.contains("game") == true && (projectRoot == nil || client.hello?.project?.root == projectRoot) && (clientID == nil || client.id == clientID)
+        }
+        guard let client = candidates.filter({ $0.lastHoverAt != nil }).max(by: { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }) else { return }
+        let id = UUID().uuidString
+        await withCheckedContinuation { continuation in
+            gameRequests[id] = GameRequest(clientID: client.id, taskID: taskID, continuation: continuation)
+            send(["type": "snapshot", "id": id], to: client.id)
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(750))
+                self?.finishGameRequest(id)
+            }
+        }
+    }
+
+    private func finishGameRequest(_ id: String) {
+        gameRequests.removeValue(forKey: id)?.continuation?.resume()
     }
 
     func setAim(active: Bool) {
@@ -96,6 +132,11 @@ final class BridgeServer {
 
     func requestPin(id: String, at date: Date, timeout: Duration = .milliseconds(220)) async -> PinReply? {
         guard let client = recentlyHovered(within: 2) else { return nil }
+        gameRequests[id] = GameRequest(clientID: client.id, at: date)
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(750))
+            self?.finishGameRequest(id)
+        }
         send(["type": "pin", "id": id, "at": date.timeIntervalSince1970 * 1000], to: client.id)
         return await withCheckedContinuation { continuation in
             pendingPins[id] = continuation
@@ -189,6 +230,7 @@ final class BridgeServer {
     private func drop(_ id: String) {
         connections.removeValue(forKey: id)?.cancel()
         clients.removeAll { $0.id == id }
+        for requestID in gameRequests.keys.filter({ gameRequests[$0]?.clientID == id }) { finishGameRequest(requestID) }
     }
 
     private func receive(on connection: NWConnection, id: String) {
@@ -230,7 +272,7 @@ final class BridgeServer {
                 "type": "welcome",
                 "scout": ["version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"],
                 "session": ["active": sessionActive],
-                "capabilities": ["session", "aim", "pin", "highlight"],
+                "capabilities": ["session", "aim", "pin", "highlight", "snapshot"],
             ], to: id)
             if aimActive { send(["type": "aim", "active": true], to: id) }
         case "context":
@@ -246,6 +288,14 @@ final class BridgeServer {
         case "pinned":
             guard let pinned = try? decoder.decode(BridgePinnedMessage.self, from: data) else { return }
             resolvePin(pinned.id, with: pinned.element.map { PinReply(client: clients[index], element: $0, viewport: pinned.viewport ?? clients[index].viewport) })
+        case "gameState":
+            guard sessionActive, let requestID = envelope.id, let request = gameRequests[requestID],
+                  request.clientID == id, !request.received,
+                  let payload = BridgeGameState.payload(from: data) else { return }
+            gameRequests[requestID]?.received = true
+            onGameState?(clients[index], payload, request.taskID, request.at)
+        case "gameStateDone":
+            if let requestID = envelope.id, gameRequests[requestID]?.clientID == id { finishGameRequest(requestID) }
         case "signal":
             guard let signal = try? decoder.decode(BridgeSignalMessage.self, from: data) else { return }
             onSignal?(clients[index], signal)

@@ -141,6 +141,16 @@ final class WalkthroughRecorder {
         ))
         mark("build")
         let directory = try bundle.finish(walkthrough)
+        let game = directory.appendingPathComponent("game-latest.json")
+        if let attachments = try? TaskComposer.attachGameState(from: game, into: directory),
+           let block = try? TaskComposer.gameStateBlock(in: directory) {
+            let text = directory.appendingPathComponent(WalkthroughBundle.textName)
+            if let original = try? String(contentsOf: text, encoding: .utf8) {
+                if (try? (original + "\n\n" + block + "\n" + attachments.map(\.line).joined(separator: "\n")).write(to: text, atomically: true, encoding: .utf8)) != nil {
+                    try? FileManager.default.removeItem(at: game)
+                }
+            }
+        }
         mark("written")
         return Outcome(directory: directory, walkthrough: walkthrough, timings: timings)
     }

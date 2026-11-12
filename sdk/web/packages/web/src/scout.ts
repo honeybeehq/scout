@@ -7,7 +7,7 @@ import { registeredResolvers } from "./resolvers"
 import { currentRoute, watchRoute } from "./route"
 import { captureSignals, type SignalRecord } from "./signals"
 import { cleanStack } from "./stack"
-import type { ElementDescriptor, ScoutConfig, ScoutHandle, SourceLocation } from "./types"
+import type { ElementDescriptor, GameConfig, ScoutConfig, ScoutHandle, SourceLocation } from "./types"
 import { VERSION } from "./version"
 
 const DEFAULT_PORTS = [47811, 47812, 47813, 47814, 47815, 47816, 47817, 47818, 47819]
@@ -39,6 +39,47 @@ function query(selector: string): Element | null {
 export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandle {
   const roots = { projectRoot: config.projectRoot, serverRoot: config.serverRoot }
   const describe = createDescriber(roots, config.props ?? "off")
+  const games = new Map<HTMLCanvasElement, GameConfig>()
+  const gameElements = new Map<string, Element>()
+  let lastGame: GameConfig | null = null
+  const gameDescriptor = async (element: Element, at: number, sourceBudgetMs = 2000) => {
+    const point = pointer?.pointAt(at)
+    const descriptor = await describe(element, sourceBudgetMs)
+    const game = games.get(element as HTMLCanvasElement)
+    if (!game || !point || !active) return descriptor
+    lastGame = game
+    try {
+      const bounds = element.getBoundingClientRect()
+      const hit = game.describe({ x: point.localX ?? point.x - bounds.x, y: point.localY ?? point.y - bounds.y })
+      if (gameElements.size >= 5000) gameElements.delete(gameElements.keys().next().value!)
+      if (hit) gameElements.set(`game:${game.name}:${hit.entity.id}`, element)
+      return hit ? { ...descriptor, id: `game:${game.name}:${hit.entity.id}`, kind: "game" as const, game: hit, role: hit.entity.kind, label: hit.entity.label } : descriptor
+    } catch { return descriptor }
+  }
+  const snapshot = async (id: unknown, reason: string) => {
+    if (!active) return
+    const epoch = hoverEpoch
+    const current = pointer?.current
+    const selected = current ? games.get(current as HTMLCanvasElement) : null
+    const game = selected ?? lastGame ?? (games.size === 1 ? games.values().next().value : null)
+    for (const adapter of game ? [game] : []) {
+      try {
+        const state = JSON.parse(JSON.stringify(await adapter.snapshot()))
+        let saveStatus = "absent"
+        if (state.save !== undefined) {
+          if (new TextEncoder().encode(JSON.stringify(state.save)).length > 262144) {
+            delete state.save
+            saveStatus = "omitted: exceeds 256 KiB"
+          } else saveStatus = "included"
+        }
+        const payload = { ...state, name: adapter.name, build: adapter.build, saveStatus }
+        if (active && epoch === hoverEpoch && games.get(adapter.canvas) === adapter && new TextEncoder().encode(JSON.stringify(payload)).length <= 524288) {
+          bridge.send({ type: "gameState", id, reason, at: Date.now(), game: payload })
+        }
+      } catch { continue }
+    }
+    if (active && epoch === hoverEpoch) bridge.send({ type: "gameStateDone", id })
+  }
   const signals: SignalRecord[] = []
   const recentSignalTimes: number[] = []
   let active = false
@@ -56,9 +97,11 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
   let hoverInFlight = false
   let resendCurrent = false
   let lastContext = ""
+  let lastPerfAt = 0
 
+  const gameLabels = new WeakMap<Element, string>()
   const aimAt = (element: Element | null) => {
-    overlay?.aim(element, element ? chipText(element, chipSources.get(element) ?? null) : "")
+    overlay?.aim(element, element ? gameLabels.get(element) ?? chipText(element, chipSources.get(element) ?? null) : "")
   }
 
   const scheduleHover = () => {
@@ -70,12 +113,12 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
   function sendHover() {
     hoverTimer = undefined
     const element = pointer?.inside ? pointer.current : null
-    if (!active || !element || hoverInFlight || (element === lastHovered && !resendCurrent)) return
+    if (!active || !element || hoverInFlight || (element === lastHovered && !resendCurrent && !games.has(element as HTMLCanvasElement))) return
     const at = element === lastHovered ? Date.now() : pointer!.changedAt
     const epoch = hoverEpoch
     resendCurrent = false
     hoverInFlight = true
-    void describe(element)
+    void gameDescriptor(element, at)
       .catch(() => null)
       .then((descriptor) => {
         hoverInFlight = false
@@ -83,6 +126,8 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
         lastHovered = element
         lastHoverAt = performance.now()
         bridge.send({ type: "hover", at, element: descriptor, viewport: pointer?.viewport ?? null })
+        if (descriptor.kind === "game") gameLabels.set(element, descriptor.label ?? "Game")
+        else gameLabels.delete(element)
         chipSources.set(element, descriptor.source)
         if (aiming && pointer?.current === element) aimAt(element)
         if (pointer?.current !== element) scheduleHover()
@@ -127,6 +172,10 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
 
   const onSignal = (signal: SignalRecord) => {
     const now = Date.now()
+    if (signal.kind === "perf") {
+      if (now - lastPerfAt < 1000) return
+      lastPerfAt = now
+    }
     while (recentSignalTimes.length > 0 && recentSignalTimes[0]! < now - 1000) recentSignalTimes.shift()
     const previous = signals[signals.length - 1]
     if (recentSignalTimes.length >= SIGNAL_BURST) return
@@ -160,7 +209,7 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
     if (next === active) return
     active = next
     if (active) {
-      pointer = trackPointer(onPointerChange)
+      pointer = trackPointer(onPointerChange, (element) => games.has(element as HTMLCanvasElement))
       stopRoute = watchRoute(scheduleContext)
       lastContext = ""
       sendContext()
@@ -184,10 +233,13 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
 
   const pin = async (message: Incoming) => {
     const at = typeof message.at === "number" ? message.at : Date.now()
+    const epoch = hoverEpoch
     const element = active && pointer ? pointer.elementAt(at) : null
-    const descriptor: ElementDescriptor | null = element ? await describe(element, PIN_SOURCE_BUDGET_MS) : null
-    bridge.send({ type: "pinned", id: message.id, element: descriptor, viewport: pointer?.viewport ?? null })
-    if (element && descriptor) {
+    const descriptor: ElementDescriptor | null = element ? await gameDescriptor(element, at, PIN_SOURCE_BUDGET_MS) : null
+    const stillActive = active && epoch === hoverEpoch
+    bridge.send({ type: "pinned", id: message.id, element: stillActive ? descriptor : null, viewport: stillActive ? pointer?.viewport ?? null : null })
+    if (stillActive) await snapshot(message.id, "pin")
+    if (stillActive && element && descriptor) {
       overlay ??= createOverlay()
       overlay.flash(element, "flare", 600)
     }
@@ -195,7 +247,7 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
 
   const highlight = (message: Incoming) => {
     const element = typeof message.elementId === "string"
-      ? elementById(message.elementId)
+      ? gameElements.get(message.elementId) ?? elementById(message.elementId)
       : typeof message.selector === "string" ? query(message.selector) : null
     if (!element) return
     const duration = Math.min(Math.max(Number(message.durationMs) || 1500, 100), 10_000)
@@ -219,7 +271,7 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
     const detected = detectFramework()
     const hint = config.framework
     const name = detected?.name ?? hint?.name ?? "dom"
-    const capabilities = ["hover", "pin", "highlight", "errors", "console", "network"]
+    const capabilities = ["hover", "pin", "highlight", "errors", "console", "network", "perf", "game"]
     if (registeredResolvers().length > 0) capabilities.push("source")
     return {
       type: "hello",
@@ -253,6 +305,9 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
       case "pin":
         void pin(message)
         break
+      case "snapshot":
+        void snapshot(message.id, "taskClose")
+        break
       case "highlight":
         highlight(message)
         break
@@ -278,7 +333,19 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
     get active() {
       return active
     },
+    game(game: GameConfig) {
+      games.set(game.canvas, game)
+      if (lastGame?.canvas === game.canvas) lastGame = game
+      return () => {
+        if (games.get(game.canvas) !== game) return
+        games.delete(game.canvas)
+        if (lastGame === game) lastGame = null
+        for (const [id, element] of gameElements) if (element === game.canvas) gameElements.delete(id)
+      }
+    },
     stop() {
+      gameElements.clear()
+      games.clear()
       bridge.close()
       setActive(false)
       stopSignals?.()

@@ -105,3 +105,17 @@ cd fixtures/react-vite && SCOUT_BRIDGE_FILE=/tmp/scout-bridge.json pnpm dev
 ```
 
 Type `session on`, `aim on`, `pin`, `highlight <selector> flare` or a raw JSON message into the mock bridge. It logs every frame as JSON lines.
+
+### Canvas game fixture and task proof
+
+Run `pnpm run e2e` to drive `fixtures/react-vite/game.html` against the mock bridge. It verifies the named entity pin, pin/task-close snapshots, oversized-save omission, perf signals and idle privacy, and writes `.audit/game` at the repo root (including a screenshot and the received bridge messages).
+
+To run the actual Swift task composer against that captured game state, without launching Scout:
+
+```sh
+swift build
+swiftc -I .build/debug/Modules sdk/web/scripts/game-task-proof.swift mac/Scout/Bridge/BridgeMessages.swift mac/Scout/Delivery/TaskComposer.swift .build/debug/ScoutCore.build/*.swift.o -o .audit/game-proof
+.audit/game-proof "$PWD/.audit/game"
+```
+
+This produces `.audit/game/session/snippets/game-pin/{game-state.json,save.json,task.md,message.txt,snippet.json}`. It exercises the native game-state parser and task serialization only; it does not replace native recording and delivery verification on a test Mac.

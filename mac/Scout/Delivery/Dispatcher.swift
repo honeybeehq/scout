@@ -32,6 +32,11 @@ final class Dispatcher {
         suggestTitle(for: card)
         Task {
             await resolve(card)
+            let webTarget = snippet.targets.first { $0.provider == .web }
+            let clientID = webTarget?.id.split(separator: ":", maxSplits: 2).dropFirst().first.map(String.init)
+            if card.project != nil || clientID != nil {
+                await bridge.requestGameState(taskID: snippet.id, projectRoot: card.project?.rootPath, clientID: clientID)
+            }
             guard card.state == .preparing else { return }
             if card.destination == nil {
                 card.state = .needsDestination

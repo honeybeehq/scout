@@ -163,6 +163,19 @@ final class ScoutingSession {
             let at = signal.at.map { self.clock.seconds(at: Date(timeIntervalSince1970: $0 / 1000)) } ?? self.clock.now
             self.runtimeEvents.append(RuntimeEvent(at: at, source: client.name, signal: signal))
         }
+        bridge.onGameState = { [weak self] client, data, taskID, date in
+            guard let self else { return }
+            let folder = self.directory.appendingPathComponent("game-snapshots", isDirectory: true)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            guard var state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            state["_scoutProjectRoot"] = client.hello?.project?.root
+            state["_scoutClientID"] = client.id
+            guard let scoped = try? JSONSerialization.data(withJSONObject: state) else { return }
+            try? scoped.write(to: folder.appendingPathComponent("\(taskID ?? String(date.map { self.clock.seconds(at: $0) } ?? self.clock.now)).json"), options: .atomic)
+            if let walkthrough = self.walkthrough {
+                try? data.write(to: walkthrough.bundle.url(for: "game-latest.json"), options: .atomic)
+            }
+        }
         bridge.setSession(active: true)
 
         let contextTracker = ContextTracker(clock: clock) { [weak self] change in
@@ -213,7 +226,9 @@ final class ScoutingSession {
         follower.stop()
         aim.stop()
         pointing?.stop()
+        await bridge.requestGameState()
         bridge.setSession(active: false)
+        bridge.onGameState = nil
         bridge.onHover = nil
         bridge.onSignal = nil
         closeWebDwell(at: clock.now)
