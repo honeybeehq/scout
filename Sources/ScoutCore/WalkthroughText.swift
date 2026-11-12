@@ -23,7 +23,7 @@ public enum WalkthroughText {
             asks.append("None found; read the transcript.")
         } else {
             for (index, ask) in walkthrough.asks.items.enumerated() {
-                let refs = (ask.segments ?? []) + (ask.pointers ?? []) + (ask.drawings ?? [])
+                let refs = (ask.segments ?? []) + (ask.pointers ?? []) + (ask.drawings ?? []) + [ask.frame].compactMap { $0 }
                 asks.append("\(index + 1). \(oneLine(ask.text))" + (refs.isEmpty ? "" : " (\(refs.joined(separator: ", ")))"))
             }
         }

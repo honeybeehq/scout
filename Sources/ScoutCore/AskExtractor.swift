@@ -2,7 +2,9 @@ import Foundation
 
 public enum AskExtractor {
     public static let engine = "scout-heuristic-1"
-    public static let maximumAsks = 12
+    public static let asksPerMinute = 2
+    public static let minimumAsks = 12
+    public static let maximumAsks = 120
     public static let maximumLength = 160
 
     private static let requestVerbs: Set<String> = [
@@ -98,8 +100,20 @@ public enum AskExtractor {
             }
         }
         close()
-        if found.count > maximumAsks {
-            let kept = Set(found.indices.sorted { (found[$0].openedByBreak ? 1 : 0, found[$0].score, -$0) > (found[$1].openedByBreak ? 1 : 0, found[$1].score, -$1) }.prefix(maximumAsks))
+        let span = segments.last?.end ?? 0
+        let limit = ceiling(forMilliseconds: span)
+        if found.count > limit {
+            let rank = { (index: Int) in (found[index].openedByBreak ? 1 : 0, found[index].score, -index) }
+            var best: [Int: Int] = [:]
+            for index in found.indices {
+                let bucket = min(limit - 1, found[index].segments[0].start * limit / max(span, 1))
+                if let current = best[bucket], rank(current) >= rank(index) { continue }
+                best[bucket] = index
+            }
+            var kept = Set(best.values)
+            for index in found.indices.sorted(by: { rank($0) > rank($1) }) where kept.count < limit {
+                kept.insert(index)
+            }
             found = found.indices.filter(kept.contains).map { found[$0] }
         }
         return found.enumerated().map { index, thought in
@@ -113,6 +127,10 @@ public enum AskExtractor {
                 drawings: drawn.isEmpty ? nil : drawn
             )
         }
+    }
+
+    public static func ceiling(forMilliseconds duration: Int) -> Int {
+        min(maximumAsks, max(minimumAsks, duration * asksPerMinute / 60_000))
     }
 
     static func isContinuation(_ sentence: String) -> Bool {

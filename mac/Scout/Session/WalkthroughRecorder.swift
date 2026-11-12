@@ -27,6 +27,7 @@ final class WalkthroughRecorder {
     private var semanticTasks: [Task<Void, Never>] = []
     private var sealed = false
     static let pointingWait: Duration = .milliseconds(130)
+    static let finishLanes = 4
     private var prepared = false
     private var finishing = false
     private(set) var failedFrames = 0
@@ -87,8 +88,14 @@ final class WalkthroughRecorder {
         var timings: [String: Double] = [:]
         let started = ContinuousClock.now
         func mark(_ name: String) { timings[name] = (ContinuousClock.now - started).seconds }
-        enqueue(builder.finish(at: end))
+        let planned = builder.finish(at: end)
         finishing = true
+        if media != nil {
+            for lane in 0..<Self.finishLanes {
+                let requests = planned.indices.filter { $0 % Self.finishLanes == lane }.map { planned[$0] }
+                captures.append(Task { for request in requests { await self.write(request) } })
+            }
+        }
         if !prepared { try bundle.prepare() }
         let pending = semanticTasks
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -138,25 +145,27 @@ final class WalkthroughRecorder {
     }
 
     private func capture(_ request: WalkthroughBuilder.FrameRequest) {
+        guard media != nil else { return }
+        captures.append(Task { [weak self] in await self?.write(request) })
+    }
+
+    private func write(_ request: WalkthroughBuilder.FrameRequest) async {
         guard let media else { return }
         let frameURL = bundle.url(for: request.file)
         let thumbURL = bundle.url(for: request.thumb)
-        captures.append(Task { [weak self] in
-            let written: (width: Int, view: MediaView)? = await Task.detached(priority: .utility) {
-                guard let image = await media.frame(at: request.time),
-                      let view = media.view(at: request.time),
-                      WalkthroughImages.write(image, frame: frameURL, thumb: thumbURL)
-                else { return nil }
-                return (WalkthroughImages.pixelWidth(of: image), view)
-            }.value
-            guard let self else { return }
-            guard let written else {
-                failedFrames += 1
-                return
-            }
-            let bbox = written.view.bbox
-            builder.captured(request, bbox: bbox, scale: bbox.width > 0 ? Double(written.width) / bbox.width : nil, display: written.view.display)
-        })
+        let written: (width: Int, view: MediaView)? = await Task.detached(priority: .utility) {
+            guard let image = await media.frame(at: request.time),
+                  let view = media.view(at: request.time),
+                  WalkthroughImages.write(image, frame: frameURL, thumb: thumbURL)
+            else { return nil }
+            return (WalkthroughImages.pixelWidth(of: image), view)
+        }.value
+        guard let written else {
+            failedFrames += 1
+            return
+        }
+        let bbox = written.view.bbox
+        builder.captured(request, bbox: bbox, scale: bbox.width > 0 ? Double(written.width) / bbox.width : nil, display: written.view.display)
     }
 
     private static var recorder: Walkthrough.Recorder {

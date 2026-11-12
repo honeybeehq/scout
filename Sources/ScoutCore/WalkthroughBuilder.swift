@@ -95,8 +95,9 @@ public struct WalkthroughBuilder: Sendable {
         var display: String?
     }
 
-    public static let maximumFrames = 40
-    public static let reservedForKeyMoments = 10
+    public static let framesPerMinute = 3
+    public static let minimumFrames = 40
+    public static let maximumFrames = 180
     public static let sceneSpacing: SessionTime = 2
     public static let sceneThreshold = 0.2
     public static let sceneSettle: SessionTime = 0.25
@@ -112,6 +113,7 @@ public struct WalkthroughBuilder: Sendable {
     public private(set) var breaks: [SessionTime] = []
     private var requests: [FrameRequest] = []
     private var captured: [String: CapturedFrame] = [:]
+    private var sceneCandidates: [SessionTime] = []
     private var lastSceneAt: SessionTime = -.infinity
 
     public init(id: String, startedAt: Date) {
@@ -131,13 +133,13 @@ public struct WalkthroughBuilder: Sendable {
         case .mark(let mark):
             return request(at: mark.at, reason: .pin)
         case .focus(let focus):
-            let at = min(focus.range.start + 1, (focus.range.start + focus.range.end) / 2)
-            guard !hasFrame(near: at, within: Self.sceneSpacing) else { return nil }
-            return request(at: at, reason: .scene)
+            sceneCandidates.append(min(focus.range.start + 1, (focus.range.start + focus.range.end) / 2))
+            return nil
         case .visualChange(let change):
             guard change.magnitude >= Self.sceneThreshold, change.at - lastSceneAt >= Self.sceneSpacing else { return nil }
             lastSceneAt = change.at
-            return request(at: change.at + Self.sceneSettle, reason: .scene)
+            sceneCandidates.append(change.at + Self.sceneSettle)
+            return nil
         case .command(let command):
             if command.command == .split { breaks.append(command.at) }
             return nil
@@ -160,33 +162,49 @@ public struct WalkthroughBuilder: Sendable {
 
     public mutating func add(_ hit: SemanticHit) -> FrameRequest? {
         semantics.append(hit)
-        guard hit.via == .dwell, !hasFrame(near: hit.at, within: Self.sceneSpacing) else { return nil }
-        return request(at: hit.at, reason: .scene)
+        if hit.via == .dwell { sceneCandidates.append(hit.at) }
+        return nil
     }
 
-    public mutating func finish(at end: SessionTime) -> FrameRequest? {
+    public static func frameBudget(for duration: SessionTime) -> Int {
+        min(maximumFrames, max(minimumFrames, Int((duration / 60 * Double(framesPerMinute)).rounded(.up))))
+    }
+
+    public mutating func finish(at end: SessionTime) -> [FrameRequest] {
         ledger.extend(to: end)
-        return request(at: max(0, end - 0.05), reason: .end)
+        let budget = Self.frameBudget(for: end)
+        var planned = [request(at: max(0, end - 0.05), reason: .end, limit: Self.maximumFrames)]
+        let segments = transcriptSegments()
+        for ask in AskExtractor.asks(from: segments, pointers: [], drawings: [], breaks: breaks.map(Walkthrough.milliseconds)) {
+            guard let moment = Self.moment(of: ask, in: segments) else { continue }
+            planned.append(request(at: moment, reason: .scene, limit: budget))
+        }
+        var candidates = sceneCandidates.filter { $0 < end }
+        var distances = candidates.map { time in requests.map { abs($0.time - time) }.min() ?? .infinity }
+        while requests.count < budget, let best = distances.indices.max(by: { distances[$0] < distances[$1] }), distances[best] > Self.sceneSpacing {
+            let time = candidates.remove(at: best)
+            distances.remove(at: best)
+            planned.append(request(at: time, reason: .scene, limit: budget))
+            distances = zip(candidates, distances).map { min($1, abs($0 - time)) }
+        }
+        return planned.compactMap { $0 }
+    }
+
+    private static func moment(of ask: Walkthrough.Ask, in segments: [Walkthrough.Segment]) -> SessionTime? {
+        let spoken = segments.filter { ask.segments?.contains($0.id) == true }
+        guard let first = spoken.first, let last = spoken.last else { return nil }
+        let start = Double(first.start) / 1000
+        return min(start + 1, (start + Double(last.end) / 1000) / 2)
     }
 
     public mutating func captured(_ request: FrameRequest, bbox: Rect, scale: Double?, display: String? = nil) {
         captured[request.file] = CapturedFrame(bbox: bbox, scale: scale, display: display)
     }
 
-    private func hasFrame(near time: SessionTime, within window: SessionTime) -> Bool {
-        requests.contains { abs($0.time - time) <= window }
-    }
-
-    private mutating func request(at time: SessionTime, reason: Walkthrough.FrameReason) -> FrameRequest? {
+    private mutating func request(at time: SessionTime, reason: Walkthrough.FrameReason, limit: Int = WalkthroughBuilder.maximumFrames - 1) -> FrameRequest? {
         if let index = requests.firstIndex(where: { abs($0.time - time) <= Self.mergeWindow }) {
             if requests[index].reason == .scene, reason != .scene { requests[index].reason = reason }
             return nil
-        }
-        let limit: Int
-        switch reason {
-        case .end: limit = Self.maximumFrames
-        case .scene: limit = Self.maximumFrames - Self.reservedForKeyMoments
-        case .start, .pin, .click, .stroke, .scope: limit = Self.maximumFrames - 1
         }
         guard requests.count < limit else { return nil }
         let name = String(format: "%06d", Walkthrough.milliseconds(time))
@@ -260,16 +278,7 @@ public struct WalkthroughBuilder: Sendable {
             drawings.append(drawing)
         }
 
-        let utterances = ledger.utterances
-        var segments = utterances.enumerated().map { index, utterance in
-            Walkthrough.Segment(
-                id: "s\(index + 1)",
-                start: ms(utterance.range.start),
-                end: ms(utterance.range.end),
-                text: utterance.text,
-                words: utterance.words.isEmpty ? nil : utterance.words.map { Walkthrough.TimedWord(text: $0.text, start: ms($0.range.start), end: ms($0.range.end)) }
-            )
-        }
+        var segments = transcriptSegments()
         for pointer in pointers {
             guard let index = Self.segmentIndex(for: Double(pointer.t), in: segments) else { continue }
             segments[index].pointers = (segments[index].pointers ?? []) + [pointer.id]
@@ -280,8 +289,13 @@ public struct WalkthroughBuilder: Sendable {
         }
 
         let transcriptReady = finish.transcript == .ready && finish.transcriptFailure == nil
+        let items = AskExtractor.asks(from: segments, pointers: pointers, drawings: drawings, breaks: breaks.map(Walkthrough.milliseconds)).map { ask in
+            var ask = ask
+            ask.frame = Self.moment(of: ask, in: segments).flatMap { nearestFrame(to: $0) }.map { frames[$0].id }
+            return ask
+        }
         let asks = transcriptReady
-            ? Walkthrough.Asks(status: .ready, engine: AskExtractor.engine, items: AskExtractor.asks(from: segments, pointers: pointers, drawings: drawings, breaks: breaks.map(Walkthrough.milliseconds)))
+            ? Walkthrough.Asks(status: .ready, engine: AskExtractor.engine, items: items)
             : Walkthrough.Asks(status: .unavailable, items: [])
 
         let context = appContext()
@@ -316,6 +330,19 @@ public struct WalkthroughBuilder: Sendable {
             clip: finish.clip,
             events: events()
         )
+    }
+
+    private func transcriptSegments() -> [Walkthrough.Segment] {
+        let ms = Walkthrough.milliseconds
+        return ledger.utterances.enumerated().map { index, utterance in
+            Walkthrough.Segment(
+                id: "s\(index + 1)",
+                start: ms(utterance.range.start),
+                end: ms(utterance.range.end),
+                text: utterance.text,
+                words: utterance.words.isEmpty ? nil : utterance.words.map { Walkthrough.TimedWord(text: $0.text, start: ms($0.range.start), end: ms($0.range.end)) }
+            )
+        }
     }
 
     private struct PointerMoment {
