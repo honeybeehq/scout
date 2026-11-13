@@ -48,6 +48,7 @@ final class WhisperModelStore {
     }
     private(set) var installedBytes: Int64 = 0
     private(set) var partialBytes: Int64 = 0
+    private(set) var preparingSince: Date?
     private(set) var engine: WhisperEngine?
     @ObservationIgnored private var job: Task<Void, Never>?
 
@@ -188,6 +189,8 @@ final class WhisperModelStore {
 
     private func prepare(_ engine: WhisperEngine) async {
         state = .preparing
+        preparingSince = .now
+        defer { preparingSince = nil }
         do {
             try await engine.prepare()
             state = .ready
