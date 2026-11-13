@@ -29,11 +29,11 @@ def main():
             later = ms[1:] or ms
             med = lambda key: statistics.median(m[key] for m in later if m.get(key) is not None) if any(m.get(key) is not None for m in later) else None
             machine = label or f"{first['chip']}"
-            engine = first["engine"] + ("/" + first["preset"] if first["engine"] == "apple" else "")
+            engine = first["engine"] + ("/" + first["preset"] if first["engine"].startswith("apple") else "")
             for m in ms:
                 if "speechDaemonPeakMB" not in m and "engineProcessPeakMB" in m:
                     m["speechDaemonPeakMB"] = m["engineProcessPeakMB"]
-            daemon = med("speechDaemonPeakMB") if first["engine"] == "apple" else None
+            daemon = med("speechDaemonPeakMB") if first["engine"].startswith("apple") else None
             print(f"| {machine} | {case} | {variant} | {engine} | {len(ms)} | {fmt(first['loadSeconds'])} / {fmt(med('loadSeconds'))} | {fmt(med('analysisSeconds'))} | {fmt(med('realTimeFactor'), 3)} | {fmt(med('finalizeLagSeconds'))} | {fmt(med('peakFootprintMB'), 0)} | {fmt(daemon, 0)} |")
     print()
     for spec in args.dirs:
