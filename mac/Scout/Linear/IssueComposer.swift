@@ -29,6 +29,22 @@ nonisolated struct IssueInput: Sendable {
     var homeDirectory: String
 }
 
+nonisolated struct ParentInput: Sendable {
+    struct Child: Sendable {
+        var title: String
+        var identifier: String?
+    }
+
+    var key: String
+    var title: String
+    var summary: String
+    var children: [Child]
+    var elsewhere: [Child]
+    var recorded: String
+    var apps: [String]
+    var project: ProjectReference?
+}
+
 nonisolated struct IssueDraft: Sendable {
     var title: String
     var markdown: String
@@ -80,6 +96,29 @@ nonisolated enum IssueComposer {
         while end < lines.count, !blank(lines[end]), !lines[end].hasPrefix("#"), !lines[end].hasPrefix("---") { end += 1 }
         lines.replaceSubrange(heading..<end, with: block.components(separatedBy: "\n"))
         return lines.joined(separator: "\n")
+    }
+
+    static func composeParent(_ input: ParentInput) -> IssueDraft {
+        var blocks: [String] = []
+        let summary = input.summary.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        if !summary.isEmpty { blocks.append(summary) }
+        func line(_ child: ParentInput.Child) -> String {
+            let title = escaped(Self.title(child.title))
+            return child.identifier.map { "\($0) · \(title)" } ?? title
+        }
+        blocks.append((["### Sub-issues"] + input.children.enumerated().map { "\($0.offset + 1). \(line($0.element))" }).joined(separator: "\n"))
+        if !input.elsewhere.isEmpty {
+            blocks.append((["### Filed in other teams"] + input.elsewhere.map { "- \(line($0))" }).joined(separator: "\n"))
+        }
+        var context = ["- **Recorded:** \(input.recorded)"]
+        if !input.apps.isEmpty { context.append("- **Apps:** " + input.apps.map(escaped).joined(separator: ", ")) }
+        if let project = input.project {
+            let name = project.name ?? URL(fileURLWithPath: project.rootPath).lastPathComponent
+            context.append("- **Repo:** `\(name)`" + (project.gitBranch.map { " · branch `\($0)`" } ?? ""))
+        }
+        blocks.append((["### Session"] + context).joined(separator: "\n"))
+        blocks.append("---\nFiled from Scout · `\(input.key)`")
+        return IssueDraft(title: title(input.title), markdown: blocks.joined(separator: "\n\n"))
     }
 
     static func title(_ text: String) -> String {

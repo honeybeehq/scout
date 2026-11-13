@@ -26,10 +26,12 @@ def main():
         check(key, team_id, out, sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None)
     elif command == "video-verify":
         video_verify(key, team_id, out)
+    elif command == "parent-verify":
+        parent_verify(key, team_id, out)
     elif command == "cleanup":
         cleanup(key, team_id, out)
     else:
-        sys.exit("usage: <key on stdin> live.py check|video-verify|cleanup <team id> <out dir> [clip.mp4]")
+        sys.exit("usage: <key on stdin> live.py check|video-verify|parent-verify|cleanup <team id> <out dir> [clip.mp4]")
 
 
 def client(key, team_id):
@@ -139,6 +141,58 @@ def check(key, team_id, out, clip_path=None):
     if target:
         check_video(gql, say, team_id, workspace, run_key, target, clip_path)
 
+    check_parent(gql, say, team_id, workspace, run_key, issue_id, created_file)
+
+
+
+
+def check_parent(gql, say, team_id, workspace, run_key, issue_id, created_file):
+    create = "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }"
+    read = "query($id: String!) { issue(id: $id) { id identifier trashed archivedAt parent { id identifier url } } }"
+    parent_key = run_key + ":parent"
+    parent_id = issue_id(workspace, parent_key)
+    children = [(run_key + f":task-{n}", TITLE_PREFIX + f"Scout live check sub-issue {n}") for n in (1, 2)]
+    say("15 parent + sub-issues: parent first with a derived id, then children with parentId in task order")
+    parent_input = {"id": parent_id, "teamId": team_id, "title": TITLE_PREFIX + "Scout live check parent", "description": f"Live check of Scout's T5 slice.\n\n### Sub-issues\n1. sub-issue 1\n2. sub-issue 2\n\n---\nFiled from Scout · `{parent_key}`", "labelIds": [], "priority": 0}
+    status, data, errors = gql(create, {"input": parent_input}, mutation_team=team_id)
+    parent = ((data or {}).get('issueCreate') or {}).get('issue') or {}
+    say(f"   parent issueCreate: status={status} issue={parent} errors={errors}")
+    if parent.get("id"):
+        created_file.write(parent["id"] + "\n")
+        created_file.flush()
+    if parent.get("id") != parent_id:
+        say("   parent was not created with its derived id; stopping the parent checks")
+        return
+    identifiers = []
+    for key, title in children:
+        child_input = {"id": issue_id(workspace, key), "teamId": team_id, "parentId": parent_id, "title": title, "description": f"---\nFiled from Scout · `{key}`", "labelIds": [], "priority": 0}
+        status, data, errors = gql(create, {"input": child_input}, mutation_team=team_id)
+        issue = ((data or {}).get("issueCreate") or {}).get("issue") or {}
+        identifiers.append(issue.get("identifier"))
+        if issue.get("id"):
+            created_file.write(issue["id"] + "\n")
+            created_file.flush()
+        say(f"   child issueCreate {key}: status={status} issue={issue} errors={errors}")
+    update = "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }"
+    tidy = parent_input["description"].replace("1. sub-issue 1", f"1. {identifiers[0]} · sub-issue 1").replace("2. sub-issue 2", f"2. {identifiers[1]} · sub-issue 2")
+    status, data, errors = gql(update, {"id": parent_id, "input": {"description": tidy}}, mutation_team=team_id)
+    say(f"16 parent issueUpdate (tidy): status={status} data={data} errors={errors}")
+    for key, _ in children:
+        _, data, errors = gql(read, {"id": issue_id(workspace, key)})
+        issue = (data or {}).get("issue") or {}
+        say(f"17 read back {key}: identifier={issue.get('identifier')} parent={(issue.get('parent') or {}).get('identifier')} parent_id_matches={(issue.get('parent') or {}).get('id') == parent_id} errors={errors}")
+    status, data, errors = gql(create, {"input": parent_input}, mutation_team=team_id)
+    say(f"18 resend the parent id: status={status} data={data} errors={errors} (expect a conflict; Scout reads issue(id:) first and adopts)")
+    duplicate = (((data or {}).get("issueCreate") or {}).get("issue") or {}).get("id")
+    if duplicate and duplicate != parent_id:
+        created_file.write(duplicate + "\n")
+        created_file.flush()
+        say(f"   DUPLICATE parent created by the resend: {duplicate}")
+    _, data, errors = gql("query($id: String!) { issue(id: $id) { children { nodes { identifier } } description } }", {"id": parent_id})
+    issue = (data or {}).get("issue") or {}
+    nodes = [n.get("identifier") for n in ((issue.get("children") or {}).get("nodes") or [])]
+    say(f"19 parent children={nodes} (expect exactly {identifiers}) tidied={all(i and i in (issue.get('description') or '') for i in identifiers)} errors={errors}")
+
 
 def check_video(gql, say, team_id, workspace, run_key, issue_id_value, clip_path):
     upload = "mutation($ct: String!, $name: String!, $size: Int!) { fileUpload(contentType: $ct, filename: $name, size: $size) { success uploadFile { uploadUrl assetUrl headers { key value } } } }"
@@ -234,6 +288,50 @@ def video_verify(key, team_id, out):
         sys.exit(6)
 
 
+def parent_verify(key, team_id, out):
+    say = logger(os.path.join(out, "parent.log"))
+    gql = client(key, team_id)
+    runs = ["live-6-parent", "live-7-parent-resend", "live-8-parent-no-review-json"]
+    last = {}
+    for label in runs:
+        path = os.path.join(out, label + ".json")
+        steps = json.load(open(path)) if os.path.exists(path) else []
+        last[label] = steps[-1] if steps else {}
+    problems = []
+    parents = {label: step.get("parentIssueID") for label, step in last.items()}
+    children = {label: [t.get("issueID") for t in step.get("tasks") or []] for label, step in last.items()}
+    for label, step in last.items():
+        say(f"{label}: parent={step.get('parent')} tasks={[(t.get('identifier'), t.get('subIssueOf')) for t in step.get('tasks') or []]}")
+    first = runs[0]
+    if not parents[first]:
+        problems.append("live-6: no parent was filed")
+    if len(set(parents.values())) != 1:
+        problems.append(f"the parent changed between runs: {parents}")
+    if any(not ids or not all(ids) for ids in children.values()) or len({tuple(ids) for ids in children.values()}) != 1:
+        problems.append(f"the sub-issues changed between runs: {children}")
+    parent_identifier = (last[first].get("parent") or "").split(" ")[0]
+    for task in last[first].get("tasks") or []:
+        if task.get("subIssueOf") != parent_identifier:
+            problems.append(f"{task.get('identifier')} is not a sub-issue of {parent_identifier}")
+    if parents[first]:
+        _, data, errors = gql("query($id: String!) { issue(id: $id) { identifier title team { id } children { nodes { id identifier title number } } description } }", {"id": parents[first]})
+        issue = (data or {}).get("issue") or {}
+        nodes = sorted(((issue.get("children") or {}).get("nodes") or []), key=lambda n: n.get("number") or 0)
+        say(f"read back parent {issue.get('identifier')} title={issue.get('title')!r} children={[n.get('identifier') for n in nodes]} errors={errors}")
+        if (issue.get("team") or {}).get("id") != team_id or not (issue.get("title") or "").startswith(TITLE_PREFIX):
+            problems.append("the parent is not a prefixed issue in the test team")
+        if [n.get("id") for n in nodes] != children[first]:
+            problems.append(f"Linear lists children {[n.get('identifier') for n in nodes]}, Scout filed {[t.get('identifier') for t in last[first].get('tasks') or []]} in task order")
+        if any(not (n.get("title") or "").startswith(TITLE_PREFIX) for n in nodes):
+            problems.append("a sub-issue title lacks the test prefix")
+        listed = [n.get("identifier") for n in nodes if n.get("identifier") and n.get("identifier") in (issue.get("description") or "")]
+        say(f"parent description lists {listed}")
+        if len(listed) != len(nodes):
+            problems.append("the parent description does not list every sub-issue after the tidy")
+    say("\n".join(problems) if problems else "Scout parent flow: one parent, sub-issues in task order, resend and resend without review.json created nothing")
+    sys.exit(6 if problems else 0)
+
+
 def cleanup(key, team_id, out):
     say = logger(os.path.join(out, "cleanup.log"))
     gql = client(key, team_id)
@@ -244,6 +342,8 @@ def cleanup(key, team_id, out):
     for name in sorted(os.listdir(out)):
         if name.startswith("live-") and name.endswith(".json"):
             for step in json.load(open(os.path.join(out, name))):
+                if step.get("parentIssueID"):
+                    ids.append(step["parentIssueID"])
                 for task in step.get("tasks") or []:
                     if task.get("issueID"):
                         ids.append(task["issueID"])

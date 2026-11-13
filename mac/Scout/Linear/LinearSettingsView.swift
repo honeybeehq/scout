@@ -294,7 +294,7 @@ private struct TeamPickerButton: View {
     }
 }
 
-private struct PopoverAnchor<Content: View>: NSViewRepresentable {
+struct PopoverAnchor<Content: View>: NSViewRepresentable {
     var isPresented: Bool
     var onClose: () -> Void
     @ViewBuilder var content: () -> Content

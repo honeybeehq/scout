@@ -184,6 +184,10 @@ private struct ReviewHeader: View {
             .fixedSize()
             .onAppear { sessions = SessionLibrary.recent().filter { $0.id != review.sessionID } }
 
+            if review.showsLinearStructure {
+                LinearStructurePicker(review: review)
+            }
+
             if review.unsentCount > 0, let card = review.selectedTask ?? review.tasks.first {
                 let missing = review.unsentCount - sendableCount
                 ScoutMenu {
@@ -232,6 +236,7 @@ private struct ReviewHeader: View {
         if review.unsentCount == 0 { return "All sent" }
         if sendableCount == 0 { return "Send all" }
         if sendableCount == review.unsentCount, onlyClipboard { return review.unsentCount == 1 ? "Copy task" : "Copy all \(review.unsentCount)" }
+        if review.tasks.allSatisfy({ $0.isLocked || $0.destination == nil || $0.destination?.linearTarget != nil }) { return "File \(sendableCount) in Linear" }
         if sendableCount == review.unsentCount { return review.unsentCount == 1 ? "Send task" : "Send all \(review.unsentCount)" }
         return "Send \(sendableCount) ready"
     }
@@ -254,6 +259,130 @@ private struct ReviewHeader: View {
         if !apps.isEmpty { parts.append(apps.joined(separator: ", ")) }
         parts.append(review.segmentation == .manual ? "Manual tasks" : "Automatic tasks")
         return parts.joined(separator: " · ")
+    }
+}
+
+private struct LinearStructurePicker: View {
+    @Environment(AppModel.self) private var model
+    let review: SessionReview
+
+    var body: some View {
+        let plan = review.linearPlan
+        let structure = review.linearStructure
+        ScoutMenu {
+            ForEach(LinearStructure.allCases) { option in
+                Button {
+                    review.linearStructureChoice = option
+                    review.save()
+                } label: {
+                    if option == structure { Label(option.title, systemImage: "checkmark") } else { Text(option.title) }
+                }
+            }
+            Divider()
+            if let parent = review.linearParent, structure == .parent {
+                Text("Parent filed as \(parent.issue.identifier)")
+            } else {
+                Button("Parent title…") { review.editingParentTitle = true }
+                    .disabled(plan == nil)
+            }
+            if let caution = plan?.cautionText { Text(caution) }
+            Divider()
+            Text("\(review.segmentation == .manual ? "Manual" : "Automatic") sessions default to \(defaultStructure.title.lowercased()). Change it in Settings → Linear.")
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: structure == .parent ? "list.bullet.indent" : "square.stack")
+                Text(label(plan)).monospacedDigit()
+                if plan?.cautionText != nil { StatusDot(tone: .caution) }
+            }
+            .modifier(SecondaryLabel())
+        }
+        .fixedSize()
+        .help("How this recording is filed in Linear")
+        .background(PopoverAnchor(isPresented: review.editingParentTitle, onClose: { review.editingParentTitle = false }) {
+            ParentTitleEditor(review: review)
+        })
+        .task(id: structure) {
+            if structure == .parent { await review.loadSessionLine() }
+        }
+    }
+
+    private var defaultStructure: LinearStructure {
+        model.linear.preferences.structure(for: review.segmentation)
+    }
+
+    private func label(_ plan: LinearParentPlan?) -> String {
+        guard review.linearStructure == .parent else { return "Linear · One issue per task" }
+        if let parent = review.linearParent { return "Linear · Sub-issues of \(parent.issue.identifier)" }
+        guard let plan else { return "Linear · Parent issue" }
+        return "Linear · Parent + \(plan.children.count) sub-issue\(plan.children.count == 1 ? "" : "s")"
+    }
+}
+
+private struct ParentTitleEditor: View {
+    let review: SessionReview
+    @State private var text = ""
+
+    var body: some View {
+        let plan = review.linearPlan
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Parent issue")
+                .eyebrowStyle()
+            TextField(review.suggestedParentTitle, text: $text)
+                .textFieldStyle(.plain)
+                .font(Typography.body)
+                .padding(.horizontal, 8)
+                .frame(height: 30)
+                .background(Palette.sunken, in: .rect(cornerRadius: Radius.control, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
+                .onSubmit { done() }
+            if let plan {
+                Text("Files in \(plan.target.team.key) · \(plan.target.team.name) first, then \(plan.children.count == 1 ? "1 sub-issue" : "\(plan.children.count) sub-issues") in task order. No video on the parent.")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let caution = plan.cautionText {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        StatusDot(tone: .caution, size: 6)
+                        Text(caution)
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                if review.linearParentTitle != nil {
+                    Button("Use the suggested title") {
+                        review.linearParentTitle = nil
+                        text = review.parentTitle
+                        review.save()
+                    }
+                    .buttonStyle(QuietButtonStyle())
+                }
+                Spacer(minLength: 0)
+                Button("Done") { done() }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(14)
+        .frame(width: 360)
+        .background(Palette.surface)
+        .onAppear { text = review.parentTitle }
+        .onDisappear { commit() }
+    }
+
+    private func commit() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let custom = trimmed.isEmpty || trimmed == review.suggestedParentTitle ? nil : trimmed
+        guard custom != review.linearParentTitle else { return }
+        review.linearParentTitle = custom
+        review.save()
+    }
+
+    private func done() {
+        commit()
+        review.editingParentTitle = false
     }
 }
 

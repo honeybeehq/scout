@@ -49,6 +49,13 @@ extension Dispatcher {
             }
             return
         }
+        let parent: LinearIssueRef?
+        do {
+            parent = try await linearParent?(card)
+        } catch {
+            card.state = .failed("Couldn't file the parent issue. " + ((error as? LinearError)?.message ?? "Couldn't reach Linear."))
+            return
+        }
         do {
             let request = LinearFiler.Request(
                 key: card.linearKey,
@@ -61,6 +68,7 @@ extension Dispatcher {
                 previous: card.linearReceipt,
                 labelIDs: labelIDs(for: card, team: target.team.id),
                 priority: priority(for: card),
+                parent: parent,
                 compose: compose
             )
             let receipt = try await linear.filer.file(request, pending: { [weak self, weak card] receipt in

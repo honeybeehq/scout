@@ -444,12 +444,21 @@ private struct HandoffBar: View {
                     .foregroundStyle(Palette.textSecondary)
                 }
                 HStack(spacing: 10) {
-                    Label(sentText(destination), systemImage: "checkmark")
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(Palette.positive)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .layoutPriority(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(sentText(destination), systemImage: "checkmark")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(Palette.positive)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if let parent = card.linearReceipt?.parent {
+                            Text("Sub-issue of \(parent.identifier)")
+                                .font(Typography.caption)
+                                .foregroundStyle(Palette.textSecondary)
+                                .lineLimit(1)
+                                .padding(.leading, 21)
+                        }
+                    }
+                    .layoutPriority(1)
                     Spacer(minLength: 0)
                     if let issue = card.linearReceipt?.issue {
                         Button("Copy link") {
@@ -479,7 +488,7 @@ private struct HandoffBar: View {
                             Button("File without video") {
                                 Task {
                                     await model.dispatcher.fileWithoutVideo(card)
-                                    review.save()
+                                    await review.finishSending()
                                 }
                             }
                             .buttonStyle(QuietButtonStyle())
@@ -490,7 +499,7 @@ private struct HandoffBar: View {
                             Button("File as new issue") {
                                 Task {
                                     await model.dispatcher.fileAsNewIssue(card)
-                                    review.save()
+                                    await review.finishSending()
                                 }
                             }
                             .buttonStyle(QuietButtonStyle())
@@ -521,7 +530,7 @@ private struct HandoffBar: View {
                     Button {
                         Task {
                             await model.dispatcher.send(card)
-                            review.save()
+                            await review.finishSending()
                         }
                     } label: {
                         HStack(spacing: 8) {
@@ -542,7 +551,7 @@ private struct HandoffBar: View {
     }
 
     private var primaryTitle: String {
-        if isLinear { return card.state == .sending ? "Filing…" : "File issue" }
+        if isLinear { return card.state == .sending ? "Filing…" : review.linearPlan?.children.contains(where: { $0 === card }) == true ? "File sub-issue" : "File issue" }
         return card.state == .sending ? "Sending…" : card.destination == .clipboard ? "Copy task" : "Send task"
     }
 
@@ -557,6 +566,7 @@ private struct HandoffBar: View {
         case .uploading(let index, let count): "Uploading image \(index) of \(count)…"
         case .uploadingVideo(let sent, let total): "Uploading video \(megabytes(sent)) / \(megabytes(total)) MB…"
         case .creating: "Creating issue…"
+        case .creatingParent: "Creating the parent issue…"
         case .attaching: "Attaching the clip…"
         case .updating: "Updating the issue's clip…"
         case .waiting(let until): "Linear asked Scout to slow down. Continues at \(until.formatted(date: .omitted, time: .shortened))."

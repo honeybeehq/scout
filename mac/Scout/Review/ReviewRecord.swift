@@ -69,6 +69,10 @@ nonisolated struct ReviewRecord: Codable, Sendable {
     var discarded: [Span]?
     var transcription: TranscriptionRun?
     var tasks: [Task]
+    var linearStructure: LinearStructure?
+    var linearParentTitle: String?
+    var linearSessionLine: SessionLine?
+    var linearParent: LinearParent?
 
     static let fileName = "review.json"
 

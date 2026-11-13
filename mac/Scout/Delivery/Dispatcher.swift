@@ -10,6 +10,7 @@ final class Dispatcher {
     var defaultAgent: String { preferences.defaultAgent }
     var dryRun = false
     var onCardChanged: ((SnippetCard) -> Void)?
+    var linearParent: ((SnippetCard) async throws -> LinearIssueRef?)?
 
     let linear: LinearAccount
     private let integrations: Integrations

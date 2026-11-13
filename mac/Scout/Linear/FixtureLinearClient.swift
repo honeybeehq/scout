@@ -52,7 +52,8 @@ nonisolated struct FixtureLinearClient: LinearAPI {
         case "issueCreate":
             guard let input = operation.variables["input"]?.object else { throw .malformed }
             let requested = input["id"]?.string
-            log(state, "issueCreate(id: \(requested ?? "none"))")
+            let parentID = input["parentId"]?.string
+            log(state, "issueCreate(id: \(requested ?? "none"), team: \(teamKey(input["teamId"]?.string ?? "")), parentId: \(parentID ?? "none"), title: \(input["title"]?.string ?? ""))")
             if requested != nil, environment["SCOUT_LINEAR_FIXTURE_REFUSE_IDS"] == "1" {
                 return reply(errors: "Argument Validation Error: id is not allowed", code: "INVALID_INPUT")
             }
@@ -74,6 +75,10 @@ nonisolated struct FixtureLinearClient: LinearAPI {
                 "state": "Backlog",
             ]
             if let project = input["projectId"]?.string { issue["projectId"] = project }
+            if let parentID {
+                guard let parent = stored(parentID, in: issues) else { return reply(errors: "Entity not found: parent issue", code: "INVALID_INPUT") }
+                issue["parent"] = ["id": parentID, "identifier": parent["identifier"] ?? "", "url": parent["url"] ?? ""]
+            }
             if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: issues.appendingPathComponent("\(id).json"))
             }
@@ -83,6 +88,16 @@ nonisolated struct FixtureLinearClient: LinearAPI {
                 try? await Task.sleep(for: .seconds(delay))
             }
             return reply(["issueCreate": ["success": true, "issue": issue]])
+        case "issueUpdate":
+            let id = operation.variables["id"]?.string ?? ""
+            guard var issue = stored(id, in: issues), let input = operation.variables["input"]?.object else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
+            if let description = input["description"]?.string { issue["description"] = description }
+            issue["updatedCount"] = (issue["updatedCount"] as? Int ?? 0) + 1
+            if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: issues.appendingPathComponent("\(id).json"))
+            }
+            log(state, "issueUpdate(\(issue["identifier"] ?? id), description: \((input["description"]?.string ?? "").count) chars)")
+            return reply(["issueUpdate": ["success": true]])
         case "fileUpload":
             let name = operation.variables["filename"]?.string ?? "file"
             let contentType = operation.variables["contentType"]?.string ?? "?"

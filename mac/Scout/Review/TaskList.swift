@@ -173,7 +173,7 @@ struct StateLine: View {
     private var detail: String {
         switch card.state {
         case .sent("clipboard"): "Copied to the clipboard"
-        case .sent(let destination): card.linearReceipt?.issue.map { "Filed in Linear as \($0.identifier)" } ?? "Sent to \(destination)"
+        case .sent(let destination): card.linearReceipt?.issue.map { issue in "Filed in Linear as \(issue.identifier)" + (card.linearReceipt?.parent.map { ", a sub-issue of \($0.identifier)" } ?? "") } ?? "Sent to \(destination)"
         case .failed(let message): "Couldn't send: \(message)"
         case .copiedInstead(let reason): "Not sent, copied to the clipboard instead: \(reason)"
         default: card.destination.map { "To \($0.label)" } ?? text

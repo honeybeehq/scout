@@ -157,7 +157,7 @@ enum ReviewGallery {
         }
 
         @MainActor
-        func make(_ dispatcher: Dispatcher, directory chosen: URL? = nil, sessionID chosenID: String? = nil) -> SessionReview? {
+        func make(_ dispatcher: Dispatcher, directory chosen: URL? = nil, sessionID chosenID: String? = nil, segmentation: Segmentation = .automatic) -> SessionReview? {
             guard !empty else { return nil }
             var ledger = SessionLedger(replaying: signals)
             ledger.extend(to: duration)
@@ -179,7 +179,7 @@ enum ReviewGallery {
             let record = ReviewRecord(
                 sessionID: sessionID,
                 startedAt: Fixture.date,
-                segmentation: Segmentation.automatic.rawValue,
+                segmentation: segmentation.rawValue,
                 duration: duration,
                 video: .init(file: "session.mp4", start: 0, end: duration),
                 display: nil,

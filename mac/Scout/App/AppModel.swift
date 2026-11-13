@@ -100,6 +100,7 @@ final class AppModel {
         dispatcher.dryRun = SimulationMode.isDryRun
         NSLog("[scout-data] delivery %@ (%@)", dispatcher.dryRun ? "dry-run" : "live", SimulationMode.deliveryReason)
         dispatcher.onCardChanged = { [weak self] card in self?.cardChanged(card) }
+        dispatcher.linearParent = { [weak self] card in try await self?.reviews[card.sessionID]?.ensureLinearParent(for: card) }
         if !Self.rendersOnly { bridge.start() }
         watchTranscriptionEngine()
         if SimulationMode.whisperDownloads { whisperModels.download() }
@@ -772,8 +773,13 @@ final class AppModel {
     }
 
     func sendAll(in review: SessionReview) async {
-        await dispatcher.sendAll(review.tasks.filter { !$0.isLocked && $0.destination != nil })
-        review.save()
+        let waiting = review.tasks.filter { !$0.isLocked && $0.destination != nil }
+        if let first = review.linearPlan?.children.first(where: { card in waiting.contains { $0 === card } }) {
+            _ = try? await review.ensureLinearParent(for: first)
+            first.linearStep = nil
+        }
+        await dispatcher.sendAll(waiting)
+        await review.finishSending()
     }
 
     func windowOpened() {

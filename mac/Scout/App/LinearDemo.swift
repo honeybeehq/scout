@@ -70,12 +70,28 @@ enum LinearDemo {
             return
         }
         for card in review.tasks { await model.dispatcher.ensureBrief(for: card) }
+        if let structure = argument("linear-demo-structure").flatMap(LinearStructure.init(rawValue:)) {
+            review.linearStructureChoice = structure
+            review.save()
+        }
+        if review.linearStructure == .parent { await review.loadSessionLine() }
+        if let prefix = argument("linear-demo-title-prefix"), !review.parentTitle.hasPrefix(prefix) {
+            review.linearParentTitle = prefix + review.parentTitle
+            review.save()
+        }
         if let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 1000 }) {
             window.setFrame(CGRect(x: 0, y: 0, width: 1260, height: 1180), display: true)
         }
         try? await Task.sleep(for: .seconds(2))
         steps.append(describe(review, model: model, step: "opened"))
         draw(review, model: model, name: "\(label)-1-opened", into: output)
+        if flag("linear-demo-popover") {
+            review.editingParentTitle = true
+            try? await Task.sleep(for: .seconds(2))
+            drawPopover(name: "\(label)-1-popover", into: output)
+            review.editingParentTitle = false
+            try? await Task.sleep(for: .milliseconds(500))
+        }
         if let card = review.tasks.first {
             await prepareVideo(card, review: review, model: model, label: label, output: output, steps: &steps)
         }
@@ -235,6 +251,35 @@ enum LinearDemo {
         NSApp.windows.first { $0.isVisible && $0.sheetParent != nil }?.contentView?.superview
     }
 
+    private static func drawPopover(name: String, into directory: URL) {
+        guard let popover = NSApp.windows.first(where: { $0.isVisible && String(describing: type(of: $0)).contains("Popover") }),
+              let content = popover.contentView,
+              let main = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 1000 }),
+              let frame = main.contentView?.superview,
+              let base = frame.bitmapImageRepForCachingDisplay(in: frame.bounds),
+              let card = content.bitmapImageRepForCachingDisplay(in: content.bounds)
+        else { return }
+        frame.cacheDisplay(in: frame.bounds, to: base)
+        content.cacheDisplay(in: content.bounds, to: card)
+        try? card.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name).png"))
+        let origin = content.convert(content.bounds, to: nil).origin
+        let screen = popover.convertToScreen(CGRect(origin: origin, size: content.bounds.size))
+        let local = main.convertFromScreen(screen)
+        let image = NSImage(size: frame.bounds.size)
+        image.lockFocus()
+        base.draw(in: frame.bounds)
+        let shadow = NSShadow()
+        shadow.shadowBlurRadius = 18
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.25)
+        shadow.set()
+        NSBezierPath(roundedRect: local, xRadius: 10, yRadius: 10).addClip()
+        card.draw(in: local)
+        image.unlockFocus()
+        if let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) {
+            try? rep.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name)-in-window.png"))
+        }
+    }
+
     private static func drawSheet(name: String, into directory: URL) {
         guard let view = sheetView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -289,10 +334,13 @@ enum LinearDemo {
             try? FileManager.default.removeItem(at: target)
             try? FileManager.default.copyItem(at: URL(fileURLWithPath: video), to: target)
         }
-        guard let review = ReviewGallery.demo.make(model.dispatcher, directory: directory, sessionID: argument("linear-demo-session")) else { return }
+        guard let review = ReviewGallery.demo.make(model.dispatcher, directory: directory, sessionID: argument("linear-demo-session"), segmentation: flag("linear-demo-manual") ? .manual : .automatic) else { return }
         for card in review.tasks {
             card.destination = .linear(LinearTarget(team: team, project: nil, reason: .defaultTeam))
             if let prefix = argument("linear-demo-title-prefix"), !card.title.hasPrefix(prefix) { card.restoreTitle(prefix + card.title, custom: true) }
+        }
+        if let key = argument("linear-demo-other-team"), let other = model.linear.teams.value?.first(where: { $0.key == key }), let last = review.tasks.last {
+            last.destination = .linear(LinearTarget(team: other, project: nil, reason: .defaultTeam))
         }
         review.tasks.first?.runtimeNotes = [
             "network: GET http://localhost:3000/api/cart?session=8812&token=tok_demo_should_not_leave failed with 500 (acme-web)",
@@ -302,8 +350,18 @@ enum LinearDemo {
     }
 
     private static func describe(_ review: SessionReview, model: AppModel, step: String) -> [String: Any] {
-        [
+        let plan = review.linearPlan
+        return [
             "step": step,
+            "segmentation": review.segmentation.rawValue,
+            "structure": review.linearStructure.rawValue,
+            "structureChosenInReview": review.linearStructureChoice?.rawValue ?? "none (Settings default)",
+            "parentTitle": review.parentTitle,
+            "parent": review.linearParent.map { "\($0.issue.identifier) in \($0.target.team.key)" } ?? "none",
+            "parentIssueID": review.linearParent?.issue.id ?? "",
+            "plannedChildren": plan?.children.map(\.snippet.id) ?? [],
+            "standalone": plan?.elsewhere.map(\.snippet.id) ?? [],
+            "caution": plan?.cautionText ?? "none",
             "summariser": OnDeviceSummariser.isAvailable ? "on-device (FoundationModels)" : "template (\(String(describing: SystemLanguageModel.default.availability)))",
             "tasks": review.tasks.map { card -> [String: Any] in
                 [
@@ -315,6 +373,7 @@ enum LinearDemo {
                     "destination": card.destination?.label ?? "none",
                     "state": String(describing: card.state),
                     "receipt": card.linearReceipt.map { String(describing: $0.status) } ?? "none",
+                    "subIssueOf": card.linearReceipt?.parent?.identifier ?? "none",
                     "uploadedAssets": card.linearReceipt?.assets.map { "\($0.name) \($0.kind?.rawValue ?? "image") \($0.byteCount.map { "\($0) bytes" } ?? "") → \($0.url.absoluteString)" } ?? [],
                     "clipAttachment": card.linearReceipt?.clipAttachmentID ?? "none",
                     "unlinkedClip": card.linearReceipt?.unlinkedClip ?? false,

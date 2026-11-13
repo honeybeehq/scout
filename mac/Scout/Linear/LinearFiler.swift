@@ -12,6 +12,7 @@ actor LinearFiler {
         case uploading(Int, of: Int)
         case uploadingVideo(sent: Int, total: Int)
         case creating
+        case creatingParent
         case attaching
         case updating
         case waiting(until: Date)
@@ -28,6 +29,7 @@ actor LinearFiler {
         var previous: LinearReceipt?
         var labelIDs: [String]
         var priority: Int
+        var parent: LinearIssueRef?
         var compose: @Sendable ([StoredAsset]) -> IssueDraft
     }
 
@@ -82,8 +84,8 @@ actor LinearFiler {
                 kept.insert(try await upload(video, to: storage, report: report), at: 0)
             }
             let attached = kept.contains(where: \.isVideo) ? request.previous?.clipAttachmentID : nil
-            var receipt = LinearReceipt(key: request.key, status: .filed(existing), assets: kept, clipAttachmentID: attached, unlinkedClip: request.previous?.unlinkedClip)
-            receipt = try await reconcileClip(receipt, issue: existing, request: request, report: report)
+            var receipt = LinearReceipt(key: request.key, status: .filed(existing.ref), assets: kept, clipAttachmentID: attached, unlinkedClip: request.previous?.unlinkedClip, parent: existing.parent)
+            receipt = try await reconcileClip(receipt, issue: existing.ref, request: request, report: report)
             return await attachClip(receipt, video: video, request: request, workspace: workspace, mode: mode, report: report)
         }
         var stored: [StoredAsset] = []
@@ -112,16 +114,17 @@ actor LinearFiler {
             title: draft.title,
             description: draft.markdown,
             labelIDs: request.labelIDs,
-            priority: request.priority
+            priority: request.priority,
+            parentID: request.parent?.id
         )
         await report(.creating)
         do {
             let reply = try await retrying(report) { try await self.api.perform(LinearOperations.createIssue(input), credential: request.credential) }.issueCreate
             guard reply.success, let issue = reply.issue else { throw LinearError.server("Linear didn't create the issue.") }
-            return await attachClip(LinearReceipt(key: request.key, status: .filed(issue.ref), assets: stored), video: video, request: request, workspace: workspace, mode: mode, report: report)
+            return await attachClip(LinearReceipt(key: request.key, status: .filed(issue.ref), assets: stored, parent: request.parent), video: video, request: request, workspace: workspace, mode: mode, report: report)
         } catch {
             if let existing = try await find(issueID, request: request, report: report) {
-                return await attachClip(LinearReceipt(key: request.key, status: .filed(existing), assets: stored), video: video, request: request, workspace: workspace, mode: mode, report: report)
+                return await attachClip(LinearReceipt(key: request.key, status: .filed(existing.ref), assets: stored, parent: existing.parent ?? request.parent), video: video, request: request, workspace: workspace, mode: mode, report: report)
             }
             if mode == .clientID, case LinearError.server(let message) = error, Self.refusesClientIDs(message) {
                 useMarkers(for: workspace)
@@ -194,7 +197,18 @@ actor LinearFiler {
         return lowered.contains("already exists") || lowered.contains("conflict")
     }
 
-    private func find(_ issueID: String?, request: Request, report: Report) async throws -> LinearIssueRef? {
+    func updateDescription(of issue: LinearIssueRef, team teamID: String, to description: String, credential: LinearCredential) async -> Bool {
+        let previous = tail
+        let task = Task { () -> Bool in
+            await previous?.value
+            let operation = LinearOperations.updateDescription(issueID: issue.id, teamID: teamID, description: description)
+            return (try? await self.retrying({ _ in }) { try await self.api.perform(operation, credential: credential) }.issueUpdate.success) ?? false
+        }
+        tail = Task { _ = await task.value }
+        return await task.value
+    }
+
+    private func find(_ issueID: String?, request: Request, report: Report) async throws -> LinearIssue? {
         let issue: LinearIssue?
         if let issueID {
             do {
@@ -211,7 +225,7 @@ actor LinearFiler {
         }
         guard let issue else { return nil }
         if issue.isGone { throw LinearError.deletedRemotely }
-        return issue.ref
+        return issue
     }
 
     private func workspaceID(_ credential: LinearCredential) async throws -> String {

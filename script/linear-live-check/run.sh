@@ -124,3 +124,17 @@ VFLOW=$?
 if [ "$VFLOW" -eq 0 ] && [ "$VVERIFY" -ne 0 ]; then VFLOW=$VVERIFY; fi
 [ -n "${MADE:-}" ] && rm -rf "$MADE"
 if [ "$FLOW" -eq 0 ] && [ "$VFLOW" -ne 0 ]; then FLOW=$VFLOW; fi
+
+echo "== Scout parent flow ($RUN): a manual session filed as a parent with sub-issues, then two resends"
+pdemo() {
+  feed | perl -e 'alarm shift; exec @ARGV' 180 "$APP" --linear-demo="$OUT/session-parent" --linear-demo-key-stdin \
+    --linear-demo-session="$RUN-parent" --linear-demo-title-prefix="[scout-test] " --live-delivery --linear-demo-video="$VIDEO" \
+    --linear-demo-output="$OUT" --linear-demo-label="$1" --linear-demo-send=all --linear-demo-manual > "$OUT/$1.stdout" 2>&1
+}
+pdemo live-6-parent
+pdemo live-7-parent-resend
+rm -f "$OUT/session-parent/review.json"
+pdemo live-8-parent-no-review-json
+feed | python3 -I "$HERE/live.py" parent-verify "$TEAM" "$OUT"
+PFLOW=$?
+if [ "$FLOW" -eq 0 ] && [ "$PFLOW" -ne 0 ]; then FLOW=$PFLOW; fi

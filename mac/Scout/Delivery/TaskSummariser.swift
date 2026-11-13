@@ -19,9 +19,15 @@ nonisolated struct BriefInput: Sendable {
     }
 }
 
+nonisolated struct SessionLine: Codable, Hashable, Sendable {
+    var title: String
+    var summary: String
+}
+
 nonisolated protocol TaskSummariser: Sendable {
     func title(for input: BriefInput) async -> String?
     func brief(for input: BriefInput) async -> TaskBrief
+    func sessionLine(for inputs: [BriefInput]) async -> SessionLine?
 }
 
 nonisolated enum TaskSummarisers {
@@ -36,6 +42,8 @@ nonisolated struct TemplateSummariser: TaskSummariser {
     func brief(for input: BriefInput) async -> TaskBrief {
         TaskBrief(source: .template, inputFingerprint: input.fingerprint)
     }
+
+    func sessionLine(for inputs: [BriefInput]) async -> SessionLine? { nil }
 }
 
 nonisolated struct OnDeviceSummariser: TaskSummariser {
@@ -54,6 +62,35 @@ nonisolated struct OnDeviceSummariser: TaskSummariser {
     You turn spoken feedback about an app into a short issue for its developers. Use only what the feedback says. \
     Leave a field empty when the feedback doesn't say it. Never invent steps, numbers or names. Write plain sentences without markdown.
     """
+
+    private static let sessionInstructions = """
+    You name a feedback session for its developers. Given the spoken feedback of each task, reply with a short title of at most \
+    eight words for the whole session and one plain sentence that sums it up. Use only what the feedback says. No markdown.
+    """
+
+    @Generable
+    struct SessionDraft {
+        @Guide(description: "A short title for the whole session, at most eight words, like \"Checkout flow playtest\".")
+        var title: String
+        @Guide(description: "One sentence that sums up what the feedback was about.")
+        var summary: String
+    }
+
+    func sessionLine(for inputs: [BriefInput]) async -> SessionLine? {
+        let spoken = inputs.map(\.transcript).filter { !$0.isEmpty }
+        guard Self.isAvailable, !spoken.isEmpty else { return nil }
+        let session = LanguageModelSession(instructions: Self.sessionInstructions)
+        let budget = max(60, 2000 / spoken.count)
+        let prompt = spoken.enumerated().map { index, text in
+            "Task \(index + 1): " + text.split(separator: " ").prefix(budget).joined(separator: " ")
+        }.joined(separator: "\n")
+        let options = GenerationOptions(temperature: 0.2)
+        guard let draft = try? await session.respond(to: prompt, generating: SessionDraft.self, options: options).content else { return nil }
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"“”.'"))
+        let summary = draft.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title.count <= 80, !title.contains("\n"), !summary.contains("\n") else { return nil }
+        return SessionLine(title: title, summary: summary)
+    }
 
     @Generable
     struct Draft {

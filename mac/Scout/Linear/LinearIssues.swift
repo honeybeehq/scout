@@ -11,6 +11,7 @@ nonisolated struct LinearIssue: Decodable, Sendable {
     var ref: LinearIssueRef
     var isGone: Bool
     var description: String?
+    var parent: LinearIssueRef?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -25,9 +26,10 @@ nonisolated struct LinearIssue: Decodable, Sendable {
         let archived = try container.decodeIfPresent(String.self, forKey: .archivedAt) != nil
         isGone = trashed || archived
         description = try container.decodeIfPresent(String.self, forKey: .description).map { String($0.prefix(20_000)) }
+        parent = try container.decodeIfPresent(LinearIssue.self, forKey: .parent)?.ref
     }
 
-    private enum CodingKeys: String, CodingKey { case id, identifier, url, trashed, archivedAt, description }
+    private enum CodingKeys: String, CodingKey { case id, identifier, url, trashed, archivedAt, description, parent }
 }
 
 nonisolated struct LinearUploadTarget: Decodable, Sendable {
@@ -83,6 +85,7 @@ nonisolated struct LinearIssueInput: Sendable {
     var description: String
     var labelIDs: [String]
     var priority: Int
+    var parentID: String?
 
     var value: LinearValue {
         var input: [String: LinearValue] = [
@@ -94,6 +97,7 @@ nonisolated struct LinearIssueInput: Sendable {
         ]
         if let id { input["id"] = .string(id) }
         if let projectID { input["projectId"] = .string(projectID) }
+        if let parentID { input["parentId"] = .string(parentID) }
         return .object(input)
     }
 }
@@ -106,6 +110,10 @@ nonisolated extension LinearOperations {
             var issue: LinearIssue?
         }
         var issueCreate: Payload
+    }
+    struct IssueUpdateData: Decodable, Sendable {
+        struct Payload: Decodable, Sendable { var success: Bool }
+        var issueUpdate: Payload
     }
     struct FileUploadData: Decodable, Sendable {
         struct Payload: Decodable, Sendable {
@@ -135,7 +143,7 @@ nonisolated extension LinearOperations {
     static func issue(id: String) -> LinearOperation<IssueData> {
         LinearOperation(
             name: "issue",
-            document: "query($id: String!) { issue(id: $id) { id identifier url trashed archivedAt } }",
+            document: "query($id: String!) { issue(id: $id) { id identifier url trashed archivedAt parent { id identifier url } } }",
             variables: ["id": .string(id)]
         )
     }
@@ -146,6 +154,15 @@ nonisolated extension LinearOperations {
             kind: .mutation(teamID: input.teamID),
             document: "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
             variables: ["input": input.value]
+        )
+    }
+
+    static func updateDescription(issueID: String, teamID: String, description: String) -> LinearOperation<IssueUpdateData> {
+        LinearOperation(
+            name: "issueUpdate",
+            kind: .mutation(teamID: teamID),
+            document: "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+            variables: ["id": .string(issueID), "input": .object(["description": .string(description)])]
         )
     }
 
@@ -233,7 +250,7 @@ nonisolated extension LinearOperations {
     static func searchIssues(term: String, team: String) -> LinearOperation<SearchData> {
         LinearOperation(
             name: "searchIssues",
-            document: "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 5, filter: { team: { id: { eq: $team } } }) { nodes { id identifier url trashed archivedAt description } } }",
+            document: "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 5, filter: { team: { id: { eq: $team } } }) { nodes { id identifier url trashed archivedAt description parent { id identifier url } } } }",
             variables: ["term": .string(term), "team": .string(team)]
         )
     }

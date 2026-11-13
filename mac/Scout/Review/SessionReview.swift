@@ -36,11 +36,17 @@ final class SessionReview {
     var playhead: SessionTime = 0
     var isEditingText = false
     var confirmingDiscard = false
+    var linearStructureChoice: LinearStructure?
+    var linearParentTitle: String?
+    var linearSessionLine: SessionLine?
+    var linearParent: LinearParent?
+    var isLoadingSessionLine = false
+    var editingParentTitle = false
 
     static let minimumTaskLength: SessionTime = 0.6
     static let snapTolerance: SessionTime = 1.2
 
-    private let dispatcher: Dispatcher
+    let dispatcher: Dispatcher
     private let isFiller: (Utterance) -> Bool
     private weak var session: ScoutingSession?
     private var undoStack: [UndoStep] = []
@@ -95,6 +101,10 @@ final class SessionReview {
         displays = record.displays
         display = record.display
         isFinishing = false
+        linearStructureChoice = record.linearStructure
+        linearParentTitle = record.linearParentTitle
+        linearSessionLine = record.linearSessionLine
+        linearParent = record.linearParent
         self.dispatcher = dispatcher
         let segmenter = Segmenter()
         isFiller = { segmenter.isFiller($0) }
@@ -456,7 +466,11 @@ final class SessionReview {
             displayHops: displays.flatMap { $0.hops.isEmpty ? nil : $0.hops },
             discarded: discardedRanges.map { .init(start: $0.start, end: $0.end) },
             transcription: transcription,
-            tasks: tasks.map(ReviewRecord.Task.init)
+            tasks: tasks.map(ReviewRecord.Task.init),
+            linearStructure: linearStructureChoice,
+            linearParentTitle: linearParentTitle,
+            linearSessionLine: linearSessionLine,
+            linearParent: linearParent
         )
         do {
             try ReviewRecord.write(record, to: directory)
