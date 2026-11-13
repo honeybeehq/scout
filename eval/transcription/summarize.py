@@ -4,8 +4,10 @@ import json, glob, os, sys, statistics, argparse
 def load(dir_):
     runs = {}
     for p in sorted(glob.glob(os.path.join(dir_, "*.run*.json"))):
-        name = os.path.basename(p)[:-5]
-        case, variant, run = name.rsplit(".", 2)
+        parts = os.path.basename(p)[:-5].rsplit(".", 2)
+        if len(parts) != 3:
+            continue
+        case, variant, run = parts
         with open(p) as f:
             runs.setdefault((case, variant), []).append((run, json.load(f)["metrics"]))
     return runs
