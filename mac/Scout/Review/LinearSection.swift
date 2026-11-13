@@ -18,6 +18,7 @@ struct LinearSection: View {
                 summary
                 SettingRow(title: "Labels", detail: nil) { labels }
                 SettingRow(title: "Priority", detail: nil) { priority }
+                SettingRow(title: "Video", detail: videoDetail) { video }
             }
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,8 +38,15 @@ struct LinearSection: View {
             await model.linear.loadTeamDetails(target.team.id)
             await model.dispatcher.ensureBrief(for: card)
         }
+        .task(id: videoKey) {
+            guard !still, !card.isLocked, includesVideo else { return }
+            _ = await model.dispatcher.preparedVideo(for: card)
+        }
         .sheet(isPresented: $previewing) {
-            IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, imageCount: imageCount) { previewing = false }
+            IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, outgoing: Self.outgoing(card, dispatcher: model.dispatcher)) { previewing = false }
+        }
+        .sheet(isPresented: Binding(get: { card.redactionSheet != nil }, set: { if !$0 { card.redactionSheet = nil } })) {
+            RedactionSheet(review: review, card: card)
         }
     }
 
@@ -158,14 +166,77 @@ struct LinearSection: View {
         .disabled(card.isLocked)
     }
 
-    private var imageCount: Int {
-        card.sessionVideo != nil || card.recorder != nil ? card.snippet.marks.count : 0
+    private var includesVideo: Bool { model.dispatcher.includesVideo(card) }
+
+    private var videoKey: String {
+        "\(includesVideo)|\(card.snippet.range.start)|\(card.snippet.range.end)|\(card.linearOptions.redaction?.fingerprint ?? "")"
+    }
+
+    private var video: some View {
+        HStack(spacing: 10) {
+            if includesVideo, !card.isLocked {
+                Button("Hide parts…") { card.redactionSheet = .edit }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .fixedSize()
+            }
+            Toggle("", isOn: Binding(
+                get: { includesVideo },
+                set: { value in
+                    card.linearOptions.includeVideo = value
+                    review.edited(card)
+                }
+            ))
+            .toggleStyle(SignalToggleStyle())
+            .accessibilityLabel("Include video")
+            .disabled(card.isLocked || !card.hasRecording)
+            .help(card.hasRecording ? "Upload this task's clip to Linear" : "This task has no recording")
+        }
+    }
+
+    private var videoDetail: String {
+        guard card.hasRecording else { return "This task has no recording." }
+        if let uploaded = card.linearReceipt?.video {
+            return "Uploaded \(Self.size(uploaded.byteCount ?? 0))" + (card.linearReceipt?.clipAttachmentID == nil ? "." : " and attached to the issue.")
+        }
+        guard includesVideo else { return "Off. The clip stays on this Mac." }
+        var first = [IssueComposer.clock(model.dispatcher.clipDuration(for: card))]
+        if let media = card.preparedVideo, media.redaction == card.linearOptions.redaction {
+            first.append(Self.size(media.byteCount))
+        } else if card.isPreparingVideo {
+            first.append(card.linearOptions.redaction == nil ? "measuring…" : "rendering…")
+        }
+        var edits: [String] = []
+        if let redaction = card.linearOptions.redaction {
+            let areas = redaction.regions.count
+            let cuts = redaction.mergedCuts(in: card.clipRange).count
+            if areas > 0 { edits.append(areas == 1 ? "1 area hidden" : "\(areas) areas hidden") }
+            if cuts > 0 { edits.append(cuts == 1 ? "1 part cut" : "\(cuts) parts cut") }
+        }
+        return ([first.joined(separator: " · ")] + (edits.isEmpty ? [] : [edits.joined(separator: " · ")])).joined(separator: "\n")
     }
 
     private var leavesTheMac: String {
         if let issue = card.linearReceipt?.issue { return "Filed in \(target.team.key) as \(issue.identifier)." }
-        let images = imageCount == 0 ? "" : imageCount == 1 ? " and 1 image" : " and \(imageCount) images"
-        return "Text\(images) go to \(target.team.key) when you file. No video."
+        let outgoing = Self.outgoing(card, dispatcher: model.dispatcher)
+        return "\(outgoing.list) go to \(target.team.key) when you file.\(outgoing.video ? "" : " No video.")"
+    }
+
+    static func outgoing(_ card: SnippetCard, dispatcher: Dispatcher) -> (list: String, video: Bool) {
+        let redaction = card.linearOptions.redaction
+        let images = card.hasRecording ? card.snippet.marks.filter { redaction?.cuts($0.at) != true }.count : 0
+        var parts = ["Text"]
+        if images > 0 { parts.append(images == 1 ? "1 image" : "\(images) images") }
+        let video = dispatcher.includesVideo(card)
+        if video {
+            let size = card.preparedVideo.flatMap { $0.redaction == redaction ? Self.size($0.byteCount) : nil }
+            parts.append("1 video" + (size.map { " (\($0))" } ?? ""))
+        }
+        let list = parts.count > 1 ? parts.dropLast().joined(separator: ", ") + " and " + parts[parts.count - 1] : parts[0]
+        return (list, video)
+    }
+
+    static func size(_ bytes: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
     }
 
     private func setLabels(_ ids: [String]) {
@@ -229,7 +300,7 @@ private struct BriefField: View {
 struct IssuePreview: View {
     let draft: IssueDraft
     let target: LinearTarget
-    let imageCount: Int
+    let outgoing: (list: String, video: Bool)
     let close: () -> Void
 
     var body: some View {
@@ -261,7 +332,7 @@ struct IssuePreview: View {
             .background(Palette.sunken)
             Rectangle().fill(Palette.hairline).frame(height: 1)
             HStack(spacing: 8) {
-                Text("This is the exact text Scout sends. Images upload when you file.")
+                Text(outgoing.video ? "This is the exact text Scout sends. Images and the video upload when you file." : "This is the exact text Scout sends. Images upload when you file.")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textTertiary)
                 Spacer(minLength: 0)
@@ -281,7 +352,6 @@ struct IssuePreview: View {
     }
 
     private var summary: String {
-        let images = imageCount == 0 ? "" : imageCount == 1 ? ", 1 image" : ", \(imageCount) images"
-        return "Leaves this Mac when you file: text\(images) → Linear \(target.team.key). No video."
+        "Leaves this Mac when you file: \(outgoing.list.prefix(1).lowercased() + outgoing.list.dropFirst()) → Linear \(target.team.key).\(outgoing.video ? "" : " No video.")"
     }
 }

@@ -1,11 +1,17 @@
 import AppKit
+import AVFoundation
 import FoundationModels
 import ScoutCore
+import SwiftUI
 
 enum LinearDemo {
     private static func argument(_ name: String) -> String? {
         let prefix = "--\(name)="
         return ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count)) }
+    }
+
+    private static func flag(_ name: String) -> Bool {
+        ProcessInfo.processInfo.arguments.contains("--\(name)")
     }
 
     static var directory: URL? {
@@ -16,6 +22,21 @@ enum LinearDemo {
         let output = URL(fileURLWithPath: argument("linear-demo-output") ?? directory.appendingPathComponent("demo").path, isDirectory: true)
         let label = argument("linear-demo-label") ?? "run"
         try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        if let sources = argument("linear-demo-measure") {
+            await measure(sources.split(separator: ",").map { URL(fileURLWithPath: String($0)) }, output: output, label: label)
+            return
+        }
+        if let made = argument("linear-demo-make-video") {
+            let began = Date()
+            let seconds = argument("linear-demo-make-seconds").flatMap(Double.init) ?? 34
+            do {
+                try await DemoScreenVideo.make(to: URL(fileURLWithPath: made), seconds: seconds, busy: flag("linear-demo-make-busy"))
+                finish([["step": "made \(made) in \(Int(Date().timeIntervalSince(began))) s"]], output: output, label: label)
+            } catch {
+                finish([["error": "making the demo video failed: \(error.localizedDescription)"]], output: output, label: label)
+            }
+            return
+        }
         try? await Task.sleep(for: .seconds(1))
         let live = ProcessInfo.processInfo.arguments.contains("--linear-demo-key-stdin")
         if live, Bundle.main.bundleIdentifier == "com.trmdy.scout" {
@@ -55,13 +76,25 @@ enum LinearDemo {
         try? await Task.sleep(for: .seconds(2))
         steps.append(describe(review, model: model, step: "opened"))
         draw(review, model: model, name: "\(label)-1-opened", into: output)
+        if let card = review.tasks.first {
+            await prepareVideo(card, review: review, model: model, label: label, output: output, steps: &steps)
+        }
         let send = argument("linear-demo-send") ?? "none"
         if send != "none", model.dispatcher.dryRun, !SimulationMode.asksDryRun {
             steps.append(["error": "this build delivers as a dry run; pass --live-delivery (or --dry-run-delivery to ask for one)"])
             finish(steps, output: output, label: label)
             return
         }
-        if send == "file-new", let card = review.tasks.first {
+        if let delay = argument("linear-demo-midshot").flatMap(Double.init) {
+            Task {
+                try? await Task.sleep(for: .seconds(delay))
+                draw(review, model: model, name: "\(label)-mid-send", into: output)
+            }
+        }
+        if send == "without-video", let card = review.tasks.first {
+            await model.dispatcher.fileWithoutVideo(card)
+            review.save()
+        } else if send == "file-new", let card = review.tasks.first {
             await model.dispatcher.fileAsNewIssue(card)
             review.save()
         } else if send == "all" {
@@ -76,6 +109,174 @@ enum LinearDemo {
             draw(review, model: model, name: "\(label)-2-after-send", into: output)
         }
         finish(steps, output: output, label: label)
+    }
+
+    private static func prepareVideo(_ card: SnippetCard, review: SessionReview, model: AppModel, label: String, output: URL, steps: inout [[String: Any]]) async {
+        if flag("linear-demo-include-video") {
+            card.linearOptions.includeVideo = true
+            review.edited(card)
+        }
+        if flag("linear-demo-redact") {
+            card.linearOptions.redaction = DemoScreenVideo.redaction
+            review.edited(card)
+        }
+        guard flag("linear-demo-include-video") || flag("linear-demo-redact") else { return }
+        let media = await model.dispatcher.preparedVideo(for: card)
+        try? await Task.sleep(for: .seconds(1.5))
+        draw(review, model: model, name: "\(label)-2-video", into: output)
+        var step: [String: Any] = ["step": "video prepared", "includeVideo": model.dispatcher.includesVideo(card)]
+        if let media {
+            step["upload"] = await describeMedia(media.url)
+            step["uploadFile"] = media.url.lastPathComponent
+            step["redacted"] = media.isRedacted
+            let original = card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)/clip.mp4")
+            step["originalClip"] = await describeMedia(original)
+            if media.isRedacted {
+                try? FileManager.default.removeItem(at: output.appendingPathComponent("\(label)-redacted-clip.mp4"))
+                try? FileManager.default.copyItem(at: media.url, to: output.appendingPathComponent("\(label)-redacted-clip.mp4"))
+                await exportFrames(original: original, media: media, label: label, output: output)
+            }
+        }
+        steps.append(step)
+        if let target = card.destination?.linearTarget {
+            let preview = IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, outgoing: LinearSection.outgoing(card, dispatcher: model.dispatcher)) {}
+            let renderer = ImageRenderer(content: preview.environment(model).environment(\.stillRender, true))
+            renderer.scale = 2
+            if let image = renderer.cgImage { write(image, to: output.appendingPathComponent("\(label)-issue-preview.png")) }
+        }
+        if let sheet = argument("linear-demo-sheet") {
+            card.redactionSheet = .edit
+            try? await Task.sleep(for: .seconds(5))
+            drawSheet(name: "\(label)-3-sheet-edit", into: output)
+            if sheet == "preview" {
+                card.redactionSheet = .preview
+                try? await Task.sleep(for: .seconds(4))
+                drawSheet(name: "\(label)-4-sheet-preview", into: output)
+                await recordSheet(seconds: 12, to: output.appendingPathComponent("\(label)-sheet-preview.mp4"))
+            }
+            card.redactionSheet = nil
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
+    private static func measure(_ sources: [URL], output: URL, label: String) async {
+        var rows: [[String: Any]] = []
+        for source in sources {
+            let length = (try? await AVURLAsset(url: source).load(.duration).seconds) ?? 0
+            let video = ExportedClip(url: source, range: TimeRange(start: 0, end: length))
+            for seconds in [10.0, 30.0, 60.0] where seconds + 1 <= length {
+                let snippet = Snippet(id: "measure-\(Int(seconds))", range: TimeRange(start: 1, end: seconds - 1))
+                let directory = output.appendingPathComponent("measure/\(source.deletingPathExtension().lastPathComponent)-\(Int(seconds))s", isDirectory: true)
+                try? FileManager.default.removeItem(at: directory)
+                guard let clip = await SnippetMedia.clip(for: snippet, video: video, into: directory) else { continue }
+                var row: [String: Any] = ["source": source.lastPathComponent, "clipSeconds": seconds, "passthrough": await describeMedia(clip.url)]
+                let began = Date()
+                if let hidden = try? await ClipRedactor.render(clip, redaction: ClipRedaction(regions: [RedactedRegion(rect: DemoScreenVideo.secretPanel)])) {
+                    var info = await describeMedia(hidden.url)
+                    info["renderSeconds"] = (Date().timeIntervalSince(began) * 10).rounded() / 10
+                    row["redactedOneArea"] = info
+                }
+                rows.append(row)
+            }
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) {
+            try? data.write(to: output.appendingPathComponent("\(label).json"))
+        }
+        NSApp.terminate(nil)
+    }
+
+    private static func describeMedia(_ url: URL) async -> [String: Any] {
+        let asset = AVURLAsset(url: url)
+        let bytes = ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.intValue ?? 0
+        var info: [String: Any] = ["bytes": bytes]
+        if let duration = try? await asset.load(.duration) { info["seconds"] = (duration.seconds * 100).rounded() / 100 }
+        if let track = try? await asset.loadTracks(withMediaType: .video).first {
+            if let size = try? await track.load(.naturalSize) { info["size"] = "\(Int(size.width))x\(Int(size.height))" }
+            if let formats = try? await track.load(.formatDescriptions), let format = formats.first {
+                let code = CMFormatDescriptionGetMediaSubType(format)
+                info["codec"] = String(bytes: [24, 16, 8, 0].map { UInt8((code >> $0) & 0xFF) }, encoding: .ascii) ?? "?"
+            }
+            if let rate = try? await track.load(.estimatedDataRate) { info["kbps"] = Int(rate / 1000) }
+        }
+        return info
+    }
+
+    private static func exportFrames(original: URL, media: RenderedMedia, label: String, output: URL) async {
+        let clipStart = media.range.start
+        let kept = media.redaction?.kept(in: media.range) ?? [media.range]
+        func compositionTime(_ session: Double) -> Double? {
+            var offset = 0.0
+            for range in kept {
+                if range.contains(session) { return offset + session - range.start }
+                offset += range.duration
+            }
+            return nil
+        }
+        let moments: [(String, Double)] = [("toast-and-secret", 3.1), ("password-popup", 6.8), ("secret-only", 9.0)]
+        for (name, session) in moments {
+            if let before = await image(original, at: session - clipStart) { write(before, to: output.appendingPathComponent("\(label)-frame-\(name)-before.png")) }
+            let after = compositionTime(session) ?? compositionTime(DemoScreenVideo.popupRange.end + 0.05) ?? 0
+            if let image = await image(media.url, at: after) { write(image, to: output.appendingPathComponent("\(label)-frame-\(name)-after.png")) }
+        }
+    }
+
+    private static func image(_ url: URL, at seconds: Double) async -> CGImage? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.05, preferredTimescale: 600)
+        return try? await generator.image(at: CMTime(seconds: max(0, seconds), preferredTimescale: 600)).image
+    }
+
+    private static func write(_ image: CGImage, to url: URL) {
+        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: url)
+    }
+
+    private static var sheetView: NSView? {
+        NSApp.windows.first { $0.isVisible && $0.sheetParent != nil }?.contentView?.superview
+    }
+
+    private static func drawSheet(name: String, into directory: URL) {
+        guard let view = sheetView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try? bitmap.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent("\(name).png"))
+    }
+
+    private static func recordSheet(seconds: Double, to url: URL) async {
+        guard let view = sheetView, let first = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        let width = first.pixelsWide / 2 * 2
+        let height = first.pixelsHigh / 2 * 2
+        try? FileManager.default.removeItem(at: url)
+        guard let writer = try? AVAssetWriter(outputURL: url, fileType: .mp4) else { return }
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA, kCVPixelBufferWidthKey as String: width, kCVPixelBufferHeightKey as String: height,
+        ])
+        writer.add(input)
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+        let rate = 10
+        for index in 0..<Int(seconds * Double(rate)) {
+            let began = ContinuousClock.now
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { break }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            if let image = bitmap.cgImage, let pool = adaptor.pixelBufferPool {
+                var buffer: CVPixelBuffer?
+                CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer)
+                if let buffer {
+                    CVPixelBufferLockBaseAddress(buffer, [])
+                    if let context = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: width, height: height, bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) {
+                        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+                    }
+                    CVPixelBufferUnlockBaseAddress(buffer, [])
+                    while !input.isReadyForMoreMediaData { try? await Task.sleep(for: .milliseconds(5)) }
+                    adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(index), timescale: CMTimeScale(rate)))
+                }
+            }
+            let spent = (ContinuousClock.now - began) / .seconds(1)
+            try? await Task.sleep(for: .seconds(max(0.01, 1.0 / Double(rate) - spent)))
+        }
+        input.markAsFinished()
+        await writer.finishWriting()
     }
 
     private static func seed(model: AppModel, team: LinearTeam, into directory: URL) {
@@ -114,7 +315,10 @@ enum LinearDemo {
                     "destination": card.destination?.label ?? "none",
                     "state": String(describing: card.state),
                     "receipt": card.linearReceipt.map { String(describing: $0.status) } ?? "none",
-                    "uploadedAssets": card.linearReceipt?.assets.map { "\($0.name) → \($0.url.absoluteString)" } ?? [],
+                    "uploadedAssets": card.linearReceipt?.assets.map { "\($0.name) \($0.kind?.rawValue ?? "image") \($0.byteCount.map { "\($0) bytes" } ?? "") → \($0.url.absoluteString)" } ?? [],
+                    "clipAttachment": card.linearReceipt?.clipAttachmentID ?? "none",
+                    "includeVideo": model.dispatcher.includesVideo(card),
+                    "redaction": card.linearOptions.redaction.map { "\($0.regions.count) areas, \($0.excluded.count) cuts" } ?? "none",
                     "brief": card.brief.map { "\($0.source) kind=\($0.kind.rawValue) urgency=\($0.urgency.rawValue) summary=\($0.hasSummary)" } ?? "none",
                     "labels": card.destination?.linearTarget.map { model.dispatcher.labelIDs(for: card, team: $0.team.id) } ?? [],
                     "priority": model.dispatcher.priority(for: card),

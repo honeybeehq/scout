@@ -10,7 +10,9 @@ actor LinearFiler {
     enum Step: Sendable, Equatable {
         case checking
         case uploading(Int, of: Int)
+        case uploadingVideo(sent: Int, total: Int)
         case creating
+        case attaching
         case waiting(until: Date)
     }
 
@@ -19,6 +21,9 @@ actor LinearFiler {
         var target: LinearTarget
         var credential: LinearCredential
         var images: [URL]
+        var video: RenderedMedia?
+        var includeVideo: Bool
+        var clipTitle: String
         var previous: LinearReceipt?
         var labelIDs: [String]
         var priority: Int
@@ -63,16 +68,28 @@ actor LinearFiler {
         return try await task.value
     }
 
-    private func perform(_ request: Request, pending: Pending, report: Report) async throws -> LinearReceipt {
+    private func perform(_ request: Request, pending: Pending, report: @escaping Report) async throws -> LinearReceipt {
         let workspace = try await retrying(report) { try await self.workspaceID(request.credential) }
         let mode = identity(for: workspace)
         let issueID = mode == .clientID ? LinearIdentity.issueID(workspaceID: workspace, key: request.key) : nil
         await report(.checking)
         if let existing = try await find(issueID, request: request, report: report) {
-            return LinearReceipt(key: request.key, status: .filed(existing), assets: request.previous?.assets ?? [])
+            let receipt = LinearReceipt(key: request.key, status: .filed(existing), assets: request.previous?.assets ?? [], clipAttachmentID: request.previous?.clipAttachmentID)
+            return await attachClip(receipt, request: request, workspace: workspace, mode: mode, report: report)
         }
         let storage = LinearStorage(api: api, credential: request.credential, teamID: request.target.team.id)
         var stored: [StoredAsset] = []
+        if let media = request.video, let asset = LocalAsset.video(media, includeVideo: request.includeVideo) {
+            if let done = request.previous?.assets.first(where: { $0.contentHash == asset.contentHash }) {
+                stored.append(done)
+            } else {
+                await report(.uploadingVideo(sent: 0, total: asset.byteCount))
+                let progress: @Sendable (Int, Int) -> Void = { sent, total in
+                    Task { @MainActor in report(.uploadingVideo(sent: sent, total: max(total, asset.byteCount))) }
+                }
+                stored.append(try await retrying(report) { try await storage.store(asset, name: "clip.mp4", progress: progress) })
+            }
+        }
         for (index, url) in request.images.enumerated() {
             guard let asset = LocalAsset.image(at: url) else { continue }
             if let done = request.previous?.assets.first(where: { $0.contentHash == asset.contentHash }) {
@@ -80,7 +97,7 @@ actor LinearFiler {
                 continue
             }
             await report(.uploading(index + 1, of: request.images.count))
-            stored.append(try await retrying(report) { try await storage.store(asset, name: url.lastPathComponent) })
+            stored.append(try await retrying(report) { try await storage.store(asset, name: url.lastPathComponent) { _, _ in } })
         }
         await pending(LinearReceipt(key: request.key, status: .pending, assets: stored))
         let draft = request.compose(stored)
@@ -97,10 +114,10 @@ actor LinearFiler {
         do {
             let reply = try await retrying(report) { try await self.api.perform(LinearOperations.createIssue(input), credential: request.credential) }.issueCreate
             guard reply.success, let issue = reply.issue else { throw LinearError.server("Linear didn't create the issue.") }
-            return LinearReceipt(key: request.key, status: .filed(issue.ref), assets: stored)
+            return await attachClip(LinearReceipt(key: request.key, status: .filed(issue.ref), assets: stored), request: request, workspace: workspace, mode: mode, report: report)
         } catch {
             if let existing = try await find(issueID, request: request, report: report) {
-                return LinearReceipt(key: request.key, status: .filed(existing), assets: stored)
+                return await attachClip(LinearReceipt(key: request.key, status: .filed(existing), assets: stored), request: request, workspace: workspace, mode: mode, report: report)
             }
             if mode == .clientID, case LinearError.server(let message) = error, Self.refusesClientIDs(message) {
                 useMarkers(for: workspace)
@@ -110,6 +127,26 @@ actor LinearFiler {
             }
             throw error
         }
+    }
+
+    private func attachClip(_ receipt: LinearReceipt, request: Request, workspace: String, mode: Identity, report: Report) async -> LinearReceipt {
+        guard receipt.clipAttachmentID == nil, let video = receipt.video, let issue = receipt.issue else { return receipt }
+        var receipt = receipt
+        let id = mode == .clientID ? LinearIdentity.clipAttachmentID(workspaceID: workspace, key: request.key, contentHash: video.contentHash) : nil
+        let operation = LinearOperations.attachClip(id: id, issueID: issue.id, teamID: request.target.team.id, url: video.url, title: request.clipTitle)
+        await report(.attaching)
+        do {
+            let reply = try await retrying(report) { try await self.api.perform(operation, credential: request.credential) }.attachmentCreate
+            if reply.success { receipt.clipAttachmentID = reply.attachment?.id ?? id }
+        } catch LinearError.server(let message) where id != nil && Self.meansConflict(message) {
+            receipt.clipAttachmentID = id
+        } catch {}
+        return receipt
+    }
+
+    private static func meansConflict(_ message: String) -> Bool {
+        let lowered = message.lowercased()
+        return lowered.contains("already exists") || lowered.contains("conflict")
     }
 
     private func find(_ issueID: String?, request: Request, report: Report) async throws -> LinearIssueRef? {

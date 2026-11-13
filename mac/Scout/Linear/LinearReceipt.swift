@@ -11,6 +11,11 @@ nonisolated struct LinearReceipt: Codable, Hashable, Sendable {
     var key: String
     var status: Status
     var assets: [StoredAsset]
+    var clipAttachmentID: String?
+
+    var video: StoredAsset? {
+        assets.first(where: \.isVideo)
+    }
 
     var issue: LinearIssueRef? {
         if case .filed(let issue) = status { issue } else { nil }
@@ -20,6 +25,8 @@ nonisolated struct LinearReceipt: Codable, Hashable, Sendable {
 nonisolated struct LinearTaskOptions: Codable, Hashable, Sendable {
     var labelIDs: [String]?
     var priority: Int?
+    var includeVideo: Bool?
+    var redaction: ClipRedaction?
 }
 
 nonisolated enum LinearPriority: Int, CaseIterable, Identifiable, Sendable {

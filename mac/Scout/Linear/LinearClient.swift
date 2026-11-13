@@ -12,6 +12,8 @@ nonisolated enum LinearError: Error, Equatable, Sendable {
     case notFound
     case deletedRemotely
     case uploadFailed
+    case videoUploadFailed
+    case tooLarge
     case server(String)
 
     var message: String {
@@ -28,6 +30,8 @@ nonisolated enum LinearError: Error, Equatable, Sendable {
         case .notFound: "Linear couldn't find that."
         case .deletedRemotely: "This task's issue was deleted in Linear."
         case .uploadFailed: "An image couldn't be uploaded to Linear."
+        case .videoUploadFailed: "The video couldn't be uploaded to Linear."
+        case .tooLarge: "The video is too big for Linear."
         case .server(let message): message
         }
     }
@@ -59,7 +63,7 @@ nonisolated struct LinearOperation<Response: Decodable & Sendable>: Sendable {
 
 nonisolated protocol LinearAPI: Sendable {
     func perform<Response>(_ operation: LinearOperation<Response>, credential: LinearCredential) async throws(LinearError) -> Response
-    func upload(_ file: URL, to target: LinearUploadTarget) async throws(LinearError)
+    func upload(_ file: URL, to target: LinearUploadTarget, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws(LinearError)
 }
 
 nonisolated enum LinearValue: Encodable, Hashable, Sendable {
@@ -297,18 +301,30 @@ nonisolated struct LinearClient: LinearAPI {
         return try LinearResponse.decode(data, status: http.statusCode, rateLimitReset: http.value(forHTTPHeaderField: "X-RateLimit-Requests-Reset"))
     }
 
-    func upload(_ file: URL, to target: LinearUploadTarget) async throws(LinearError) {
+    func upload(_ file: URL, to target: LinearUploadTarget, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws(LinearError) {
         var request = URLRequest(url: target.uploadURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 600)
         request.httpMethod = "PUT"
         request.setValue(target.contentType, forHTTPHeaderField: "Content-Type")
         for (key, value) in target.headers { request.setValue(value, forHTTPHeaderField: key) }
         let response: URLResponse
         do {
-            (_, response) = try await Self.session.upload(for: request, fromFile: file)
+            (_, response) = try await Self.session.upload(for: request, fromFile: file, delegate: UploadProgress(report: progress))
         } catch {
             throw .offline
         }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw .uploadFailed }
+    }
+}
+
+nonisolated final class UploadProgress: NSObject, URLSessionTaskDelegate, Sendable {
+    let report: @Sendable (Int64, Int64) -> Void
+
+    init(report: @escaping @Sendable (Int64, Int64) -> Void) {
+        self.report = report
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        report(totalBytesSent, totalBytesExpectedToSend)
     }
 }
 

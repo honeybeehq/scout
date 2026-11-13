@@ -23,14 +23,21 @@ nonisolated struct FixtureLinearClient: LinearAPI {
         return try LinearResponse.decode(data, status: 200, rateLimitReset: nil)
     }
 
-    func upload(_ file: URL, to target: LinearUploadTarget) async throws(LinearError) {
-        guard let state else { throw .uploadFailed }
+    func upload(_ file: URL, to target: LinearUploadTarget, progress: @escaping @Sendable (Int64, Int64) -> Void) async throws(LinearError) {
+        guard let state, let data = try? Data(contentsOf: file) else { throw .uploadFailed }
         let uploads = state.appendingPathComponent("uploads", isDirectory: true)
         try? FileManager.default.createDirectory(at: uploads, withIntermediateDirectories: true)
         let destination = uploads.appendingPathComponent(target.uploadURL.lastPathComponent)
         try? FileManager.default.removeItem(at: destination)
-        do { try FileManager.default.copyItem(at: file, to: destination) } catch { throw .uploadFailed }
-        log(state, "PUT upload \(target.uploadURL.lastPathComponent)")
+        let seconds = target.contentType.hasPrefix("video/") ? environment["SCOUT_LINEAR_FIXTURE_UPLOAD_SECONDS"].flatMap(Double.init) ?? 0 : 0
+        let steps = seconds > 0 ? 20 : 1
+        let total = Int64(data.count)
+        for step in 1...steps {
+            if seconds > 0 { try? await Task.sleep(for: .seconds(seconds / Double(steps))) }
+            progress(total * Int64(step) / Int64(steps), total)
+        }
+        do { try data.write(to: destination) } catch { throw .uploadFailed }
+        log(state, "PUT upload \(target.uploadURL.lastPathComponent) \(target.contentType) \(data.count) bytes")
     }
 
     private func remote<Response>(_ operation: LinearOperation<Response>, state: URL) async throws(LinearError) -> Data? {
@@ -78,13 +85,34 @@ nonisolated struct FixtureLinearClient: LinearAPI {
             return reply(["issueCreate": ["success": true, "issue": issue]])
         case "fileUpload":
             let name = operation.variables["filename"]?.string ?? "file"
+            let contentType = operation.variables["contentType"]?.string ?? "?"
+            let size = operation.variables["size"].flatMap { if case .int(let value) = $0 { value } else { nil } } ?? 0
             let token = UUID().uuidString.lowercased()
-            log(state, "fileUpload(\(name))")
+            log(state, "fileUpload(\(name), \(contentType), \(size) bytes)")
+            if contentType.hasPrefix("video/"), let limit = environment["SCOUT_LINEAR_FIXTURE_MAX_VIDEO"].flatMap(Int.init), size > limit {
+                return reply(errors: "File too large: \(size) bytes exceeds the upload limit", code: "INVALID_INPUT")
+            }
             return reply(["fileUpload": ["success": true, "uploadFile": [
                 "uploadUrl": "https://storage.fixture.invalid/\(token)",
                 "assetUrl": "https://uploads.linear.app/fixture/\(token)/\(name)",
                 "headers": [["key": "x-goog-content-length-range", "value": "0,52428800"]],
             ]]])
+        case "attachmentCreate":
+            guard let input = operation.variables["input"]?.object else { throw .malformed }
+            let id = input["id"]?.string ?? UUID().uuidString.lowercased()
+            let issueID = input["issueId"]?.string ?? ""
+            log(state, "attachmentCreate(id: \(input["id"]?.string ?? "none"), issue: \(issueID), url: \(input["url"]?.string ?? ""), title: \(input["title"]?.string ?? ""))")
+            guard var issue = stored(issueID, in: issues) else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
+            var attachments = issue["attachments"] as? [[String: Any]] ?? []
+            if attachments.contains(where: { $0["id"] as? String == id }) {
+                return reply(errors: "Conflict: an entity with this id already exists", code: "INVALID_INPUT")
+            }
+            attachments.append(["id": id, "url": input["url"]?.string ?? "", "title": input["title"]?.string ?? "", "subtitle": input["subtitle"]?.string ?? ""])
+            issue["attachments"] = attachments
+            if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: issues.appendingPathComponent("\(issueID).json"))
+            }
+            return reply(["attachmentCreate": ["success": true, "attachment": ["id": id]]])
         case "searchIssues":
             let term = operation.variables["term"]?.string ?? ""
             log(state, "searchIssues(\(term))")

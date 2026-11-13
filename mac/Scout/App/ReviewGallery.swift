@@ -47,7 +47,7 @@ enum ReviewGallery {
             for scheme in DesignGallery.schemes {
                 NSApp.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
                 try? await Task.sleep(for: .milliseconds(80))
-                let preview = IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, imageCount: card.snippet.marks.count) {}
+                let preview = IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, outgoing: LinearSection.outgoing(card, dispatcher: model.dispatcher)) {}
                 render(preview.environment(model), scheme: scheme, to: directory.appendingPathComponent("review-\(name)-preview-\(scheme == .dark ? "dark" : "light").png"))
             }
         }

@@ -96,6 +96,11 @@ final class SnippetCard: Identifiable {
     var linearReceipt: LinearReceipt?
     var linearGeneration = 0
     var linearStep: LinearFiler.Step?
+    var preparedVideo: RenderedMedia?
+    var videoPreparation: (key: String, task: Task<RenderedMedia?, Never>)?
+    var isPreparingVideo = false
+    var videoFailed = false
+    var redactionSheet: RedactionSheet.Mode?
     var recorder: SegmentedScreenRecorder?
     var sessionVideo: ExportedClip?
     var sessionDisplays: CaptureDisplays?
@@ -111,6 +116,14 @@ final class SnippetCard: Identifiable {
         case .needsDestination, .held, .failed, .copiedInstead: true
         default: false
         }
+    }
+
+    var hasRecording: Bool {
+        recorder != nil || sessionVideo != nil
+    }
+
+    var clipRange: TimeRange {
+        TimeRange(start: max(0, snippet.range.start - 1), end: snippet.range.end + 1)
     }
 
     var transcript: String {

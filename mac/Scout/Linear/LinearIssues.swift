@@ -115,6 +115,22 @@ nonisolated extension LinearOperations {
         var fileUpload: Payload
     }
     struct SearchData: Decodable, Sendable { var searchIssues: LinearNodes<LinearIssue> }
+    struct AttachmentCreateData: Decodable, Sendable {
+        struct Attachment: Decodable, Sendable {
+            var id: String
+
+            init(from decoder: Decoder) throws {
+                id = try decoder.container(keyedBy: CodingKeys.self).remoteID(.id)
+            }
+
+            private enum CodingKeys: String, CodingKey { case id }
+        }
+        struct Payload: Decodable, Sendable {
+            var success: Bool
+            var attachment: Attachment?
+        }
+        var attachmentCreate: Payload
+    }
 
     static func issue(id: String) -> LinearOperation<IssueData> {
         LinearOperation(
@@ -142,6 +158,22 @@ nonisolated extension LinearOperations {
         )
     }
 
+    static func attachClip(id: String?, issueID: String, teamID: String, url: URL, title: String) -> LinearOperation<AttachmentCreateData> {
+        var input: [String: LinearValue] = [
+            "issueId": .string(issueID),
+            "url": .string(url.absoluteString),
+            "title": .string(title),
+            "subtitle": .string("Recorded with Scout"),
+        ]
+        if let id { input["id"] = .string(id) }
+        return LinearOperation(
+            name: "attachmentCreate",
+            kind: .mutation(teamID: teamID),
+            document: "mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { success attachment { id } } }",
+            variables: ["input": .object(input)]
+        )
+    }
+
     static func searchIssues(term: String, team: String) -> LinearOperation<SearchData> {
         LinearOperation(
             name: "searchIssues",
@@ -153,7 +185,15 @@ nonisolated extension LinearOperations {
 
 nonisolated enum LinearIdentity {
     static func issueID(workspaceID: String, key: String) -> String {
-        var bytes = Array(SHA256.hash(data: Data((workspaceID + "\n" + key).utf8)).prefix(16))
+        uuid(workspaceID + "\n" + key)
+    }
+
+    static func clipAttachmentID(workspaceID: String, key: String, contentHash: String) -> String {
+        uuid(workspaceID + "\n" + key + ":clip:" + contentHash)
+    }
+
+    private static func uuid(_ text: String) -> String {
+        var bytes = Array(SHA256.hash(data: Data(text.utf8)).prefix(16))
         bytes[6] = (bytes[6] & 0x0F) | 0x40
         bytes[8] = (bytes[8] & 0x3F) | 0x80
         let hex = bytes.map { String(format: "%02x", $0) }.joined()

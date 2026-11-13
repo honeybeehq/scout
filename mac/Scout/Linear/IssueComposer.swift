@@ -8,6 +8,12 @@ nonisolated struct IssueInput: Sendable {
         var url: String
     }
 
+    enum Clip: Sendable {
+        case none
+        case notIncluded
+        case included(url: String, duration: Double, hiddenParts: Int)
+    }
+
     var key: String
     var title: String
     var brief: TaskBrief?
@@ -18,6 +24,7 @@ nonisolated struct IssueInput: Sendable {
     var targets: [Target]
     var runtimeNotes: [String]
     var range: TimeRange
+    var clip: Clip = .none
     var pins: [Pin]
     var homeDirectory: String
 }
@@ -37,6 +44,13 @@ nonisolated enum IssueComposer {
             blocks.append(summary(brief))
         }
         blocks.append("### What was said\n" + quote(transcript(input)))
+        switch input.clip {
+        case .none: break
+        case .notIncluded: blocks.append("### Clip\n_Video not included._")
+        case .included(let url, let duration, let hidden):
+            let note = hidden == 0 ? "" : hidden == 1 ? " · 1 part hidden in Scout before upload" : " · \(hidden) parts hidden in Scout before upload"
+            blocks.append("### Clip\n[clip.mp4 · \(clock(duration))](\(url))\(note)")
+        }
         if !input.pins.isEmpty {
             blocks.append((["### Pins"] + input.pins.map { "![Pin \($0.number) · \(escaped($0.caption))](\($0.url))" }).joined(separator: "\n"))
         }
@@ -137,7 +151,7 @@ nonisolated enum IssueComposer {
         text.replacingOccurrences(of: "[", with: "(").replacingOccurrences(of: "]", with: ")").replacingOccurrences(of: "\n", with: " ")
     }
 
-    private static func clock(_ seconds: SessionTime) -> String {
+    static func clock(_ seconds: SessionTime) -> String {
         let total = Int(seconds.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
     }

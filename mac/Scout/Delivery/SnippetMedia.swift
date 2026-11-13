@@ -5,16 +5,35 @@ import ScoutCore
 import UniformTypeIdentifiers
 
 enum SnippetMedia {
-    static func attachments(for snippet: Snippet, recorder: SegmentedScreenRecorder, into directory: URL, clip includesClip: Bool = true) async -> [ComposedTask.Attachment] {
+    static func clip(for snippet: Snippet, recorder: SegmentedScreenRecorder, into directory: URL) async -> ExportedClip? {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return try? await recorder.exportClip(from: snippet.range.start, to: snippet.range.end, padding: 1.0, into: directory.appendingPathComponent("clip.mp4"))
+    }
+
+    static func clip(for snippet: Snippet, video: ExportedClip, into directory: URL) async -> ExportedClip? {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let start = max(0, snippet.range.start - 1 - video.range.start)
+        let end = min(video.range.duration, snippet.range.end + 1 - video.range.start)
+        let clipURL = directory.appendingPathComponent("clip.mp4")
+        try? FileManager.default.removeItem(at: clipURL)
+        guard end > start, let export = AVAssetExportSession(asset: AVURLAsset(url: video.url), presetName: AVAssetExportPresetPassthrough) else { return nil }
+        export.timeRange = CMTimeRange(start: CMTime(seconds: start, preferredTimescale: 600), end: CMTime(seconds: end, preferredTimescale: 600))
+        guard (try? await export.export(to: clipURL, as: .mp4)) != nil else { return nil }
+        return ExportedClip(url: clipURL, range: TimeRange(start: video.range.start + start, end: video.range.start + end))
+    }
+
+    static func attachments(for snippet: Snippet, recorder: SegmentedScreenRecorder, into directory: URL, clip includesClip: Bool = true, redaction: ClipRedaction? = nil) async -> [ComposedTask.Attachment] {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var attachments: [ComposedTask.Attachment] = []
-        if includesClip, let clip = try? await recorder.exportClip(from: snippet.range.start, to: snippet.range.end, padding: 1.0, into: directory.appendingPathComponent("clip.mp4")) {
+        if includesClip, let clip = await clip(for: snippet, recorder: recorder, into: directory) {
             attachments.append(.init(kind: .video, url: clip.url))
         }
         for (index, mark) in snippet.marks.enumerated() {
-            guard let display = recorder.displays?.display(at: mark.at), display.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)),
-                  let frame = await recorder.snapshot(at: mark.at)
+            guard redaction?.cuts(mark.at) != true,
+                  let display = recorder.displays?.display(at: mark.at), display.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)),
+                  let captured = await recorder.snapshot(at: mark.at)
             else { continue }
+            let frame = ClipRedactor.covered(captured, regions: redaction?.regions(at: mark.at) ?? [])
             let image = shot(frame, mark: mark, display: display)
             let url = directory.appendingPathComponent("pin-\(index + 1).png")
             if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }
@@ -22,26 +41,20 @@ enum SnippetMedia {
         return attachments
     }
 
-    static func attachments(for snippet: Snippet, video: ExportedClip, displays: CaptureDisplays?, into directory: URL, clip includesClip: Bool = true) async -> [ComposedTask.Attachment] {
+    static func attachments(for snippet: Snippet, video: ExportedClip, displays: CaptureDisplays?, into directory: URL, clip includesClip: Bool = true, redaction: ClipRedaction? = nil) async -> [ComposedTask.Attachment] {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var attachments: [ComposedTask.Attachment] = []
-        let asset = AVURLAsset(url: video.url)
-        let start = max(0, snippet.range.start - 1 - video.range.start)
-        let end = min(video.range.duration, snippet.range.end + 1 - video.range.start)
-        let clipURL = directory.appendingPathComponent("clip.mp4")
-        if includesClip { try? FileManager.default.removeItem(at: clipURL) }
-        if includesClip, end > start, let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) {
-            export.timeRange = CMTimeRange(start: CMTime(seconds: start, preferredTimescale: 600), end: CMTime(seconds: end, preferredTimescale: 600))
-            if (try? await export.export(to: clipURL, as: .mp4)) != nil {
-                attachments.append(.init(kind: .video, url: clipURL))
-            }
+        if includesClip, let clip = await clip(for: snippet, video: video, into: directory) {
+            attachments.append(.init(kind: .video, url: clip.url))
         }
-        let generator = AVAssetImageGenerator(asset: asset)
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: video.url))
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
         for (index, mark) in snippet.marks.enumerated() {
+            guard redaction?.cuts(mark.at) != true else { continue }
             let time = CMTime(seconds: max(0, mark.at - video.range.start), preferredTimescale: 600)
-            guard let frame = try? await generator.image(at: time).image else { continue }
+            guard let captured = try? await generator.image(at: time).image else { continue }
+            let frame = ClipRedactor.covered(captured, regions: redaction?.regions(at: mark.at) ?? [])
             let display = displays?.display(at: mark.at)
             let onDisplay = display.map { $0.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)) } ?? false
             let image = onDisplay ? display.map { shot(frame, mark: mark, display: $0) } ?? frame : display?.cropped(frame) ?? frame

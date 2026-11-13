@@ -466,6 +466,17 @@ private struct HandoffBar: View {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         StatusDot(tone: .negative, size: 6)
                         Text(message).lineLimit(2)
+                        if card.videoFailed, !card.isLocked {
+                            Spacer(minLength: 0)
+                            Button("File without video") {
+                                Task {
+                                    await model.dispatcher.fileWithoutVideo(card)
+                                    review.save()
+                                }
+                            }
+                            .buttonStyle(QuietButtonStyle())
+                            .padding(.vertical, -6)
+                        }
                         if card.linearReceipt?.status == .deletedRemotely {
                             Spacer(minLength: 0)
                             Button("File as new issue") {
@@ -536,9 +547,16 @@ private struct HandoffBar: View {
         switch step {
         case .checking: "Checking Linear…"
         case .uploading(let index, let count): "Uploading image \(index) of \(count)…"
+        case .uploadingVideo(let sent, let total): "Uploading video \(megabytes(sent)) / \(megabytes(total)) MB…"
         case .creating: "Creating issue…"
+        case .attaching: "Attaching the clip…"
         case .waiting(let until): "Linear asked Scout to slow down. Continues at \(until.formatted(date: .omitted, time: .shortened))."
         }
+    }
+
+    private static func megabytes(_ bytes: Int) -> String {
+        let value = Double(bytes) / 1_000_000
+        return value < 10 ? String(format: "%.1f", value) : String(Int(value.rounded()))
     }
 
     private func copy() {
