@@ -43,6 +43,14 @@ final class ScoutingSession {
     var onFirstFrame: ((TimeInterval) -> Void)?
 
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
+    var refineCard: ((SnippetCard, Snippet) -> Void)?
+    var transcriptionEngine: any TranscriptionEngine = AppleTranscriptionEngine()
+    private(set) var transcriptPass: TranscriptPass?
+
+    enum TranscriptPass {
+        case refined(FinalTranscript)
+        case keptLive(String)
+    }
     var onSnippetDiscarded: ((String) -> SnippetCard?)?
     private(set) var runtimeEvents: [RuntimeEvent] = []
 
@@ -60,6 +68,8 @@ final class ScoutingSession {
     private var ticker: Task<Void, Never>?
     private var sendNextClosedImmediately = false
     private var cuts: [SessionTime] = []
+    private var commandRanges: [TimeRange] = []
+    private var taskEdges: [SessionTime] = []
     private var startTask: Task<Void, Never>?
     private var recorderStart: Task<Void, Never>?
     private var stopRequested = false
@@ -90,6 +100,7 @@ final class ScoutingSession {
         captureLog = SignalLog(url: directory.appendingPathComponent("capture.jsonl"))
         segmenter = Segmenter(configuration: segmentation == .manual ? .manual : .default, idPrefix: "snippet-")
         transcriber = LiveTranscriber(clock: clock)
+        transcriber.audioURL = directory.appendingPathComponent(SessionAudioWriter.fileName)
         aim = AimController(clock: clock)
         walkthrough = producesWalkthrough ? WalkthroughRecorder(startedAt: clock.originDate) : nil
         follower = CaptureFollower(clock: clock)
@@ -111,11 +122,11 @@ final class ScoutingSession {
         }
     }
 
-    func end() async {
+    func end(refiningTranscript: Bool = true) async {
         guard !stopRequested else { return }
         stopRequested = true
         await startTask?.value
-        await teardown()
+        await teardown(refiningTranscript: refiningTranscript)
     }
 
     private func start() async {
@@ -177,7 +188,7 @@ final class ScoutingSession {
         }
     }
 
-    private func teardown() async {
+    private func teardown(refiningTranscript: Bool) async {
         ticker?.cancel()
         follower.stop()
         aim.stop()
@@ -189,10 +200,12 @@ final class ScoutingSession {
         contextTracker?.stop()
         pointerTracker?.stop()
         await transcriber.stop()
+        let secondPass = refiningTranscript ? startSecondPass() : nil
         await recorder?.stop()
         let end = clock.now
         ledger.extend(to: end)
         handle(segmenter.finish(at: end))
+        if let secondPass { apply(await secondPass.value) }
         log.close()
         captureLog.close()
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
@@ -323,8 +336,10 @@ final class ScoutingSession {
     private func hear(_ utterance: Utterance) {
         switch VoiceCommand.match(utterance.text) {
         case .discard:
+            commandRanges.append(utterance.range)
             ingest(.command(CommandSignal(at: utterance.range.end, command: .discardCurrent)))
         case .send:
+            commandRanges.append(utterance.range)
             sendNextClosedImmediately = openSnippet != nil
             ingest(.command(CommandSignal(at: utterance.range.end, command: .split)))
         case nil:
@@ -353,6 +368,7 @@ final class ScoutingSession {
             case .opened(let snippet), .updated(let snippet):
                 openSnippet = snippet
             case .closed(let snippet):
+                taskEdges += [snippet.range.start, snippet.range.end]
                 if openSnippet?.id == snippet.id { openSnippet = nil }
                 closedCount += 1
                 let immediate = sendNextClosedImmediately
@@ -368,6 +384,80 @@ final class ScoutingSession {
                 }
             }
         }
+    }
+}
+
+extension ScoutingSession {
+    nonisolated struct SecondPassResult: Sendable {
+        var transcript: EngineTranscript? = nil
+        var failure: String? = nil
+        var audioSeconds: Double
+        var elapsed: Double
+    }
+
+    static func secondPassLimit(forAudio seconds: Double) -> Double {
+        30 + seconds
+    }
+
+    private func startSecondPass() -> Task<SecondPassResult, Never>? {
+        guard let audio = transcriber.recordedAudio else {
+            transcriptPass = .keptLive("no session audio")
+            return nil
+        }
+        let locale = transcriber.localeIdentifier.map(Locale.init(identifier:)) ?? Locale.current
+        let request = TranscriptionRequest(audio: audio.url, locale: locale)
+        let engine = transcriptionEngine
+        let limit = Self.secondPassLimit(forAudio: audio.seconds)
+        return Task.detached(priority: .userInitiated) {
+            let started = Date()
+            let work = Task { try await engine.transcribe(request) }
+            let timer = Task {
+                try await Task.sleep(for: .seconds(limit))
+                work.cancel()
+            }
+            let outcome = await work.result
+            timer.cancel()
+            let elapsed = Date().timeIntervalSince(started)
+            switch outcome {
+            case .success(let transcript):
+                return SecondPassResult(transcript: transcript, audioSeconds: audio.seconds, elapsed: elapsed)
+            case .failure(let error):
+                let reason = error is CancellationError ? "timed out after \(Int(limit)) s" : error.localizedDescription
+                return SecondPassResult(failure: reason, audioSeconds: audio.seconds, elapsed: elapsed)
+            }
+        }
+    }
+
+    private func apply(_ result: SecondPassResult) {
+        guard let transcript = result.transcript else {
+            keepLive(result.failure ?? "no result", engine: transcriptionEngine.name)
+            return
+        }
+        let utterances = FinalTranscript.utterances(from: transcript.segments, droppingSpeechIn: commandRanges, splittingAt: cuts + taskEdges + discardedRanges.flatMap { [$0.start, $0.end] })
+        guard !utterances.isEmpty || ledger.utterances.isEmpty else {
+            keepLive("second pass heard no words", engine: transcript.engine)
+            return
+        }
+        let final = FinalTranscript(engine: transcript.engine, locale: transcript.locale, audioSeconds: result.audioSeconds, elapsedSeconds: result.elapsed, utterances: utterances)
+        do {
+            try final.write(to: directory)
+        } catch {
+            keepLive("couldn't save the transcript: \(error.localizedDescription)", engine: transcript.engine)
+            return
+        }
+        ledger.replaceUtterances(with: utterances)
+        walkthrough?.replaceTranscript(with: utterances, engine: transcript.engine)
+        for card in cards where !card.isLocked {
+            let snippet = card.snippet
+            refineCard?(card, ledger.snippet(id: snippet.id, range: snippet.range, closedBy: snippet.closedBy))
+        }
+        transcriptPass = .refined(final)
+        NSLog("[scout-transcript] second pass %@ (%@): %d utterances from %.1f s of audio in %.1f s", transcript.engine, transcript.locale ?? "?", utterances.count, result.audioSeconds, result.elapsed)
+    }
+
+    private func keepLive(_ reason: String, engine: String) {
+        transcriptPass = .keptLive(reason)
+        NSLog("[scout-transcript] kept the live transcript; %@ second pass failed: %@", engine, reason)
     }
 }
 

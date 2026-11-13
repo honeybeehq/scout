@@ -202,6 +202,7 @@ final class AppModel {
             }
         }
         session.transcriber.faultAfter = SimulationMode.analyzerFaultAfter
+        if SimulationMode.secondPassFails { session.transcriptionEngine = FailingTranscriptionEngine() }
         session.transcriber.onInputFinished = onInputFinished
         if result == .tasks { connectTasks(of: session) }
         onSessionCreated?(session)
@@ -255,6 +256,9 @@ final class AppModel {
             guard let self, let session else { return }
             session.adopt(dispatcher.accept(snippet, from: session, sendImmediately: immediate))
         }
+        session.refineCard = { [weak self] card, snippet in
+            self?.dispatcher.refine(card, to: snippet)
+        }
         session.onSnippetDiscarded = { [weak self, weak session] snippetID in
             guard let self, let card = session?.cards.first(where: { $0.snippet.id == snippetID }), !card.isLocked else { return nil }
             dispatcher.withdraw(card)
@@ -294,7 +298,7 @@ final class AppModel {
             dispatcher.withdraw(card)
         }
         stackChanged()
-        await session.end()
+        await session.end(refiningTranscript: false)
         session.walkthrough?.discard()
         Self.removeSessionFiles(at: session.directory)
     }
@@ -399,7 +403,9 @@ final class AppModel {
         let transcriber = session.transcriber
         let microphone = transcriber.microphoneSummary
         let failure: Walkthrough.TranscriptFailure?
-        if let failed = transcriber.failure, let reason = failed.microphone, let microphone {
+        if case .refined = session.transcriptPass, !session.ledger.utterances.isEmpty {
+            failure = nil
+        } else if let failed = transcriber.failure, let reason = failed.microphone, let microphone {
             failure = microphone.buffers == 0
                 ? Walkthrough.TranscriptFailure(reason: .noAudio, message: reason)
                 : Walkthrough.TranscriptFailure(reason: .micStopped, message: reason, t: failed.at.map(Walkthrough.milliseconds))

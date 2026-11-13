@@ -148,6 +148,10 @@ public struct WalkthroughBuilder: Sendable {
         }
     }
 
+    public mutating func replaceTranscript(with utterances: [Utterance]) {
+        ledger.replaceUtterances(with: utterances)
+    }
+
     public mutating func add(_ stroke: Stroke) -> FrameRequest? {
         strokes.append(stroke)
         ledger.extend(to: stroke.range.end)

@@ -31,6 +31,7 @@ final class WalkthroughRecorder {
     private var prepared = false
     private var finishing = false
     private(set) var failedFrames = 0
+    private var transcriptEngine = "SpeechAnalyzer"
 
     init(startedAt: Date, root: URL = WalkthroughBundle.defaultRoot()) {
         let id = WalkthroughBundle.newID(at: startedAt)
@@ -55,6 +56,12 @@ final class WalkthroughRecorder {
     func record(_ signal: Signal) {
         guard !finishing else { return }
         enqueue(builder.record(signal))
+    }
+
+    func replaceTranscript(with utterances: [Utterance], engine: String) {
+        guard !finishing else { return }
+        builder.replaceTranscript(with: utterances)
+        transcriptEngine = engine
     }
 
     func add(_ stroke: WalkthroughBuilder.Stroke) {
@@ -124,7 +131,7 @@ final class WalkthroughRecorder {
             transcript: sources.transcript,
             transcriptFailure: sources.transcriptFailure,
             language: sources.language,
-            transcriptEngine: "SpeechAnalyzer",
+            transcriptEngine: transcriptEngine,
             clip: exported,
             sourceFailed: sources.failed || (media != nil && exported == nil),
             microphone: sources.microphoneSummary

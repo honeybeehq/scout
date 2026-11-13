@@ -29,6 +29,11 @@ public struct SessionLedger: Codable, Hashable, Sendable {
         end = max(end, signal.time)
     }
 
+    public mutating func replaceUtterances(with replacement: [Utterance]) {
+        utterances = replacement.sorted { $0.range.start < $1.range.start }
+        end = max(end, utterances.map(\.range.end).max() ?? end)
+    }
+
     public mutating func extend(to time: SessionTime) {
         end = max(end, time)
     }

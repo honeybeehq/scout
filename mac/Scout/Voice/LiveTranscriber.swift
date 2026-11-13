@@ -36,6 +36,8 @@ final class LiveTranscriber {
     var onUtterance: ((Utterance) -> Void)?
     var inputFile: URL?
     var onInputFinished: (() -> Void)?
+    var audioURL: URL?
+    private(set) var recordedAudio: (url: URL, seconds: Double)?
 
     private let clock: SessionClock?
     private let preset: SpeechTranscriber.Preset
@@ -46,6 +48,7 @@ final class LiveTranscriber {
     private var analyzer: SpeechAnalyzer?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
     private var resultsTask: Task<Void, Never>?
+    private var audioWriter: SessionAudioWriter?
 
     init(clock: SessionClock? = nil) {
         self.clock = clock
@@ -87,7 +90,8 @@ final class LiveTranscriber {
             self.analyzer = analyzer
             consumeResults(of: transcriber)
 
-            let onBuffer = Self.feed(into: continuation, clock: clock, faultAfter: faultAfter, sound: sound)
+            if audioWriter == nil, let audioURL, let clock { audioWriter = SessionAudioWriter(url: audioURL, clock: clock) }
+            let onBuffer = Self.feed(into: continuation, clock: clock, faultAfter: faultAfter, sound: sound, audio: audioWriter)
             let onLevel: @Sendable (Float) -> Void = { [weak self] level in
                 Task { @MainActor in self?.level = level }
             }
@@ -134,6 +138,12 @@ final class LiveTranscriber {
         generation += 1
         await flush()
         await teardown()
+        if let audioWriter {
+            audioWriter.close()
+            let seconds = audioWriter.seconds
+            recordedAudio = seconds > 0 ? (audioWriter.url, seconds) : nil
+            self.audioWriter = nil
+        }
         phase = .idle
         level = 0
     }
@@ -156,11 +166,12 @@ final class LiveTranscriber {
         self.analyzer = nil
     }
 
-    nonisolated static func feed(into continuation: AsyncStream<AnalyzerInput>.Continuation, clock: SessionClock?, faultAfter: Double? = nil, sound: SoundMeter? = nil) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
+    nonisolated static func feed(into continuation: AsyncStream<AnalyzerInput>.Continuation, clock: SessionClock?, faultAfter: Double? = nil, sound: SoundMeter? = nil, audio: SessionAudioWriter? = nil) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
         let timeline = clock.map(AnalyzerTimeline.init)
         let fault = faultAfter.map(AnalyzerFault.init)
         return { buffer, time in
             sound?.measure(buffer)
+            audio?.append(buffer, at: time)
             if let input = fault?.input(after: buffer) { continuation.yield(input) }
             if let timeline, time.isHostTimeValid {
                 for input in timeline.inputs(for: buffer, at: time) { continuation.yield(input) }

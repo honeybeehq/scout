@@ -67,11 +67,13 @@ nonisolated enum ScoutPaths {
                     continue
                 }
                 Task.detached(priority: .background) { await removeFinishedMedia(of: folder) }
+                SessionAudioWriter.repair(folder.appendingPathComponent(SessionAudioWriter.fileName))
                 if age > mediaAge {
                     try? manager.removeItem(at: folder.appendingPathComponent("media"))
                 }
                 if age > videoAge {
                     try? manager.removeItem(at: folder.appendingPathComponent("session.mp4"))
+                    try? manager.removeItem(at: folder.appendingPathComponent(SessionAudioWriter.fileName))
                 }
             }
             if (try? manager.contentsOfDirectory(atPath: day.path))?.isEmpty == true {

@@ -48,6 +48,14 @@ final class Dispatcher {
         return card
     }
 
+    func refine(_ card: SnippetCard, to snippet: Snippet) {
+        guard !card.isLocked, card.snippet != snippet else { return }
+        let transcriptChanged = card.snippet.transcript != snippet.transcript
+        card.replaceSnippet(snippet)
+        if transcriptChanged { suggestTitle(for: card) }
+        onCardChanged?(card)
+    }
+
     func prepare(_ card: SnippetCard) {
         Task {
             await resolve(card)

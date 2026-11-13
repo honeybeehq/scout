@@ -58,6 +58,32 @@ enum SimulationMode {
         argument("simulate-mic").flatMap(SimulatedRoute.Scenario.init(rawValue:))
     }
 
+    static var secondPassFails: Bool {
+        ProcessInfo.processInfo.arguments.contains("--simulate-second-pass-failure")
+    }
+
+    static func secondPassReport(of session: ScoutingSession?) -> [String: Any] {
+        let audio = session?.transcriber.recordedAudio
+        var report: [String: Any] = ["audioSeconds": audio?.seconds ?? 0, "audioFile": audio?.url.lastPathComponent ?? ""]
+        switch session?.transcriptPass {
+        case .refined(let final):
+            report["outcome"] = "refined"
+            report["engine"] = final.engine
+            report["locale"] = final.locale ?? ""
+            report["elapsed"] = final.elapsedSeconds
+            report["utterances"] = final.utterances.count
+            report["words"] = final.utterances.reduce(0) { $0 + $1.words.count }
+            report["wordsWithinAudio"] = final.utterances.flatMap(\.words).allSatisfy { $0.range.start >= 0 && $0.range.end <= (audio?.seconds ?? 0) + 0.05 }
+        case .keptLive(let reason):
+            report["outcome"] = "keptLive"
+            report["reason"] = reason
+        case nil:
+            report["outcome"] = "none"
+        }
+        report["ledgerUtterances"] = session?.ledger.utterances.map(\.id) ?? []
+        return report
+    }
+
     static var reviewsEdits: Bool {
         ProcessInfo.processInfo.arguments.contains("--simulate-review")
     }
@@ -313,6 +339,8 @@ enum SimulationMode {
         }
         report["transcriptText"] = (try? String(contentsOf: done.directory.appendingPathComponent(WalkthroughBundle.textName), encoding: .utf8)) ?? ""
         report["pillDuringRecording"] = pillText
+        report["secondPass"] = secondPassReport(of: session)
+        report["transcriptEngine"] = done.walkthrough.transcript.engine ?? ""
         report["displays"] = done.walkthrough.capture.displays?.map { ["id": $0.id, "bounds": [$0.bounds.x, $0.bounds.y, $0.bounds.w, $0.bounds.h]] } ?? []
         report["counts"] = [
             "segments": done.walkthrough.transcript.segments.count,
@@ -907,6 +935,7 @@ enum SimulationMode {
         ]
         report["breaks"] = breakLog
         report["walkthrough"] = model.lastWalkthrough?.directory.path ?? ""
+        report["secondPass"] = secondPassReport(of: model.session)
         report.merge(extra) { $1 }
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: directory.appendingPathComponent("report.json"))
@@ -1046,5 +1075,17 @@ private extension Signal {
         case .clock(let time):
             return .clock(time + offset)
         }
+    }
+}
+
+nonisolated struct FailingTranscriptionEngine: TranscriptionEngine {
+    struct Failure: LocalizedError {
+        var errorDescription: String? { "simulated second-pass failure" }
+    }
+
+    let name = "simulated-failure"
+
+    func transcribe(_ request: TranscriptionRequest) async throws -> EngineTranscript {
+        throw Failure()
     }
 }

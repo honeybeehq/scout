@@ -115,6 +115,8 @@ nonisolated enum SessionLibrary {
         guard let text = try? String(contentsOf: directory.appendingPathComponent("signals.jsonl"), encoding: .utf8) else { return SessionLedger() }
         let decoder = JSONDecoder()
         let signals = text.split(separator: "\n").compactMap { try? decoder.decode(Signal.self, from: Data($0.utf8)) }
-        return SessionLedger(replaying: signals)
+        var ledger = SessionLedger(replaying: signals)
+        if let final = FinalTranscript.read(from: directory) { ledger.replaceUtterances(with: final.utterances) }
+        return ledger
     }
 }
