@@ -16,7 +16,12 @@ nonisolated struct EngineTranscript: Sendable {
 
 nonisolated protocol TranscriptionEngine: Sendable {
     var name: String { get }
+    func prepare() async throws
     func transcribe(_ request: TranscriptionRequest) async throws -> EngineTranscript
+}
+
+extension TranscriptionEngine {
+    func prepare() async throws {}
 }
 
 nonisolated struct AppleTranscriptionEngine: TranscriptionEngine {

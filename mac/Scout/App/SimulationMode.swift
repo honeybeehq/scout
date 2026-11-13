@@ -62,6 +62,22 @@ enum SimulationMode {
         ProcessInfo.processInfo.arguments.contains("--simulate-second-pass-failure")
     }
 
+    static var whisperFails: Bool {
+        ProcessInfo.processInfo.arguments.contains("--simulate-whisper-failure")
+    }
+
+    static var whisperDownloads: Bool {
+        ProcessInfo.processInfo.arguments.contains("--whisper-download")
+    }
+
+    static var whisperModelFolder: URL? {
+        argument("whisper-model").map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    static var whisperTokenizerFolder: URL? {
+        argument("whisper-tokenizer").map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
     static func secondPassReport(of session: ScoutingSession?) -> [String: Any] {
         let audio = session?.transcriber.recordedAudio
         var report: [String: Any] = ["audioSeconds": audio?.seconds ?? 0, "audioFile": audio?.url.lastPathComponent ?? ""]
@@ -80,6 +96,7 @@ enum SimulationMode {
         case nil:
             report["outcome"] = "none"
         }
+        report["enginesTried"] = session?.secondPassFailures ?? []
         report["ledgerUtterances"] = session?.ledger.utterances.map(\.id) ?? []
         return report
     }
@@ -1085,7 +1102,7 @@ nonisolated struct FailingTranscriptionEngine: TranscriptionEngine {
         var errorDescription: String? { "simulated second-pass failure" }
     }
 
-    let name = "simulated-failure"
+    var name = "simulated-failure"
 
     func transcribe(_ request: TranscriptionRequest) async throws -> EngineTranscript {
         throw Failure()

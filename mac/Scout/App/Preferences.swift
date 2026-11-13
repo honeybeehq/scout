@@ -99,6 +99,32 @@ enum UISize: String, CaseIterable, Identifiable {
     }
 }
 
+enum TranscriptionEngineChoice: String, CaseIterable, Identifiable {
+    case apple
+    case whisper
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .apple: "Built-in Apple transcriber"
+        case .whisper: WhisperPins.displayName
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .apple: "Transcribes live on this Mac with Apple's speech recognizer."
+        case .whisper: "Transcribes the whole recording again on this Mac with Whisper once you stop, for better names and terms. Needs a one-time download of about 650 MB."
+        }
+    }
+
+    static var requested: TranscriptionEngineChoice? {
+        let prefix = "--transcription-engine="
+        return ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.flatMap { TranscriptionEngineChoice(rawValue: String($0.dropFirst(prefix.count))) }
+    }
+}
+
 @Observable
 final class Preferences {
     private let defaults = UserDefaults.standard
@@ -138,6 +164,10 @@ final class Preferences {
         }
     }
 
+    var transcriptionEngine: TranscriptionEngineChoice {
+        didSet { defaults.set(transcriptionEngine.rawValue, forKey: "voice.engine") }
+    }
+
     static let agents = ["claude", "codex", "grok", "kimi"]
 
     init() {
@@ -150,6 +180,7 @@ final class Preferences {
             "review.opening": ReviewOpening.whenNeeded.rawValue,
             "appearance.uiSize": UISize.standard.rawValue,
             "appearance.colorMode": ColorMode.system.rawValue,
+            "voice.engine": TranscriptionEngineChoice.apple.rawValue,
         ])
         autoSend = defaults.bool(forKey: "delivery.autoSend")
         autoSendDelay = defaults.double(forKey: "delivery.autoSendDelay")
@@ -159,6 +190,7 @@ final class Preferences {
         reviewOpening = ReviewOpening(rawValue: defaults.string(forKey: "review.opening") ?? "") ?? .whenNeeded
         uiSize = UISize.requested ?? UISize(rawValue: defaults.string(forKey: "appearance.uiSize") ?? "") ?? .standard
         colorMode = ColorMode.requested ?? ColorMode(rawValue: defaults.string(forKey: "appearance.colorMode") ?? "") ?? .system
+        transcriptionEngine = TranscriptionEngineChoice.requested ?? TranscriptionEngineChoice(rawValue: defaults.string(forKey: "voice.engine") ?? "") ?? .apple
         NSApp?.appearance = colorMode.appearance
     }
 }

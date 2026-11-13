@@ -21,6 +21,7 @@ final class AppModel {
     private(set) var pickerTimings: [String: Double] = [:]
     @ObservationIgnored private var finishPressedAt: ContinuousClock.Instant?
     let preferences = Preferences()
+    let whisperModels = WhisperModelStore(folder: SimulationMode.whisperModelFolder ?? WhisperModelStore.installFolder(under: ScoutPaths.support), tokenizerFolder: SimulationMode.whisperTokenizerFolder)
     let linear: LinearAccount
     private(set) var session: ScoutingSession?
     private(set) var lastWalkthrough: FinishedWalkthrough?
@@ -84,6 +85,8 @@ final class AppModel {
         dispatcher.dryRun = SimulationMode.isDryRun
         dispatcher.onCardChanged = { [weak self] card in self?.cardChanged(card) }
         if !Self.rendersOnly { bridge.start() }
+        watchTranscriptionEngine()
+        if SimulationMode.whisperDownloads { whisperModels.download() }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             hud.prepare(model: self)
@@ -206,7 +209,7 @@ final class AppModel {
             }
         }
         session.transcriber.faultAfter = SimulationMode.analyzerFaultAfter
-        if SimulationMode.secondPassFails { session.transcriptionEngine = FailingTranscriptionEngine() }
+        configureTranscriptionEngine(of: session)
         session.transcriber.onInputFinished = onInputFinished
         if result == .tasks { connectTasks(of: session) }
         onSessionCreated?(session)
@@ -245,6 +248,33 @@ final class AppModel {
         session.begin()
         if result == .walkthrough, boundTarget == nil {
             Task { await prefetchTargets() }
+        }
+    }
+
+    private func configureTranscriptionEngine(of session: ScoutingSession) {
+        if SimulationMode.secondPassFails {
+            session.transcriptionEngine = FailingTranscriptionEngine()
+            return
+        }
+        if SimulationMode.whisperFails {
+            session.transcriptionEngine = FailingTranscriptionEngine(name: "simulated-whisper-failure")
+            session.fallbackEngine = AppleTranscriptionEngine()
+            return
+        }
+        guard preferences.transcriptionEngine == .whisper else { return }
+        if let engine = whisperModels.readyEngine {
+            session.transcriptionEngine = engine
+            session.fallbackEngine = AppleTranscriptionEngine()
+        } else {
+            NSLog("[scout-transcript] Whisper is selected but the model is %@; using the Apple pass", whisperModels.state.summary)
+        }
+    }
+
+    private func watchTranscriptionEngine() {
+        withObservationTracking {
+            if preferences.transcriptionEngine == .whisper { whisperModels.warmUp() }
+        } onChange: {
+            Task { @MainActor [weak self] in self?.watchTranscriptionEngine() }
         }
     }
 

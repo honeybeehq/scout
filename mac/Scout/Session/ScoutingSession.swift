@@ -45,7 +45,9 @@ final class ScoutingSession {
     var onSnippetClosed: ((Snippet, _ sendImmediately: Bool) -> Void)?
     var refineCard: ((SnippetCard, Snippet) -> Void)?
     var transcriptionEngine: any TranscriptionEngine = AppleTranscriptionEngine()
+    var fallbackEngine: (any TranscriptionEngine)?
     private(set) var transcriptPass: TranscriptPass?
+    private(set) var secondPassFailures: [String] = []
 
     enum TranscriptPass {
         case refined(FinalTranscript)
@@ -390,14 +392,21 @@ final class ScoutingSession {
 extension ScoutingSession {
     nonisolated struct SecondPassResult: Sendable {
         var transcript: EngineTranscript? = nil
-        var failure: String? = nil
+        var failures: [String] = []
         var audioSeconds: Double
         var elapsed: Double
+    }
+
+    nonisolated struct SecondPassTimeout: LocalizedError {
+        var seconds: Double
+        var errorDescription: String? { "timed out after \(Int(seconds)) s" }
     }
 
     static func secondPassLimit(forAudio seconds: Double) -> Double {
         30 + seconds
     }
+
+    nonisolated static let prepareLimit: Double = 240
 
     private func startSecondPass() -> Task<SecondPassResult, Never>? {
         guard let audio = transcriber.recordedAudio else {
@@ -406,31 +415,51 @@ extension ScoutingSession {
         }
         let locale = transcriber.localeIdentifier.map(Locale.init(identifier:)) ?? Locale.current
         let request = TranscriptionRequest(audio: audio.url, locale: locale)
-        let engine = transcriptionEngine
+        let engines = [transcriptionEngine] + (fallbackEngine.map { [$0] } ?? [])
         let limit = Self.secondPassLimit(forAudio: audio.seconds)
         return Task.detached(priority: .userInitiated) {
             let started = Date()
-            let work = Task { try await engine.transcribe(request) }
-            let timer = Task {
-                try await Task.sleep(for: .seconds(limit))
-                work.cancel()
+            var failures: [String] = []
+            for engine in engines {
+                do {
+                    let transcript = try await Self.run(engine, request, limit: limit)
+                    return SecondPassResult(transcript: transcript, failures: failures, audioSeconds: audio.seconds, elapsed: Date().timeIntervalSince(started))
+                } catch {
+                    failures.append("\(engine.name): \(error.localizedDescription)")
+                    NSLog("[scout-transcript] %@ second pass failed: %@", engine.name, error.localizedDescription)
+                }
             }
-            let outcome = await work.result
-            timer.cancel()
-            let elapsed = Date().timeIntervalSince(started)
-            switch outcome {
-            case .success(let transcript):
-                return SecondPassResult(transcript: transcript, audioSeconds: audio.seconds, elapsed: elapsed)
-            case .failure(let error):
-                let reason = error is CancellationError ? "timed out after \(Int(limit)) s" : error.localizedDescription
-                return SecondPassResult(failure: reason, audioSeconds: audio.seconds, elapsed: elapsed)
+            return SecondPassResult(failures: failures, audioSeconds: audio.seconds, elapsed: Date().timeIntervalSince(started))
+        }
+    }
+
+    nonisolated private static func run(_ engine: any TranscriptionEngine, _ request: TranscriptionRequest, limit: Double) async throws -> EngineTranscript {
+        try await withTimeout(prepareLimit) { try await engine.prepare() }
+        return try await withTimeout(limit) { try await engine.transcribe(request) }
+    }
+
+    nonisolated private static func withTimeout<T: Sendable>(_ seconds: Double, _ body: @escaping @Sendable () async throws -> T) async throws -> T {
+        let work = Task { try await body() }
+        let timer = Task {
+            try await Task.sleep(for: .seconds(seconds))
+            work.cancel()
+        }
+        defer { timer.cancel() }
+        return try await withTaskCancellationHandler {
+            do {
+                return try await work.value
+            } catch is CancellationError {
+                throw SecondPassTimeout(seconds: seconds)
             }
+        } onCancel: {
+            work.cancel()
         }
     }
 
     private func apply(_ result: SecondPassResult) {
+        secondPassFailures = result.failures
         guard let transcript = result.transcript else {
-            keepLive(result.failure ?? "no result", engine: transcriptionEngine.name)
+            keepLive(result.failures.isEmpty ? "no result" : result.failures.joined(separator: "; "), engine: transcriptionEngine.name)
             return
         }
         let utterances = FinalTranscript.utterances(from: transcript.segments, droppingSpeechIn: commandRanges, splittingAt: cuts + FinalTranscript.gaps(between: closedRanges + discardedRanges))
@@ -452,7 +481,7 @@ extension ScoutingSession {
             refineCard?(card, ledger.snippet(id: snippet.id, range: snippet.range, closedBy: snippet.closedBy))
         }
         transcriptPass = .refined(final)
-        NSLog("[scout-transcript] second pass %@ (%@): %d utterances from %.1f s of audio in %.1f s", transcript.engine, transcript.locale ?? "?", utterances.count, result.audioSeconds, result.elapsed)
+        NSLog("[scout-transcript] final transcript by %@ (%@): %d utterances from %.1f s of audio in %.1f s%@", transcript.engine, transcript.locale ?? "?", utterances.count, result.audioSeconds, result.elapsed, result.failures.isEmpty ? "" : "; after " + result.failures.joined(separator: "; "))
     }
 
     private func keepLive(_ reason: String, engine: String) {
