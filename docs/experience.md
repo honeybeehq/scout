@@ -20,7 +20,7 @@ Scout is a menu bar app (`LSUIElement`). It becomes a regular app with a Dock ic
 
 ## Onboarding
 
-Onboarding is six steps. Every step can be revisited, and progress is saved, so a relaunch (which Screen Recording requires) returns to the same step.
+Onboarding is seven steps. Every step can be revisited, and progress is saved, so a relaunch (which Screen Recording requires) returns to the same step.
 
 1. **Welcome.** The Scout lens lights up in three steps. One sentence explains the product, with one button: *Set up Scout*. A privacy line under it: "Nothing leaves this Mac until you send it."
 2. **Access.** Three permission rows: Screen Recording, Microphone, Accessibility. Each row shows its live state and one action:
@@ -30,14 +30,15 @@ Onboarding is six steps. Every step can be revisited, and progress is saved, so 
    - Screen Recording only takes effect after a relaunch. When the user returns from Settings without the grant showing, the row offers *Relaunch*. Scout quits, reopens, and resumes on this step.
    - The Scout lens on the left brightens one step per granted permission. With all three granted, the mark pulses and *Continue* turns on. *Skip for now* is always available so nobody gets stuck.
 3. **Voice.** Scout starts listening immediately. If needed it first downloads the on-device speech model, showing progress. The user's words appear large as they speak: finalized words in white, words still being decided in grey. After four words: "Scout hears you."
-4. **Point.** A practice page (a fake checkout form) teaches aiming. Holding `⌥` highlights the element under the pointer with its role and label. Clicking pins it; an accent marker drops with a ripple, and the pin appears in a list with its (sample) source location. The same step shows the global shortcut and lets the user change it.
-5. **Agents.** Scout checks for hive and Apiary live and shows the most recently active sessions. The user picks where tasks go:
+4. **Transcriber.** Two cards, side by side: *Built-in Apple transcriber* (ready now, nothing to download) and *Whisper large-v3-turbo, on device* (about 650 MB download, shown before anything starts). *Use Apple* keeps Apple and moves on. *Download and install* selects Whisper and starts the download; nothing downloads without that click. The Whisper card then shows progress with *Cancel*, the file check, and *Preparing model…* with a running timer while the Neural Engine compiles it (about 2 minutes the first time). *Continue* is always available: the download and preparation keep going in the background. A cancelled download keeps its part and offers *Resume download*; a failure shows the reason and *Try again*.
+5. **Point.** A practice page (a fake checkout form) teaches aiming. Holding `⌥` highlights the element under the pointer with its role and label. Clicking pins it; an accent marker drops with a ripple, and the pin appears in a list with its (sample) source location. The same step shows the global shortcut and lets the user change it.
+6. **Agents.** Scout checks for hive and Apiary live and shows the most recently active sessions. The user picks where tasks go:
    - **Match project** (default): send to the session already working in the app's repo, or start one.
    - **New session**: start a fresh session for every task.
    - **Ask me**: choose a session per task.
 
    Without hive, tasks go to the clipboard and a folder.
-6. **Ready.** The complete mark with expanding rings, the shortcut as large keycaps, an *Open at login* switch, and *Start using Scout*. Closing the window switches Scout back to a menu bar app.
+7. **Ready.** The complete mark with expanding rings, the shortcut as large keycaps, an *Open at login* switch, and *Start using Scout*. Closing the window switches Scout back to a menu bar app.
 
 ## Scouting
 
@@ -170,7 +171,7 @@ The attachment lines follow Apiary's convention, so the task renders the same in
 ## Settings
 
 - **General:** interface size (Small, Default, Large, Extra large; scales every Scout window, the pill and the stack, live), shortcut, aim key (`⌥` by default, or `fn`), open at login, appearance (System, Light, Dark).
-- **Voice:** language (defaults to the system language, falls back to English), input device, voice commands on/off.
+- **Voice:** the transcriber (*Apple* or *Whisper*; Apple always shows the live words, Whisper writes the transcript again after you stop, and Scout uses Apple until the Whisper model is ready). The Whisper model row shows its state and size: *Download* (about 650 MB), progress with *Cancel*, *Paused at N of 649 MB* with *Resume* and *Remove*, the file check, *Preparing model…* with a timer, *Installed · N MB on disk* with *Remove* (asks first), and a failure with its reason and *Try again*. Downloading selects Whisper; removing the model switches back to Apple.
 - **Agents:** routing mode, default agent for new sessions (claude, codex, …), auto-send and its delay, project overrides (app or URL pattern → repo).
 - **Privacy:** which attachments to include (clip, pin screenshots, full frames), apps never to capture (password managers are excluded by default), redaction of on-screen text in screenshots.
 - **Linear:**

@@ -55,7 +55,7 @@ Rules:
 |---|---|---|
 | `App/` | `ScoutApp` scenes, `AppModel` root state, preferences, settings, snapshot and simulation modes | M0–M1 |
 | `Design/` | Palette, type, motion, mark, aurora backdrop, shared components | M0 |
-| `Onboarding/` | Six-step onboarding and its persisted progress | M0 |
+| `Onboarding/` | Seven-step onboarding and its persisted progress | M0 |
 | `Permissions/` | Live permission states, requests, the System Settings guide, relaunch | M0 |
 | `Voice/` | Microphone (or audio file) capture and live on-device transcription with word timings | M1 |
 | `Integrations/` | hive socket client, Apiary detection and bridge client (`ApiaryBridge`), routing preference | M1, M7 |
@@ -127,6 +127,6 @@ Signing matters for TCC. Development builds are signed with the Apple Developmen
 
 - `swift build && swift run scout-segment --check Fixtures/sessions` checks the breakpoint engine against its fixtures.
 - `script/build_and_run.sh` builds, signs, stages and launches the app. Flags: `--build-only`, and app arguments such as `--reset-onboarding` and `--onboarding-step=<name>`.
-- `open -n ~/Applications/Scout.app --args --reset-onboarding --snapshot-dir=<dir>` walks every onboarding step and writes a PNG of each, then quits. Add `--settings-pane=general|agents|sdks` to capture a Settings pane instead. Pass values with `=`: a separate path argument is treated as a document to open, and SwiftUI then skips the default window.
+- `open -n ~/Applications/Scout.app --args --reset-onboarding --snapshot-dir=<dir>` walks every onboarding step and writes a PNG of each, then quits. Add `--settings-pane=general|voice|agents|linear|sdks` to capture a Settings pane instead. Pass values with `=`: a separate path argument is treated as a document to open, and SwiftUI then skips the default window.
 - `open -n ~/Applications/Scout.app --args --simulate-session=<audio file> --dry-run-delivery --simulate-output=<dir>` runs a real scouting session with the audio file in place of the microphone (context, pointer and aim still run live), snapshots the pill and stack, and writes `report.json` with every task, its cut reasons and its destination. `--dry-run-delivery` writes `message.txt` into each snippet folder instead of sending. Make narration with pauses using `say -o narration.aiff "First note. [[slnc 2500]] Next thing, …"`.
 - `Scout.app/Contents/MacOS/Scout --capture-ux-demo=<dir> --capture-ux-audio=<audio file> --dry-run-delivery` opens two throwaway test windows and drives the capture flow through the same handlers the hotkey and event tap use: start, follow between panes and windows, the keep-both suggestion, ⌃⌥E three times, ⌃⌥⇧E, a pin, a stroke, a second pin and finish. It writes `report.json` with every interaction timing, the capture timeline and the pins, then quits. Add `--capture-ux-video` to also write `flow.mp4`, composed from Scout's own windows (no Screen Recording needed). Timings from a video run are slower, because frames are captured while it runs.

@@ -7,6 +7,7 @@ final class OnboardingModel {
         case welcome
         case access
         case voice
+        case transcriber
         case point
         case connect
         case ready
@@ -18,6 +19,7 @@ final class OnboardingModel {
             case .welcome: "Welcome"
             case .access: "Access"
             case .voice: "Voice"
+            case .transcriber: "Transcriber"
             case .point: "Point"
             case .connect: "Agents"
             case .ready: "Ready"

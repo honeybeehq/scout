@@ -59,7 +59,7 @@ final class AppModel {
     private var hotkey: GlobalHotkey?
 
     static var rendersOnly: Bool {
-        PanelGallery.directory != nil || ReviewGallery.directory != nil
+        PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil
     }
 
     private static let shortcutKey = "shortcut.startScouting"
@@ -77,6 +77,10 @@ final class AppModel {
         }
         if let directory = PanelGallery.directory {
             Task { await PanelGallery.run(model: self, into: directory) }
+            return
+        }
+        if let directory = EngineGallery.directory {
+            Task { await EngineGallery.run(model: self, into: directory) }
             return
         }
         let hotkey = GlobalHotkey { [weak self] in self?.toggleScouting(input: GlobalHotkey.lastPressTime) }

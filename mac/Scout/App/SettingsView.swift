@@ -4,11 +4,13 @@ import SwiftUI
 
 struct SettingsView: View {
     enum Pane: String, CaseIterable {
-        case general, agents, linear, sdks
+        case general, voice, agents, linear, sdks
     }
 
     @Environment(AppModel.self) private var model
     @State private var pane: Pane
+
+    static let size = CGSize(width: 620, height: 620)
 
     init(pane: Pane? = nil) {
         _pane = State(initialValue: pane ?? SettingsView.requestedPane ?? .general)
@@ -38,6 +40,7 @@ struct SettingsView: View {
             Group {
                 switch pane {
                 case .general: GeneralSettings()
+                case .voice: VoiceSettings()
                 case .agents: AgentSettings()
                 case .linear: LinearSettings(scrollAnchor: SnapshotMode.linearScrollAnchor)
                 case .sdks: SDKSettings()
@@ -45,7 +48,7 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 560, height: 620)
+        .frame(width: Self.size.width, height: Self.size.height)
         .background(Palette.canvas)
         .scaledToUISize()
     }
@@ -55,6 +58,7 @@ extension SettingsView.Pane {
     var title: String {
         switch self {
         case .general: "General"
+        case .voice: "Voice"
         case .agents: "Agents"
         case .linear: "Linear"
         case .sdks: "SDKs"
@@ -64,6 +68,7 @@ extension SettingsView.Pane {
     var symbol: String {
         switch self {
         case .general: "gearshape.fill"
+        case .voice: "waveform"
         case .agents: "arrow.turn.down.right"
         case .linear: "checklist"
         case .sdks: "chevron.left.forwardslash.chevron.right"

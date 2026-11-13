@@ -53,6 +53,7 @@ struct OnboardingView: View {
         case .welcome: WelcomeStep()
         case .access: AccessStep()
         case .voice: VoiceStep()
+        case .transcriber: TranscriberStep()
         case .point: PointStep()
         case .connect: ConnectStep()
         case .ready: ReadyStep(onFinish: finish)
