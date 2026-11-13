@@ -9,6 +9,11 @@ team_id="${SCOUT_TEAM_ID:-4QK8JBAU4V}"
 notary_profile="${SCOUT_NOTARY_PROFILE:-apiary-notary}"
 keychain="${SCOUT_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 sparkle_sign_update="${SCOUT_SPARKLE_SIGN_UPDATE:-}"
+sparkle_key_command="${SCOUT_SPARKLE_KEY_COMMAND:-}"
+sparkle_key_account="${SCOUT_SPARKLE_KEY_ACCOUNT:-ed25519}"
+release_base_url="${SCOUT_RELEASE_BASE_URL:-}"
+previous_appcast="${SCOUT_PREVIOUS_APPCAST:-}"
+minimum_system_version="26.0"
 version=""
 build_number=""
 dry_run=false
@@ -19,14 +24,21 @@ usage() {
 Usage: script/release.sh --version X.Y.Z [--build N] [--no-bump] [--dry-run]
 
 Builds Release, signs with Developer ID and the hardened runtime, notarizes and
-staples the app, packages and notarizes a DMG, and writes the update archive.
+staples the app, packages and notarizes a DMG, writes the update archive, signs it
+with Sparkle's EdDSA key and writes appcast.xml. Sparkle is verified against
+mac/Sparkle.expected (script/verify-sparkle.sh) before anything is built.
 Output goes to build/release/<version>/. Nothing is installed, opened or published.
 
 Environment:
   SCOUT_SIGN_IDENTITY        default: $identity
   SCOUT_NOTARY_PROFILE       default: $notary_profile
   SCOUT_KEYCHAIN             default: $keychain
-  SCOUT_SPARKLE_SIGN_UPDATE  path to Sparkle's sign_update; empty skips the EdDSA step
+  SCOUT_RELEASE_BASE_URL     https URL the update zip is downloaded from; {version} is replaced
+  SCOUT_SPARKLE_KEY_COMMAND  command that prints the EdDSA private key (e.g. a Hem read);
+                             empty uses the login keychain, as Sparkle does by default
+  SCOUT_SPARKLE_KEY_ACCOUNT  keychain account of the EdDSA key, default: $sparkle_key_account
+  SCOUT_SPARKLE_SIGN_UPDATE  default: sign_update from the verified Sparkle artifact
+  SCOUT_PREVIOUS_APPCAST     appcast.xml of the last release; its items are kept below the new one
 EOF
 }
 
@@ -114,12 +126,12 @@ notarize() {
 sign_nested() {
   if [[ "$dry_run" == true ]]; then
     echo "    for each nested bundle or Mach-O under $app/Contents/{Frameworks,XPCServices,Helpers,PlugIns}, deepest first:"
-    run codesign --force --timestamp --options runtime --sign "$identity" "<nested-code>"
+    run codesign --force --timestamp --options runtime --preserve-metadata=entitlements --sign "$identity" "<nested-code>"
     return
   fi
   local nested
   while IFS= read -r nested; do
-    codesign --force --timestamp --options runtime --sign "$identity" "$nested"
+    codesign --force --timestamp --options runtime --preserve-metadata=entitlements --sign "$identity" "$nested"
   done < <(
     find "$app/Contents" -depth \
       \( -name '*.framework' -o -name '*.xpc' -o -name '*.app' -o -name '*.appex' -o -name '*.dylib' \
@@ -129,12 +141,92 @@ sign_nested() {
   )
 }
 
-sparkle_sign_archive() {
-  if [[ -z "$sparkle_sign_update" ]]; then
-    echo "    Sparkle hook: SCOUT_SPARKLE_SIGN_UPDATE is unset, so the EdDSA signature and appcast entry are skipped."
+project_setting() {
+  sed -n "s/^ *$1: *\"\{0,1\}\([^\"]*\)\"\{0,1\} *\$/\1/p" "$project_yml" | head -n 1
+}
+
+sparkle_tool() {
+  if [[ -n "$sparkle_sign_update" && "$1" == sign_update ]]; then
+    echo "$sparkle_sign_update"
     return
   fi
-  run_to "$out/Scout-$version.zip.eddsa" "$sparkle_sign_update" "$update_zip"
+  if [[ "$dry_run" == true ]]; then
+    echo "$derived/SourcePackages/artifacts/<sparkle>/bin/$1"
+    return
+  fi
+  local tool
+  tool="$(find "$derived/SourcePackages/artifacts" -type f -name "$1" -path '*/bin/*' -print | head -n 1)"
+  [[ -n "$tool" ]] || { echo "Sparkle's $1 not found under $derived/SourcePackages/artifacts" >&2; exit 1; }
+  echo "$tool"
+}
+
+sparkle_sign_archive() {
+  local tool signature_file="$out/Scout-$version.zip.eddsa"
+  tool="$(sparkle_tool sign_update)"
+  if [[ -n "$sparkle_key_command" ]]; then
+    if [[ "$dry_run" == true ]]; then
+      echo "    \$ <SCOUT_SPARKLE_KEY_COMMAND> | $(printf '%q' "$tool") --ed-key-file - $(printf '%q' "$update_zip") > $(printf '%q' "$signature_file")"
+      return
+    fi
+    bash -c "$sparkle_key_command" | "$tool" --ed-key-file - "$update_zip" > "$signature_file"
+  else
+    run_to "$signature_file" "$tool" --account "$sparkle_key_account" "$update_zip"
+  fi
+}
+
+write_appcast() {
+  local appcast="$out/appcast.xml"
+  local url="${release_base_url//\{version\}/$version}"
+  url="${url%/}/Scout-$version.zip"
+  if [[ "$dry_run" == true ]]; then
+    echo "    read sparkle:edSignature and length from $out/Scout-$version.zip.eddsa"
+    echo "    write $appcast:"
+    echo "      item $version (build $build_number), minimumSystemVersion $minimum_system_version"
+    echo "      enclosure $url"
+    if [[ -n "$previous_appcast" ]]; then
+      echo "      then the items of $previous_appcast"
+    fi
+    run xmllint --noout "$appcast"
+    return
+  fi
+  local signed ed_signature length
+  signed="$(cat "$out/Scout-$version.zip.eddsa")"
+  ed_signature="$(printf '%s' "$signed" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')"
+  length="$(printf '%s' "$signed" | sed -n 's/.*length="\([0-9]*\)".*/\1/p')"
+  [[ -n "$ed_signature" && -n "$length" ]] || { echo "sign_update gave no signature: $signed" >&2; exit 1; }
+  [[ "$length" == "$(stat -f %z "$update_zip")" ]] || { echo "sign_update length $length does not match $update_zip" >&2; exit 1; }
+  local previous_items=""
+  if [[ -n "$previous_appcast" ]]; then
+    if grep -q "<sparkle:version>$build_number</sparkle:version>" "$previous_appcast"; then
+      echo "$previous_appcast already has build $build_number" >&2
+      exit 1
+    fi
+    previous_items="$(awk '/<item>/{keep=1} keep{print} /<\/item>/{keep=0}' "$previous_appcast")"
+  fi
+  {
+    cat <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Scout</title>
+    <item>
+      <title>Version $version</title>
+      <pubDate>$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')</pubDate>
+      <sparkle:version>$build_number</sparkle:version>
+      <sparkle:shortVersionString>$version</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>$minimum_system_version</sparkle:minimumSystemVersion>
+      <enclosure url="$url" length="$length" type="application/octet-stream" sparkle:edSignature="$ed_signature"/>
+    </item>
+XML
+    if [[ -n "$previous_items" ]]; then
+      printf '%s\n' "$previous_items"
+    fi
+    cat <<XML
+  </channel>
+</rss>
+XML
+  } > "$appcast"
+  xmllint --noout "$appcast"
 }
 
 step "Plan"
@@ -145,6 +237,10 @@ cat <<EOF
     notary profile   $notary_profile
     keychain         $keychain
     entitlements     $entitlements
+    sparkle          $(project_setting exactVersion), checked against mac/Sparkle.expected
+    feed             $(project_setting SCOUT_FEED_URL)
+    download base    ${release_base_url:-<unset>}
+    EdDSA key        $([[ -n "$sparkle_key_command" ]] && echo "SCOUT_SPARKLE_KEY_COMMAND" || echo "login keychain, account $sparkle_key_account")
     output           $out
     dry run          $dry_run
 EOF
@@ -160,6 +256,21 @@ else
     || { echo "Signing identity not found in $keychain: $identity" >&2; exit 1; }
 fi
 run_to /dev/null xcrun notarytool history --keychain-profile "$notary_profile" --keychain "$keychain"
+
+step "Preflight: Sparkle feed, public key, download URL and EdDSA key"
+feed_url="$(project_setting SCOUT_FEED_URL)"
+public_key="$(project_setting SCOUT_SPARKLE_PUBLIC_KEY)"
+if [[ "$dry_run" == true ]]; then
+  echo "    require SCOUT_FEED_URL (https) and SCOUT_SPARKLE_PUBLIC_KEY in mac/project.yml, now: '${feed_url}' / '${public_key}'"
+  echo "    require SCOUT_RELEASE_BASE_URL (https), now: '${release_base_url}'"
+else
+  [[ "$feed_url" == https://* ]] || { echo "Set SCOUT_FEED_URL in mac/project.yml to the https appcast URL" >&2; exit 1; }
+  [[ -n "$public_key" ]] || { echo "Set SCOUT_SPARKLE_PUBLIC_KEY in mac/project.yml (generate_keys -p on the Studio)" >&2; exit 1; }
+  [[ "$release_base_url" == https://* ]] || { echo "SCOUT_RELEASE_BASE_URL must be an https URL" >&2; exit 1; }
+fi
+if [[ -z "$sparkle_key_command" ]]; then
+  run_to /dev/null security find-generic-password -s https://sparkle-project.org -a "$sparkle_key_account" "$keychain"
+fi
 
 step "Bump version in mac/project.yml"
 if [[ "$bump" == true ]]; then
@@ -177,6 +288,27 @@ run mkdir -p "$out"
 step "Generate the Xcode project"
 run xcodegen generate --spec "$project_yml" --quiet
 
+step "Resolve Swift packages"
+run xcodebuild -resolvePackageDependencies \
+  -project "$root/mac/Scout.xcodeproj" \
+  -scheme Scout \
+  -derivedDataPath "$derived"
+
+step "Verify Sparkle: exact version, revision, checksums and Team ID"
+run "$root/script/verify-sparkle.sh" --derived "$derived"
+
+step "Check the EdDSA key matches the public key in mac/project.yml"
+if [[ -n "$sparkle_key_command" ]]; then
+  echo "    skipped: the key comes from SCOUT_SPARKLE_KEY_COMMAND; sign_update and Sparkle's own check on the mini cover it"
+elif [[ "$dry_run" == true ]]; then
+  run "$(sparkle_tool generate_keys)" --account "$sparkle_key_account" -p
+else
+  generate_keys="$(sparkle_tool generate_keys)"
+  keychain_public_key="$("$generate_keys" --account "$sparkle_key_account" -p)"
+  [[ "$keychain_public_key" == "$public_key" ]] \
+    || { echo "The keychain's EdDSA public key differs from SCOUT_SPARKLE_PUBLIC_KEY" >&2; exit 1; }
+fi
+
 step "Build Release"
 run xcodebuild \
   -project "$root/mac/Scout.xcodeproj" \
@@ -185,6 +317,8 @@ run xcodebuild \
   -derivedDataPath "$derived" \
   -destination "generic/platform=macOS" \
   -quiet \
+  -disableAutomaticPackageResolution \
+  -onlyUsePackageVersionsFromResolvedFile \
   MARKETING_VERSION="$version" \
   CURRENT_PROJECT_VERSION="$build_number" \
   CODE_SIGN_STYLE=Manual \
@@ -196,7 +330,7 @@ run xcodebuild \
   build
 run ditto "$derived/Build/Products/Release/Scout.app" "$app"
 
-step "Sign nested code (Sparkle.framework, XPC services and helpers land here once T4 adds them)"
+step "Sign nested code (Sparkle.framework, its XPC services, Autoupdate and Updater.app)"
 sign_nested
 
 step "Sign the app with the hardened runtime and entitlements"
@@ -225,7 +359,12 @@ run xcrun stapler validate "$app"
 
 step "Update archive"
 run ditto -c -k --sequesterRsrc --keepParent "$app" "$update_zip"
+
+step "Sign the update archive with Sparkle's EdDSA key"
 sparkle_sign_archive
+
+step "Write appcast.xml"
+write_appcast
 
 step "Package the DMG"
 run mkdir -p "$dmg_stage"
@@ -257,12 +396,13 @@ fi
 step "Checksums"
 if [[ "$dry_run" == true ]]; then
   echo "    (in $out)"
-  run_to SHA256SUMS shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip"
+  run_to SHA256SUMS shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" appcast.xml
 else
-  (cd "$out" && shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" > SHA256SUMS)
+  (cd "$out" && shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" appcast.xml > SHA256SUMS)
 fi
 
 step "Done"
 echo "    $dmg"
 echo "    $update_zip"
+echo "    $out/appcast.xml"
 echo "    Nothing was installed, opened or published. Commit the mac/project.yml version bump separately."

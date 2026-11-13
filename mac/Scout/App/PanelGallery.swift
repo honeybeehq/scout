@@ -93,7 +93,7 @@ enum PanelGallery {
     ]
 
     private static let fixtures: [(String, MenuBarPanelState, Segmentation)] = [
-        ("empty", MenuBarPanelState(hive: .unreachable("timed out"), apiaryRunning: true), .automatic),
+        ("empty", MenuBarPanelState(hive: .unreachable("timed out"), apiaryRunning: true, version: "0.1.0 (1)", canCheckForUpdates: false, updatesUnavailable: "Updates aren't set up in this build."), .automatic),
         ("content", MenuBarPanelState(
             recent: longTasks,
             lastWalkthrough: .init(title: "Checkout totals and the pay button on narrow windows", summary: "1:42 · 3 asks · copied, paste with ⌘V", transcriptProblem: nil),

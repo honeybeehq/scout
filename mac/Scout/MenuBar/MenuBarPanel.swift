@@ -25,6 +25,9 @@ struct MenuBarPanelState {
     var apiaryRunning = false
     var sdkApps: [String] = []
     var setupComplete = true
+    var version = "1.0.0 (1)"
+    var canCheckForUpdates = true
+    var updatesUnavailable: String?
 }
 
 struct MenuBarPanelActions {
@@ -36,6 +39,7 @@ struct MenuBarPanelActions {
     var revealWalkthrough: () -> Void = {}
     var openSetup: () -> Void = {}
     var openSettings: () -> Void = {}
+    var checkForUpdates: () -> Void = {}
     var quit: () -> Void = {}
 }
 
@@ -61,7 +65,10 @@ struct MenuBarPanel: View {
             hive: model.integrations.hive,
             apiaryRunning: model.integrations.apiary == .running,
             sdkApps: model.bridge.clients.filter { $0.hello != nil }.map(\.name),
-            setupComplete: model.onboarding.isComplete
+            setupComplete: model.onboarding.isComplete,
+            version: model.updates.version,
+            canCheckForUpdates: model.updates.canCheck,
+            updatesUnavailable: model.updates.unavailableReason
         )
     }
 
@@ -78,6 +85,7 @@ struct MenuBarPanel: View {
                 model.openOnboarding?()
             },
             openSettings: { model.openSettingsWindow?() },
+            checkForUpdates: { model.updates.check() },
             quit: { NSApp.terminate(nil) }
         )
     }
@@ -233,6 +241,20 @@ struct MenuBarPanelContent: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
             connections
+            HStack(spacing: 8) {
+                Button("Check for Updates…", action: actions.checkForUpdates)
+                    .buttonStyle(QuietButtonStyle())
+                    .disabled(!state.canCheckForUpdates)
+                    .help(state.updatesUnavailable ?? "See if a newer Scout is available.")
+                Spacer(minLength: 4)
+                Text("Version \(state.version)")
+                    .font(Typography.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.textTertiary)
+                    .lineLimit(1)
+                    .padding(.trailing, Self.quietInset)
+            }
+            .padding(.horizontal, -Self.quietInset)
             HStack(spacing: 2) {
                 Button(state.setupComplete ? "Setup guide" : "Finish setup", action: actions.openSetup)
                     .buttonStyle(QuietButtonStyle())

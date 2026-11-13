@@ -13,6 +13,9 @@ packages:
   swift-argument-parser:
     url: https://github.com/apple/swift-argument-parser.git
     exactVersion: 1.7.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.8.0
 targets:
   Scout:
     type: application
@@ -26,6 +29,8 @@ targets:
         product: ScoutSegmenter
       - package: WhisperKit
         product: WhisperKit
+      - package: Sparkle
+        product: Sparkle
     info:
       path: Scout/Info.plist
       properties:
@@ -41,6 +46,10 @@ targets:
         NSMicrophoneUsageDescription: Scout listens while you talk through your app, so it can turn what you say into tasks.
         NSAppleEventsUsageDescription: Scout reads the address of the page you are looking at, so feedback lands in the right project.
         NSSpeechRecognitionUsageDescription: Scout transcribes your voice on this Mac.
+        SUFeedURL: $(SCOUT_FEED_URL)
+        SUPublicEDKey: $(SCOUT_SPARKLE_PUBLIC_KEY)
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
     entitlements:
       path: Scout/Scout.entitlements
       properties:
@@ -52,6 +61,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.trmdy.scout
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
+        SCOUT_FEED_URL: ""
+        SCOUT_SPARKLE_PUBLIC_KEY: ""
         SWIFT_VERSION: "6.0"
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: YES

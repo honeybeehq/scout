@@ -102,7 +102,7 @@ Short, direct, second person. Say what happens, not what the feature is called: 
 
 `--design-gallery=<dir>` added to a `--simulate-session` run renders every surface with `ImageRenderer` in light and dark at all four sizes, plus a frame sequence of the recording bar with `bar-frames.json` (window frame and every control's position per frame). Use it to review design changes when the screen can't be captured.
 
-`--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding, five long recent tasks with a walkthrough, and recording) in light and dark at all four sizes, then quits. It needs no session and no permissions.
+`--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding and updates not set up, five long recent tasks with a walkthrough, and recording) in light and dark at all four sizes, then quits. It needs no session and no permissions.
 
 `--engine-gallery=<dir>` renders the onboarding Transcriber step (full window) and the Settings → Voice pane in every Whisper model state (offer, downloading, checking, preparing, installed, ready, paused, failed, remove confirmation) in light and dark at Default and Extra large, then quits. It skips the hotkey, the bridge and pruning, and never downloads.
 

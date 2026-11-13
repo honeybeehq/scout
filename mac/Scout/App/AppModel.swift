@@ -15,6 +15,7 @@ final class AppModel {
     let bridge = BridgeServer()
     let apiary = ApiaryBridge()
     let picker = TargetPickerController()
+    let updates = Updates(starts: !AppModel.rendersOnly && !SimulationMode.isRunning)
     private(set) var lastDelivery: DeliveryOutcome?
     private(set) var lastDeliveryLine: String?
     private(set) var boundTarget: ApiaryTarget?

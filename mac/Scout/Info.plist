@@ -43,5 +43,13 @@
 	<string>Scout listens while you talk through your app, so it can turn what you say into tasks.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Scout transcribes your voice on this Mac.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>$(SCOUT_FEED_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SCOUT_SPARKLE_PUBLIC_KEY)</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

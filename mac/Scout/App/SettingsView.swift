@@ -196,8 +196,30 @@ private struct GeneralSettings: View {
                             .buttonStyle(SecondaryButtonStyle())
                     }
                 }
+                UpdatesSection()
             }
             .padding(20)
+        }
+    }
+}
+
+private struct UpdatesSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var updates = model.updates
+        SettingsSection(title: "Updates") {
+            SettingRow(title: "Automatically check for updates", detail: "Once a day. Scout asks before it installs anything.", divider: false) {
+                Toggle("", isOn: $updates.checksAutomatically)
+                    .toggleStyle(SignalToggleStyle())
+                    .labelsHidden()
+                    .disabled(!updates.isConfigured)
+            }
+            SettingRow(title: "Version \(updates.version)", detail: updates.unavailableReason) {
+                Button("Check for Updates…") { updates.check() }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .disabled(!updates.canCheck)
+            }
         }
     }
 }
