@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 
+@MainActor
 @Observable
 final class WhisperModelStore {
     enum State: Equatable {
@@ -50,7 +51,7 @@ final class WhisperModelStore {
     private(set) var engine: WhisperEngine?
     @ObservationIgnored private var job: Task<Void, Never>?
 
-    static func installFolder(under support: URL) -> URL {
+    nonisolated static func installFolder(under support: URL) -> URL {
         support.appendingPathComponent("Models/whisper/\(WhisperPins.installName)", isDirectory: true)
     }
 
@@ -101,11 +102,10 @@ final class WhisperModelStore {
     }
 
     func cancel() {
-        guard case .downloading = state else {
-            if case .verifying = state { job?.cancel() }
-            return
+        switch state {
+        case .downloading, .verifying: job?.cancel()
+        case .notInstalled, .preparing, .ready, .failed: break
         }
-        job?.cancel()
     }
 
     func remove() {

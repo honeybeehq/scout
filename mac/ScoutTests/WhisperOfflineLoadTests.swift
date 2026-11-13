@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-final class NetworkBlock: URLProtocol, @unchecked Sendable {
+nonisolated final class NetworkBlock: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var requests: [URL] = []
 
@@ -39,7 +39,7 @@ nonisolated enum WhisperTestFolders {
     }
 }
 
-final class WhisperOfflineLoadTests: XCTestCase {
+nonisolated final class WhisperOfflineLoadTests: XCTestCase {
     override func setUp() {
         super.setUp()
         NetworkBlock.reset()
@@ -79,6 +79,7 @@ final class WhisperOfflineLoadTests: XCTestCase {
             let loaded = await engine.isLoaded
             XCTAssertFalse(loaded)
         }
+        XCTAssertFalse(NetworkBlock.attempted.isEmpty, "the missing tokenizer should have made WhisperKit try the Hub, which the block must catch")
         XCTAssertTrue(NetworkBlock.attempted.allSatisfy { $0.host?.hasSuffix("huggingface.co") == true }, "unexpected hosts: \(NetworkBlock.attempted)")
         await engine.unload()
     }
