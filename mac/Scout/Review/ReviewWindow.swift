@@ -227,8 +227,13 @@ private struct ReviewHeader: View {
     private var sendLabel: String {
         if review.unsentCount == 0 { return "All sent" }
         if sendableCount == 0 { return "Send all" }
+        if sendableCount == review.unsentCount, onlyClipboard { return review.unsentCount == 1 ? "Copy task" : "Copy all \(review.unsentCount)" }
         if sendableCount == review.unsentCount { return review.unsentCount == 1 ? "Send task" : "Send all \(review.unsentCount)" }
         return "Send \(sendableCount) ready"
+    }
+
+    private var onlyClipboard: Bool {
+        review.tasks.allSatisfy { $0.isLocked || $0.destination == nil || $0.destination == .clipboard }
     }
 
     private var sendableCount: Int {

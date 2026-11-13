@@ -37,7 +37,7 @@ Onboarding is seven steps. Every step can be revisited, and progress is saved, s
    - **New session**: start a fresh session for every task.
    - **Ask me**: choose a session per task.
 
-   Without hive, tasks go to the clipboard and a folder.
+   Without hive, the step says so plainly: the title becomes "Paste tasks into any agent.", hive and Apiary are marked optional, and *Where tasks go* shows *Clipboard*. Each task is copied as text (transcript, pinned elements, and the paths of its clip and screenshots) and its folder is kept on disk. *Copy all* in the review window puts every task on the clipboard at once, separated by `---`.
 7. **Ready.** The complete mark with expanding rings, the shortcut as large keycaps, an *Open at login* switch, and *Start using Scout*. Closing the window switches Scout back to a menu bar app.
 
 ## Scouting
@@ -76,20 +76,20 @@ The bar hangs from the very top edge of the display being captured, centred and 
 - "scratch that": discard the current snippet.
 - "send it": close and send the current snippet right away.
 
-**Discard.** *Discard* in the pill, or **⌃⌥X** (Caps+X with the Caps layer), asks "Discard this recording?" with *Keep* (esc) in place of the transcript, *Next* and the capture button, while *Discard* (⌃⌥X) turns crimson in its own slot; the question goes away by itself after 4 seconds, and recording carries on while it shows. Press ⌃⌥X again or click *Discard* to confirm; Esc or *Keep* cancels. ⌃⌥X is registered only while recording, and Esc only while the question shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was. Once a task from the recording has been sent (split into tasks with auto-send), Discard is off and ⌃⌥X beeps, as in the review: the sent task's files stay, and *Finish* keeps the rest.
+**Discard.** *Discard* in the pill, or **⌃⌥X**, asks "Discard this recording?" with *Keep* (esc) in place of the transcript, *Next* and the capture button, while *Discard* (⌃⌥X) turns crimson in its own slot; the question goes away by itself after 4 seconds, and recording carries on while it shows. Press ⌃⌥X again or click *Discard* to confirm; Esc or *Keep* cancels. ⌃⌥X is registered only while recording, and Esc only while the question shows. Discarding stops the recording, withdraws its waiting tasks and deletes everything the session wrote (video, signals, frames, the unfinished walkthrough). Nothing is sent, pasted or copied, and the clipboard stays as it was. Once a task from the recording has been sent (split into tasks with auto-send), Discard is off and ⌃⌥X beeps, as in the review: the sent task's files stay, and *Finish* keeps the rest.
 
 **Stop.** Press the shortcut again or click *Finish*. The open snippet closes and the pill and frame disappear within about two frames (≈30 ms at 60 Hz). Nothing long runs on stop: transcription, splitting and segments were already streaming. If any task is still waiting (no destination, held, failed) or some speech isn't in any task, the review window opens. Otherwise the stack stays until its cards are sent or dismissed. Settings → General → "Open the review after scouting" switches between *Always*, *When tasks are waiting* and *Never*.
 
 ## New ask in a walkthrough
 
-A hotkey recording ends as one walkthrough, and Scout splits what you said into asks by itself: requests, problems and pauses start a new one. Press **⌃⌥B** (Caps+B with the Caps layer) to start a new ask yourself. The bar shows "New ask", the walkthrough records a `break` event at that moment, and the asks list cuts there: the sentence you were finishing stays in the ask before, and what you say next begins the new ask, kept even when it has no request words in it. Everywhere you didn't press ⌃⌥B, Scout splits as before. Saying "new task" doesn't cut asks.
+A hotkey recording ends as one walkthrough, and Scout splits what you said into asks by itself: requests, problems and pauses start a new one. Press **⌃⌥B** to start a new ask yourself. The bar shows "New ask", the walkthrough records a `break` event at that moment, and the asks list cuts there: the sentence you were finishing stays in the ask before, and what you say next begins the new ask, kept even when it has no request words in it. Everywhere you didn't press ⌃⌥B, Scout splits as before. Saying "new task" doesn't cut asks.
 
 ## Automatic and manual tasks
 
 These apply to "Record as tasks" in the menu bar. Two ways to decide where one task ends and the next begins. Pick one in the menu bar panel ("New task: Auto / On ⌃⌥B") or in Settings → General. The choice is fixed per session.
 
 - **Automatic** (default). The breakpoint engine cuts on pauses, cue phrases ("next thing", "also"), app/window/URL changes, a new target, topic shifts and screen changes. See [breakpoints.md](breakpoints.md).
-- **Manual.** Nothing cuts except you: press **⌃⌥B** (Caps+B with the Caps layer), click *Next* in the pill, or say "new task" / "next task" as a sentence of its own. Pauses, app switches and long silences never cut, so one task can span apps and minutes. The pill shows `Task 3 · Next ⌃⌥B`.
+- **Manual.** Nothing cuts except you: press **⌃⌥B**, click *Next* in the pill, or say "new task" / "next task" as a sentence of its own. Pauses, app switches and long silences never cut, so one task can span apps and minutes. The pill shows `Task 3 · Next ⌃⌥B`.
 
 ⌃⌥B also works in automatic mode as a forced cut. In both modes the bar shows "New task" when it is caught. It is registered only while scouting (walkthrough or tasks), so it never steals the chord otherwise.
 

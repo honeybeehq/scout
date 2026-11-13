@@ -148,7 +148,7 @@ private struct MockCheckout: View {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Palette.fillRaised)
                             .overlay(alignment: .leading) {
-                                Text(verbatim: "you@studio.dev").font(.system(size: 13)).foregroundStyle(Palette.textTertiary).padding(.leading, 10)
+                                Text(verbatim: "you@example.com").font(.system(size: 13)).foregroundStyle(Palette.textTertiary).padding(.leading, 10)
                             }
                             .frame(height: 32)
                             .practiceElement(.email)

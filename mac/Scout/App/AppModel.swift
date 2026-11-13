@@ -718,9 +718,7 @@ final class AppModel {
     }
 
     func sendAll(in review: SessionReview) async {
-        for card in review.tasks where !card.isLocked && card.destination != nil {
-            await dispatcher.send(card)
-        }
+        await dispatcher.sendAll(review.tasks.filter { !$0.isLocked && $0.destination != nil })
         review.save()
     }
 

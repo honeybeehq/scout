@@ -731,10 +731,20 @@ enum SimulationMode {
         if reviewsEdits, let review = model.review {
             reviewReport = await exerciseReview(review, model: model, output: output)
         }
-        for card in (model.review?.tasks ?? model.dispatcher.cards) where card.state == .needsDestination || card.state == .held {
+        let waiting = (model.review?.tasks ?? model.dispatcher.cards).filter { $0.state == .needsDestination || $0.state == .held }
+        for card in waiting where card.destination == nil {
             model.dispatcher.choose(.clipboard, for: card)
-            await model.dispatcher.send(card)
         }
+        if let review = model.review {
+            captureWindow(named: "review-before-send", into: output)
+            await model.sendAll(in: review)
+            try? await Task.sleep(for: .seconds(1))
+            captureWindow(named: "review-after-send", into: output)
+        } else {
+            await model.dispatcher.sendAll(waiting)
+        }
+        reviewReport["clipboard"] = NSPasteboard.general.string(forType: .string) ?? ""
+        reviewReport["clipboardFolders"] = (NSPasteboard.general.readObjects(forClasses: [NSURL.self]) as? [URL])?.map(\.path) ?? []
         try? await Task.sleep(for: .seconds(4))
         if DesignGallery.directory != nil {
             await DesignGallery.captureDelivered(model: model)

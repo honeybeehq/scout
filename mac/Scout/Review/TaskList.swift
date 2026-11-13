@@ -172,6 +172,7 @@ struct StateLine: View {
 
     private var detail: String {
         switch card.state {
+        case .sent("clipboard"): "Copied to the clipboard"
         case .sent(let destination): "Sent to \(destination)"
         case .failed(let message): "Couldn't send: \(message)"
         case .copiedInstead(let reason): "Not sent, copied to the clipboard instead: \(reason)"
@@ -193,6 +194,7 @@ struct StateLine: View {
 
     private var text: String {
         switch card.state {
+        case .sent("clipboard"): "Copied"
         case .sent: "Sent"
         case .failed: "Couldn't send"
         case .copiedInstead: "Copied instead"

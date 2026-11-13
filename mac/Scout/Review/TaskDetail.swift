@@ -431,7 +431,7 @@ private struct HandoffBar: View {
         VStack(alignment: .leading, spacing: 10) {
             if case .sent(let destination) = card.state {
                 HStack(spacing: 10) {
-                    Label("Sent to \(destination)", systemImage: "checkmark")
+                    Label(destination == "clipboard" ? "Copied to the clipboard" : "Sent to \(destination)", systemImage: "checkmark")
                         .font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(Palette.positive)
                         .lineLimit(1)
@@ -452,8 +452,10 @@ private struct HandoffBar: View {
                 }
                 DestinationPicker(card: card)
                 HStack(spacing: 8) {
-                    Button("Copy task") { copy() }
-                        .buttonStyle(SecondaryButtonStyle())
+                    if card.destination != .clipboard {
+                        Button("Copy task") { copy() }
+                            .buttonStyle(SecondaryButtonStyle())
+                    }
                     Spacer(minLength: 0)
                     if card.state == .sending {
                         ProgressView().controlSize(.small)
@@ -465,7 +467,7 @@ private struct HandoffBar: View {
                         }
                     } label: {
                         HStack(spacing: 8) {
-                            Text(card.state == .sending ? "Sending…" : "Send task")
+                            Text(card.state == .sending ? "Sending…" : card.destination == .clipboard ? "Copy task" : "Send task")
                             KeyHint("⌘↩", emphasized: true)
                         }
                     }

@@ -50,7 +50,7 @@ Done: `⌥` aim overlay, click-to-pin through a session event tap, accessibility
 - Bridge server ✅ (loopback WebSocket, Origin checks, `bridge.json` token, session/aim/pin, hover dwell, runtime signals, project root from hello). First-contact approval UI is still open.
 - `@scout/web`, `@scout/react`, `@scout/vite` ✅ (e2e 20/20, and verified live against Scout: an `⌥`-click pin arrives as `PayButton "Pay now" · PayButton.tsx:3:5`). Still to do: `@scout/svelte`, `@scout/vue`, `@scout/next`, `@scout/tanstack-start`.
 - Error, console and network signals attached to snippets ✅.
-- Project resolution: SDK hello → nectar env records → dev-server port (including portless `*.localhost` names) → cwd → git root ✅. Still open: native apps through DerivedData, the pro index and user overrides.
+- Project resolution: SDK hello → nectar env records → dev-server port (including portless `*.localhost` names) → cwd → git root ✅. Still open: native apps through DerivedData, an optional project index and user overrides.
 
 ## M5: Smarter splitting
 

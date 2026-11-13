@@ -41,7 +41,7 @@ Implementation: `mac/Scout/Integrations/HiveClient.swift`, a `nonisolated` `Netw
 2. **New session.** Always `spawn`.
 3. **Ask me.** The card's destination chip opens a picker; nothing is sent until the user chooses.
 
-Without hive: copy `task.md` to the pasteboard (text plus the snippet folder as a file URL) and keep the snippet folder.
+Without hive: copy `task.md` to the pasteboard (text plus the snippet folder as a file URL) and keep the snippet folder. Sending several tasks at once (*Copy all* in the review) puts them on the pasteboard together, separated by `---`, with one folder URL per task.
 
 When a `send` or `spawn` fails (hive stopped, the session is gone, a timeout), Scout copies the task to the pasteboard the same way and marks it "Not sent, copied instead" with hive's reason. The task stays unsent, so Retry or Send still delivers it later.
 
@@ -57,7 +57,7 @@ To send to the right repo, Scout maps what is on screen to a source tree. It tri
 
 The resolved `ProjectReference` is stored on the task and shown in the review, so a wrong guess is visible before sending.
 
-Not implemented yet: native apps (iOS Simulator and macOS debug builds through DerivedData), the pro index (`~/Projects/_system/index.jsonl`) and user overrides in Settings. Tasks from those sources have no project until the SDK reports one; with "Match project" they wait for a destination.
+Not implemented yet: native apps (iOS Simulator and macOS debug builds through DerivedData), an optional local project index (names and repo paths, matched against window titles and URL hosts) and user overrides in Settings. Tasks from those sources have no project until the SDK reports one; with "Match project" they wait for a destination.
 
 ## Apiary
 

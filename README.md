@@ -1,8 +1,32 @@
 # Scout
 
-Use your app, say what's wrong, point at it. Scout splits what you say into small tasks, attaches what you saw and pointed at, and sends them to coding agents in hive and Apiary.
+Use your app, say what's wrong, point at it. Scout turns what you say into work for your coding agents, with what you saw and pointed at attached. With hive or Apiary it hands the work straight to an agent session. Without them, it puts it on the clipboard so you can paste it into any agent or chat.
 
-Scout replaces Syn. It is a native macOS app first (Swift 6, SwiftUI, macOS 26); a native Linux app comes later.
+Scout is a native macOS app (Swift 6, SwiftUI, macOS 26). A Linux version comes later.
+
+## Install
+
+Scout needs macOS 26 or later.
+
+1. Download the latest Scout DMG from `<DOWNLOAD_URL>` (placeholder: the download location isn't decided yet).
+2. Open the DMG and drag **Scout** into **Applications**.
+3. Open Scout from Applications. It lives in the menu bar and opens a setup window the first time.
+
+Setup asks for three permissions. You can skip them and grant them later from *Setup guide* in the menu bar panel.
+
+| Permission | Why Scout needs it |
+|---|---|
+| **Microphone** | To hear what you say while you scout. Speech is transcribed on your Mac. |
+| **Screen Recording** | To record the screen while you scout, so your recording comes with a clip and screenshots of what you were looking at. macOS asks you to reopen Scout after you switch this on; setup offers a *Relaunch* button and picks up where you left off. |
+| **Accessibility** | To see which button, field or link is under the pointer, so you can hold `⌥` and click to pin it. |
+
+When you scout in a browser, macOS may also ask whether Scout can control that browser. Scout uses this only to read the address of the page you're on, so your feedback lands in the right project.
+
+Nothing leaves your Mac until you send it.
+
+**Updates arrive automatically.** Scout checks for new versions in the background and offers to install them. You can also check yourself from the menu bar panel or Settings.
+
+**hive and Apiary are optional.** Without them, each recording ends on the clipboard, ready to paste. In the review window, *Copy all* copies every task at once.
 
 ## Status
 
@@ -10,16 +34,16 @@ What works today:
 
 - **Onboarding.** Live permission checks for Screen Recording, Microphone and Accessibility, a guide card that follows System Settings, relaunch-and-resume, an on-device voice check, pointing practice, and hive/Apiary detection.
 - **Scouting.** Press `⌃⌥S` and talk. Recording starts at once with no picker; capture follows the pane or window under the pointer across displays, E widens it (both recent areas, window, screen) and ⇧E follows again. Discard in the recording bar, or `⌃⌥X` twice, throws the recording away without sending anything. `⌥`-drag draws. On-device transcription with word timings, app/window/URL context, pointer dwell targets, and `⌥`-click pins feed the breakpoint engine, which cuts the stream into tasks while you talk.
-- **Walkthroughs.** A hotkey recording ends as one walkthrough.v1 bundle (transcript with word timings, key frames, pointed-at elements, drawings, how the captured area changed, a short list of asks and the clip) under `~/Library/Application Support/Scout/walkthroughs`, with its path on the clipboard for ⌘V into Apiary. Press `⌃⌥B` (Caps+B) to start a new ask: what you say next begins it, the bundle records a `break` event, and the bar shows "New ask"; elsewhere Scout splits asks on its own. "Record as tasks" in the menu bar keeps the task flow below.
+- **Walkthroughs.** A hotkey recording ends as one walkthrough.v1 bundle (transcript with word timings, key frames, pointed-at elements, drawings, how the captured area changed, a short list of asks and the clip) under `~/Library/Application Support/Scout/walkthroughs`, with its path on the clipboard for ⌘V into Apiary. Press `⌃⌥B` to start a new ask: what you say next begins it, the bundle records a `break` event, and the bar shows "New ask"; elsewhere Scout splits asks on its own. "Record as tasks" in the menu bar keeps the task flow below.
 - **Tasks.** Each task gets a title, transcript, the elements you pointed at, runtime errors from the page, a video clip (cut in about 30 ms, no re-encode) and pin screenshots.
 - **Review.** After a session, a review window shows the whole recording on a filmstrip timeline. Trim, split, join or delete tasks, pick up speech that isn't in a task, edit titles and transcripts, and send tasks one by one or all at once. Earlier sessions reopen from the menu bar.
 - **Manual tasks.** Switch "New task" to "On ⌃⌥B" in the menu bar, and only ⌃⌥B (or saying "new task") starts the next task. In automatic mode ⌃⌥B forces a cut. Either way the bar shows "New task".
-- **Delivery.** Tasks go to the hive session already working in the app's repo (or a new one), with idempotent sends; the clipboard is the fallback.
+- **Delivery.** Tasks go to the hive session already working in the app's repo (or a new one), with idempotent sends. Without hive, tasks go to the clipboard, one at a time or all at once.
 - **Web SDK.** `@scout/vite` + `@scout/react` add component names and `file:line` source locations for pins, plus errors and failed requests.
 
 Next up: first-contact approval for SDK clients, Next/Svelte adapters, and native iOS/Android SDKs. See the [roadmap](docs/roadmap.md).
 
-## Run
+## Build from source
 
 Requirements: macOS 26, Xcode 26, XcodeGen (`brew install xcodegen`).
 
@@ -30,7 +54,7 @@ Requirements: macOS 26, Xcode 26, XcodeGen (`brew install xcodegen`).
 ./script/build_and_run.sh --build-only
 ```
 
-Scout is staged at a fixed path and signed with the team's Apple Development identity, so macOS permission grants survive rebuilds.
+`build_and_run.sh` quits any running Scout, replaces `~/Applications/Scout.app` and signs it with the Apple Development identity of the team in `mac/project.yml`, so macOS permission grants survive rebuilds. Set `SCOUT_STAGED_APP` to stage somewhere else; to build under your own team, change `DEVELOPMENT_TEAM` there.
 
 Snapshots of every onboarding step (for visual checks, no screen-recording permission needed):
 
@@ -107,7 +131,7 @@ swift run scout-segment --check Fixtures/sessions
 
 ## Docs
 
-- [Product](docs/product.md): what Scout is, principles, what changes from Syn
+- [Product](docs/product.md): what Scout is, principles, and how it differs from Syn, the tool it replaces
 - [Experience](docs/experience.md): onboarding, scouting, pointing, the snippet stack
 - [Design language](docs/design-language.md): mark, color, type, motion
 - [Architecture](docs/architecture.md): pipeline, modules, storage, permissions

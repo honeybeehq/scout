@@ -15,6 +15,7 @@ final class Dispatcher {
     private let bridge: BridgeServer
     private let preferences: Preferences
     private let resolver = ProjectResolver()
+    private var clipboardBatch: [ComposedTask]?
 
     init(integrations: Integrations, bridge: BridgeServer, preferences: Preferences) {
         self.integrations = integrations
@@ -66,6 +67,14 @@ final class Dispatcher {
         }
     }
 
+    func sendAll(_ cards: [SnippetCard]) async {
+        clipboardBatch = []
+        for card in cards {
+            await send(card)
+        }
+        clipboardBatch = nil
+    }
+
     func send(_ card: SnippetCard) async {
         guard !card.state.isClosed, card.state != .sending else { return }
         guard let destination = card.destination else {
@@ -105,7 +114,7 @@ final class Dispatcher {
                     try await integrations.hiveClient.spawn(name: name, agent: agent, cwd: cwd, title: card.title, prompt: task.message, idempotencyKey: key)
                     card.state = .sent("new \(agent) session")
                 case .clipboard:
-                    Self.copy(task)
+                    copy(task)
                     card.state = .sent("clipboard")
                 }
             }
@@ -113,7 +122,7 @@ final class Dispatcher {
             if dryRun || destination == .clipboard {
                 card.state = .failed(error.localizedDescription)
             } else {
-                Self.copy(task)
+                copy(task)
                 card.state = .copiedInstead(error.localizedDescription)
             }
         }
@@ -289,10 +298,13 @@ final class Dispatcher {
         }
     }
 
-    private static func copy(_ task: ComposedTask) {
+    private func copy(_ task: ComposedTask) {
+        clipboardBatch?.append(task)
+        let tasks = clipboardBatch ?? [task]
+        let text = tasks.map(\.message).joined(separator: "\n\n---\n\n")
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([task.message as NSString, task.directory as NSURL])
+        pasteboard.writeObjects([text as NSString] + tasks.map { $0.directory as NSURL })
     }
 
     private static func slug(_ text: String) -> String {

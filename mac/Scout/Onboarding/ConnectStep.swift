@@ -7,8 +7,10 @@ struct ConnectStep: View {
         @Bindable var integrations = model.integrations
         StepLayout(
             eyebrow: "Agents",
-            title: "Send tasks straight to your agents.",
-            message: "Scout hands each task to a hive session, including the ones open in Apiary, with the transcript, clip and pinned elements attached."
+            title: hiveMissing ? "Paste tasks into any agent." : "Send tasks straight to your agents.",
+            message: hiveMissing
+                ? "Scout copies each task to the clipboard: what you said, what you pointed at, and where its clip and screenshots are saved. Paste it into a coding agent or a chat."
+                : "Scout hands each task to a hive session, including the ones open in Apiary, with the transcript, clip and pinned elements attached."
         ) {
             VStack(spacing: 18) {
                 HStack(alignment: .top, spacing: 16) {
@@ -18,7 +20,7 @@ struct ConnectStep: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
 
-                RoutePicker(route: $integrations.route, hiveAvailable: hiveAvailable)
+                RoutePicker(route: $integrations.route, hiveAvailable: hiveAvailable, hiveMissing: hiveMissing)
                 Spacer(minLength: 0)
             }
         } footer: {
@@ -36,6 +38,10 @@ struct ConnectStep: View {
     private var hiveAvailable: Bool {
         if case .connected = model.integrations.hive { return true }
         return false
+    }
+
+    private var hiveMissing: Bool {
+        model.integrations.hive == .missing
     }
 }
 
@@ -93,7 +99,7 @@ private struct HiveCard: View {
         case .checking: "Checking for hive…"
         case .connected: "No active sessions yet. Scout can start one for each task."
         case .unreachable(let reason): "hive is installed, but Scout couldn't talk to it (\(reason))."
-        case .missing: "Without hive, Scout copies tasks to your clipboard and saves them to a folder."
+        case .missing: "Optional. hive runs coding agents on this Mac. With it, Scout sends each task to the agent working on that app."
         }
     }
 }
@@ -161,7 +167,7 @@ private struct ApiaryCard: View {
         switch status {
         case .running: "Tasks sent to Apiary panes appear right in the conversation."
         case .installed: "Open Apiary and Scout will send to its panes too."
-        case .missing: "Optional. Scout works fine without it."
+        case .missing: "Optional. Apiary is a workspace for hive sessions. Scout doesn't need it."
         }
     }
 }
@@ -169,12 +175,19 @@ private struct ApiaryCard: View {
 private struct RoutePicker: View {
     @Binding var route: DeliveryRoute
     var hiveAvailable: Bool
+    var hiveMissing: Bool
+
+    private var explanation: String {
+        if hiveAvailable { return route.explanation }
+        if hiveMissing { return "The clipboard. Install hive later to send tasks to agents directly." }
+        return "Scout copies tasks to the clipboard until hive answers."
+    }
 
     var body: some View {
         HStack(spacing: 18) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Where tasks go").font(Typography.headline)
-                Text(hiveAvailable ? route.explanation : "Scout copies tasks to the clipboard until hive is available.")
+                Text(explanation)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                     .contentTransition(.opacity)

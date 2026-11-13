@@ -234,7 +234,7 @@ private struct DeliveryControl: View {
             }
         case .sent(let destination):
             EmptyView()
-                .help("Sent to \(destination)")
+                .help(destination == "clipboard" ? "Copied to the clipboard" : "Sent to \(destination)")
         case .withdrawn:
             EmptyView()
         case .failed, .copiedInstead:
@@ -288,6 +288,7 @@ struct CardStateTag: View {
         case .needsDestination: StateTag(text: "Needs destination", tone: .caution)
         case .countdown: StateTag(text: "Sending", tone: .active)
         case .sending: StateTag(text: "Sending", tone: .active)
+        case .sent("clipboard"): StateTag(text: "Copied", tone: .positive)
         case .sent: StateTag(text: "Sent", tone: .positive)
         case .failed: StateTag(text: "Failed", tone: .negative)
         case .copiedInstead: StateTag(text: "Copied", tone: .caution)
