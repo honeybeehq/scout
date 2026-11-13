@@ -40,6 +40,13 @@ public struct FinalTranscript: Codable, Hashable, Sendable {
         try encoder.encode(self).write(to: directory.appendingPathComponent(Self.fileName), options: .atomic)
     }
 
+    public static func gaps(between ranges: [TimeRange]) -> [SessionTime] {
+        let sorted = ranges.sorted { $0.start < $1.start }
+        return zip(sorted, sorted.dropFirst()).map { previous, next in
+            next.start > previous.end ? (previous.end + next.start) / 2 : next.start
+        }
+    }
+
     public static func utterances(from segments: [TranscribedSegment], droppingSpeechIn commands: [TimeRange], splittingAt boundaries: [SessionTime], idPrefix: String = "t") -> [Utterance] {
         func isCommand(_ range: TimeRange) -> Bool {
             let middle = (range.start + range.end) / 2

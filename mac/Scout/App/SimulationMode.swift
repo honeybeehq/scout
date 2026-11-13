@@ -515,6 +515,8 @@ enum SimulationMode {
             "session": model.review?.sessionID ?? "none",
             "hasVideo": model.review?.video != nil,
             "leftover": model.review?.leftoverSpeech.map(\.text) ?? [],
+            "transcripts": tasks.map(\.transcript),
+            "utterances": model.review?.ledger.utterances.map { ["id": $0.id, "start": $0.range.start, "end": $0.range.end, "words": $0.words.count] } ?? [],
             "tasks": tasks.map { "\($0.snippet.id) \(String(format: "%.1f-%.1f", $0.snippet.range.start, $0.snippet.range.end)) state=\($0.state) destination=\($0.destination?.label ?? "none") title=\($0.title) edited=\($0.transcriptOverride != nil)" },
         ]
         if discardAt != nil, let review = model.review {

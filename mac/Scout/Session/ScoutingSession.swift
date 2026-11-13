@@ -69,7 +69,7 @@ final class ScoutingSession {
     private var sendNextClosedImmediately = false
     private var cuts: [SessionTime] = []
     private var commandRanges: [TimeRange] = []
-    private var taskEdges: [SessionTime] = []
+    private var closedRanges: [TimeRange] = []
     private var startTask: Task<Void, Never>?
     private var recorderStart: Task<Void, Never>?
     private var stopRequested = false
@@ -368,7 +368,7 @@ final class ScoutingSession {
             case .opened(let snippet), .updated(let snippet):
                 openSnippet = snippet
             case .closed(let snippet):
-                taskEdges += [snippet.range.start, snippet.range.end]
+                closedRanges.append(snippet.range)
                 if openSnippet?.id == snippet.id { openSnippet = nil }
                 closedCount += 1
                 let immediate = sendNextClosedImmediately
@@ -433,7 +433,7 @@ extension ScoutingSession {
             keepLive(result.failure ?? "no result", engine: transcriptionEngine.name)
             return
         }
-        let utterances = FinalTranscript.utterances(from: transcript.segments, droppingSpeechIn: commandRanges, splittingAt: cuts + taskEdges + discardedRanges.flatMap { [$0.start, $0.end] })
+        let utterances = FinalTranscript.utterances(from: transcript.segments, droppingSpeechIn: commandRanges, splittingAt: cuts + FinalTranscript.gaps(between: closedRanges + discardedRanges))
         guard !utterances.isEmpty || ledger.utterances.isEmpty else {
             keepLive("second pass heard no words", engine: transcript.engine)
             return
