@@ -29,9 +29,7 @@ nonisolated final class NetworkBlock: URLProtocol, @unchecked Sendable {
 
 nonisolated enum WhisperTestFolders {
     static var model: URL {
-        if let path = ProcessInfo.processInfo.environment["SCOUT_WHISPER_MODEL_FOLDER"] { return URL(fileURLWithPath: path, isDirectory: true) }
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Scout", isDirectory: true)
-        return WhisperModelStore.installFolder(under: support)
+        URL(fileURLWithPath: ProcessInfo.processInfo.environment["SCOUT_WHISPER_MODEL_FOLDER"] ?? "/nonexistent/scout-whisper-model", isDirectory: true)
     }
 
     static var tokenizer: URL {
@@ -54,7 +52,7 @@ nonisolated final class WhisperOfflineLoadTests: XCTestCase {
     func testModelAndTokenizerLoadWithoutAnyNetworkRequest() async throws {
         let model = WhisperTestFolders.model
         let tokenizer = WhisperTestFolders.tokenizer
-        try XCTSkipUnless(WhisperModelFiles.isComplete(model) || FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "no model at \(model.path); set SCOUT_WHISPER_MODEL_FOLDER")
+        try XCTSkipUnless(WhisperModelFiles.isComplete(model) || FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "set SCOUT_WHISPER_MODEL_FOLDER to the verified model folder (and SCOUT_WHISPER_TOKENIZER_FOLDER if the tokenizer lives elsewhere); nothing at \(model.path)")
         let engine = WhisperEngine(modelFolder: model, tokenizerFolder: tokenizer)
         try await engine.prepare()
         let loaded = await engine.isLoaded
@@ -67,7 +65,7 @@ nonisolated final class WhisperOfflineLoadTests: XCTestCase {
 
     func testMissingTokenizerFailsInsteadOfFetchingFromTheHub() async throws {
         let model = WhisperTestFolders.model
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "no model at \(model.path); set SCOUT_WHISPER_MODEL_FOLDER")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "set SCOUT_WHISPER_MODEL_FOLDER to the verified model folder (and SCOUT_WHISPER_TOKENIZER_FOLDER if the tokenizer lives elsewhere); nothing at \(model.path)")
         let empty = FileManager.default.temporaryDirectory.appendingPathComponent("scout-whisper-no-tokenizer-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: empty) }
@@ -87,7 +85,7 @@ nonisolated final class WhisperOfflineLoadTests: XCTestCase {
     func testPinnedTableMatchesTheVerifiedFiles() throws {
         let model = WhisperTestFolders.model
         let tokenizer = WhisperTestFolders.tokenizer
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "no model at \(model.path); set SCOUT_WHISPER_MODEL_FOLDER")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "set SCOUT_WHISPER_MODEL_FOLDER to the verified model folder (and SCOUT_WHISPER_TOKENIZER_FOLDER if the tokenizer lives elsewhere); nothing at \(model.path)")
         XCTAssertEqual(WhisperPins.files.count, 24)
         XCTAssertEqual(WhisperPins.totalBytes, 648_662_093)
         for file in WhisperPins.files {
