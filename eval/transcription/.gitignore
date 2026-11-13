@@ -1,0 +1,6 @@
+.build/
+*.wav
+*.aiff
+*.json
+*.mem
+out/

@@ -1,0 +1,10 @@
+Okay, so I am looking at the [Settings] window in [Scout] right now, and the [Linear] pane is open.
+The team picker shows [Honeybee] and [Apiary], but when I pick [Apiary] the mappings list below stays empty.
+I expected the labels from [Linear] to load here, the same way they do in the [Review] gallery.
+Also the keychain key field says saved, but if I quit and reopen, it asks me again.
+Next, in [WezTerm], I ran [scout-segment] with the check flag on the long ramble fixture, and the breakpoints moved by about two seconds compared to yesterday.
+That might be the new [SpeechAnalyzer] word timings, or it might be the [ClipCutter] padding.
+Can you look at the [SegmentedScreenRecorder], the [AudioFileFeeder] and the [AnalyzerTimeline], and tell me whether the host time conversion drifts?
+One more thing. In the [Onboarding] flow, the [Agents] step still overlaps the [Permissions] card on a small display, and the microphone meter in the [HUD] stays at zero until I speak twice.
+Please open a pull request against main, keep the diff small, and run the replays before you push.
+Finally, the [Signal] design language says buttons use the accent color on hover, but the [MenuBar] panel uses a plain gray, so make those match.
