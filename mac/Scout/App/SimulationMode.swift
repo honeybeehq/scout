@@ -634,6 +634,10 @@ enum SimulationMode {
         try? await Task.sleep(for: .seconds(10))
         snapshotPanels(into: output, suffix: "before-stop")
         model.stopScouting()
+        let stopped = Date()
+        while let session = model.session, session.phase != .ended, Date().timeIntervalSince(stopped) < 300 {
+            try? await Task.sleep(for: .milliseconds(250))
+        }
         try? await Task.sleep(for: .seconds(4))
         if DesignGallery.directory != nil {
             await DesignGallery.captureReview(model: model)
