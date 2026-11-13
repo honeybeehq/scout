@@ -94,8 +94,12 @@ final class AppModel {
         ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
         if !Self.rendersOnly {
             Task.detached(priority: .background) {
+                let resolution = ScoutDataRoot.current
+                NSLog("[scout-data] root %@ (%@), pruning %@", resolution.root.path, resolution.reason, resolution.allowsPruning ? "on" : "off")
                 ScoutPaths.prune()
-                WalkthroughBundle.sweepPartials()
+                if resolution.allowsPruning {
+                    WalkthroughBundle.sweepPartials { NSLog("[scout-prune] %@", $0) }
+                }
             }
         }
         if let pane = SettingsView.requestedPane, let directory = SnapshotMode.directory {

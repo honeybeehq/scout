@@ -1,4 +1,5 @@
 import Foundation
+import ScoutCore
 import Security
 
 nonisolated enum LinearCredential: Sendable {
@@ -37,7 +38,7 @@ final class LinearCredentials {
         case memory
     }
 
-    static let service = "com.trmdy.scout.linear"
+    static let service = ScoutDataRoot.current.isRelease ? "com.trmdy.scout.linear" : "\(Bundle.main.bundleIdentifier ?? "unbundled").linear"
     static let account = "personal-api-key"
     private static let hintKey = "linear.keyHint"
 

@@ -322,7 +322,7 @@ private struct DiscardQuestion: View {
     }
 }
 
-struct NotchShape: InsettableShape {
+nonisolated struct NotchShape: InsettableShape {
     var radius: CGFloat
     var inset: CGFloat = 0
 

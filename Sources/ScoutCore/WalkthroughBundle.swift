@@ -101,25 +101,24 @@ public struct WalkthroughBundle: Sendable {
         guard fsync(descriptor) == 0 else { throw WriteError.sync(path, errno) }
     }
 
-    public static func sweepPartials(in root: URL = defaultRoot(), olderThan age: TimeInterval = 86_400, now: Date = Date()) {
+    public static func sweepPartials(in root: URL = defaultRoot(), olderThan age: TimeInterval = 86_400, now: Date = Date(), log: (String) -> Void = { _ in }) {
         let manager = FileManager.default
         let names = (try? manager.contentsOfDirectory(atPath: root.path)) ?? []
         for name in names where name.hasPrefix("wt_") && name.hasSuffix(partialSuffix) {
             let folder = root.appendingPathComponent(name, isDirectory: true)
             let modified = (try? folder.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? now
-            if now.timeIntervalSince(modified) > age { try? manager.removeItem(at: folder) }
+            guard now.timeIntervalSince(modified) > age else { continue }
+            #if os(macOS)
+            let removed = (try? manager.trashItem(at: folder, resultingItemURL: nil)) != nil
+            #else
+            let removed = (try? manager.removeItem(at: folder)) != nil
+            #endif
+            log("\(removed ? "trashed" : "failed to trash") \(folder.path) age \(Int(now.timeIntervalSince(modified)))s")
         }
     }
 
-    public static func defaultRoot(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        #if os(macOS)
-        return home.appendingPathComponent("Library/Application Support/Scout/walkthroughs", isDirectory: true)
-        #else
-        let data = environment["XDG_DATA_HOME"].flatMap { $0.hasPrefix("/") ? URL(fileURLWithPath: $0, isDirectory: true) : nil }
-            ?? home.appendingPathComponent(".local/share", isDirectory: true)
-        return data.appendingPathComponent("scout/walkthroughs", isDirectory: true)
-        #endif
+    public static func defaultRoot() -> URL {
+        ScoutDataRoot.url.appendingPathComponent("walkthroughs", isDirectory: true)
     }
 
     public static func newID(at date: Date = Date()) -> String {
