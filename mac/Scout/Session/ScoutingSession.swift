@@ -65,6 +65,7 @@ final class ScoutingSession {
     private var segmenter: Segmenter
     private let log: SignalLog
     private let captureLog: SignalLog
+    private let transcriptLog: SignalLog
     private var contextTracker: ContextTracker?
     private var pointerTracker: PointerTracker?
     private var ticker: Task<Void, Never>?
@@ -100,6 +101,7 @@ final class ScoutingSession {
         directory = ScoutPaths.newSessionDirectory(id: id, at: started)
         log = SignalLog(url: directory.appendingPathComponent("signals.jsonl"))
         captureLog = SignalLog(url: directory.appendingPathComponent("capture.jsonl"))
+        transcriptLog = SignalLog(url: directory.appendingPathComponent("transcript-events.jsonl"))
         segmenter = Segmenter(configuration: segmentation == .manual ? .manual : .default, idPrefix: "snippet-")
         transcriber = LiveTranscriber(clock: clock)
         transcriber.audioURL = directory.appendingPathComponent(SessionAudioWriter.fileName)
@@ -133,6 +135,7 @@ final class ScoutingSession {
 
     private func start() async {
         transcriber.onUtterance = { [weak self] utterance in self?.hear(utterance) }
+        transcriber.onEvent = { [weak self] event in self?.transcriptLog.append(event) }
         aim.onPin = { [weak self] mark in self?.ingest(.mark(mark)) }
         aim.onStroke = { [weak self] stroke in self?.record(stroke) }
         aim.onAimChanged = { [weak self] active in self?.bridge.setAim(active: active) }
@@ -210,6 +213,7 @@ final class ScoutingSession {
         if let secondPass { apply(await secondPass.value) }
         log.close()
         captureLog.close()
+        transcriptLog.close()
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
         phase = .ended

@@ -245,19 +245,48 @@ public struct Walkthrough: Codable, Hashable, Sendable {
         }
     }
 
+    public struct TranscriptEvent: Codable, Hashable, Sendable {
+        public enum Kind: String, Codable, Sendable {
+            case stall
+            case dropped
+            case restart
+            case error
+        }
+
+        public var kind: Kind
+        public var t: Int
+        public var until: Int?
+        public var words: Int?
+        public var message: String?
+
+        public init(kind: Kind, t: Int, until: Int? = nil, words: Int? = nil, message: String? = nil) {
+            self.kind = kind
+            self.t = t
+            self.until = until
+            self.words = words
+            self.message = message
+        }
+    }
+
     public struct Transcript: Codable, Hashable, Sendable {
         public var status: Availability
         public var language: String?
         public var engine: String?
         public var failure: TranscriptFailure?
+        public var events: [TranscriptEvent]?
         public var segments: [Segment]
 
-        public init(status: Availability, language: String? = nil, engine: String? = nil, failure: TranscriptFailure? = nil, segments: [Segment]) {
+        public init(status: Availability, language: String? = nil, engine: String? = nil, failure: TranscriptFailure? = nil, events: [TranscriptEvent]? = nil, segments: [Segment]) {
             self.status = status
             self.language = language
             self.engine = engine
             self.failure = failure
+            self.events = events
             self.segments = segments
+        }
+
+        public var isIncomplete: Bool {
+            failure != nil || !(events ?? []).isEmpty
         }
     }
 

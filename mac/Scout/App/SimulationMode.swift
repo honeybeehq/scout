@@ -404,6 +404,7 @@ enum SimulationMode {
             "status": done.walkthrough.transcript.status.rawValue,
             "failure": done.walkthrough.transcript.failure.map { ["reason": $0.reason.rawValue, "message": $0.message ?? "", "t": $0.t ?? -1] } ?? [:],
             "soundSeconds": session.transcriber.sound.seconds,
+            "events": (try? JSONEncoder().encode(session.transcriber.events)).flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? [],
         ]
         if let microphone = done.walkthrough.capture.microphone, let data = try? JSONEncoder().encode(microphone) {
             report["microphone"] = try? JSONSerialization.jsonObject(with: data)
@@ -688,6 +689,7 @@ enum SimulationMode {
         }
         var uiSizeReport: [String: Any] = [:]
         var snapped = false
+        var stallShot = false
         if ProcessInfo.processInfo.arguments.contains("--simulate-pin") {
             Task {
                 try? await Task.sleep(for: .seconds(4))
@@ -702,6 +704,10 @@ enum SimulationMode {
             if let at = discardAt, Date().timeIntervalSince(started) >= at {
                 await discard(model: model, output: output, pasteboardBefore: pasteboardBefore)
                 return
+            }
+            if !stallShot, model.session?.transcriber.stalledSince != nil {
+                stallShot = true
+                ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-stalled.png"), padding: 12)
             }
             if !snapped, (model.session?.closedCount ?? 0) >= 1 {
                 snapped = true
@@ -1039,6 +1045,9 @@ enum SimulationMode {
         report["breaks"] = breakLog
         report["walkthrough"] = model.lastWalkthrough?.directory.path ?? ""
         report["secondPass"] = secondPassReport(of: model.session)
+        if let events = model.session?.transcriber.events, let data = try? JSONEncoder().encode(events) {
+            report["transcriptEvents"] = try? JSONSerialization.jsonObject(with: data)
+        }
         report.merge(extra) { $1 }
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: directory.appendingPathComponent("report.json"))
