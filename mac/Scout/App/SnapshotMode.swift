@@ -157,7 +157,7 @@ enum SnapshotMode {
     private typealias WindowImageFunction = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
 
     static func windowImage(_ windowID: CGWindowID) -> CGImage? {
-        if screenIsLocked, let window = NSApp.windows.first(where: { CGWindowID($0.windowNumber) == windowID }) {
+        if screenIsLocked, let window = NSApp.windows.first(where: { $0.windowNumber == Int(windowID) }) {
             return offscreenImage(of: window)
         }
         guard let handle = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", RTLD_LAZY),
