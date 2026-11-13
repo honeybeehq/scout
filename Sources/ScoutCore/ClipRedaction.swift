@@ -50,6 +50,17 @@ public struct ClipRedaction: Codable, Hashable, Sendable {
         excluded.contains { $0.contains(time) }
     }
 
+    public func regions(near time: SessionTime, within slack: Double) -> [RedactedRegion] {
+        regions.filter { region in
+            guard let range = region.range else { return true }
+            return range.start <= time + slack && range.end >= time - slack
+        }
+    }
+
+    public func cuts(near time: SessionTime, within slack: Double) -> Bool {
+        excluded.contains { $0.start <= time + slack && $0.end >= time - slack }
+    }
+
     public func kept(in range: TimeRange) -> [TimeRange] {
         var kept: [TimeRange] = []
         var cursor = range.start

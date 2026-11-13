@@ -74,6 +74,7 @@ struct RedactionSheet: View {
             frame = await review.frame(at: scrub, maximumSize: CGSize(width: 1280, height: 800))
         }
         .task(id: renderKey) {
+            media = nil
             guard mode == .preview else { return }
             rendering = true
             media = await model.dispatcher.preparedVideo(for: card)
@@ -377,8 +378,8 @@ struct RedactionSheet: View {
     private var pinNote: String {
         let marks = card.snippet.marks
         guard !marks.isEmpty else { return "No pins on this task." }
-        let cut = marks.filter { redaction.cuts($0.at) }.count
-        let covered = marks.filter { !redaction.cuts($0.at) && !redaction.regions(at: $0.at).isEmpty }.count
+        let cut = marks.filter { redaction.cuts(near: $0.at, within: SnippetMedia.pinSlack) }.count
+        let covered = marks.filter { !redaction.cuts(near: $0.at, within: SnippetMedia.pinSlack) && !redaction.regions(near: $0.at, within: SnippetMedia.pinSlack).isEmpty }.count
         var parts: [String] = []
         if covered > 0 { parts.append(covered == 1 ? "1 pin image gets the same blocks" : "\(covered) pin images get the same blocks") }
         if cut > 0 { parts.append(cut == 1 ? "1 pin in a cut part is left out" : "\(cut) pins in cut parts are left out") }

@@ -101,12 +101,14 @@ extension Dispatcher {
         let key = "\(card.snippet.range.start)|\(card.snippet.range.end)|\(redaction?.fingerprint ?? "none")"
         if let current = card.videoPreparation, current.key == key { return await current.task.value }
         let previous = card.videoPreparation?.task
+        previous?.cancel()
         let directory = card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)", isDirectory: true)
         let snippet = card.snippet
         let recorder = card.recorder
         let session = card.sessionVideo
         let task = Task { () -> RenderedMedia? in
             _ = await previous?.value
+            guard !Task.isCancelled else { return nil }
             let clip: ExportedClip?
             if let recorder {
                 clip = await SnippetMedia.clip(for: snippet, recorder: recorder, into: directory)
@@ -115,7 +117,7 @@ extension Dispatcher {
             } else {
                 clip = nil
             }
-            guard let clip else { return nil }
+            guard let clip, !Task.isCancelled else { return nil }
             return try? await ClipRedactor.render(clip, redaction: redaction)
         }
         card.videoPreparation = (key, task)
@@ -124,6 +126,7 @@ extension Dispatcher {
         if card.videoPreparation?.key == key {
             card.preparedVideo = media
             card.isPreparingVideo = false
+            if media == nil { card.videoPreparation = nil }
         }
         return media
     }
@@ -180,7 +183,7 @@ extension Dispatcher {
         }
         let redaction = card.linearOptions.redaction
         input.pins = card.snippet.marks.enumerated().compactMap { index, mark in
-            guard redaction?.cuts(mark.at) != true else { return nil }
+            guard redaction?.cuts(near: mark.at, within: SnippetMedia.pinSlack) != true else { return nil }
             return IssueInput.Pin(number: index + 1, caption: mark.target?.displayName ?? "Pinned spot", url: "pin-\(index + 1).png")
         }
         return IssueComposer.compose(input)

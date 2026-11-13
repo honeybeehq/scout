@@ -73,13 +73,16 @@ actor LinearFiler {
         let mode = identity(for: workspace)
         let issueID = mode == .clientID ? LinearIdentity.issueID(workspaceID: workspace, key: request.key) : nil
         await report(.checking)
+        let video = request.video.flatMap { LocalAsset.video($0, includeVideo: request.includeVideo) }
         if let existing = try await find(issueID, request: request, report: report) {
-            let receipt = LinearReceipt(key: request.key, status: .filed(existing), assets: request.previous?.assets ?? [], clipAttachmentID: request.previous?.clipAttachmentID)
-            return await attachClip(receipt, request: request, workspace: workspace, mode: mode, report: report)
+            let kept = (request.previous?.assets ?? []).filter { !$0.isVideo || $0.contentHash == video?.contentHash }
+            let attached = kept.contains(where: \.isVideo) ? request.previous?.clipAttachmentID : nil
+            let receipt = LinearReceipt(key: request.key, status: .filed(existing), assets: kept, clipAttachmentID: attached)
+            return await attachClip(receipt, video: video, request: request, workspace: workspace, mode: mode, report: report)
         }
         let storage = LinearStorage(api: api, credential: request.credential, teamID: request.target.team.id)
         var stored: [StoredAsset] = []
-        if let media = request.video, let asset = LocalAsset.video(media, includeVideo: request.includeVideo) {
+        if let asset = video {
             if let done = request.previous?.assets.first(where: { $0.contentHash == asset.contentHash }) {
                 stored.append(done)
             } else {
@@ -114,10 +117,10 @@ actor LinearFiler {
         do {
             let reply = try await retrying(report) { try await self.api.perform(LinearOperations.createIssue(input), credential: request.credential) }.issueCreate
             guard reply.success, let issue = reply.issue else { throw LinearError.server("Linear didn't create the issue.") }
-            return await attachClip(LinearReceipt(key: request.key, status: .filed(issue.ref), assets: stored), request: request, workspace: workspace, mode: mode, report: report)
+            return await attachClip(LinearReceipt(key: request.key, status: .filed(issue.ref), assets: stored), video: video, request: request, workspace: workspace, mode: mode, report: report)
         } catch {
             if let existing = try await find(issueID, request: request, report: report) {
-                return await attachClip(LinearReceipt(key: request.key, status: .filed(existing), assets: stored), request: request, workspace: workspace, mode: mode, report: report)
+                return await attachClip(LinearReceipt(key: request.key, status: .filed(existing), assets: stored), video: video, request: request, workspace: workspace, mode: mode, report: report)
             }
             if mode == .clientID, case LinearError.server(let message) = error, Self.refusesClientIDs(message) {
                 useMarkers(for: workspace)
@@ -129,8 +132,8 @@ actor LinearFiler {
         }
     }
 
-    private func attachClip(_ receipt: LinearReceipt, request: Request, workspace: String, mode: Identity, report: Report) async -> LinearReceipt {
-        guard receipt.clipAttachmentID == nil, let video = receipt.video, let issue = receipt.issue else { return receipt }
+    private func attachClip(_ receipt: LinearReceipt, video current: LocalAsset?, request: Request, workspace: String, mode: Identity, report: Report) async -> LinearReceipt {
+        guard request.includeVideo, receipt.clipAttachmentID == nil, let current, let video = receipt.video, video.contentHash == current.contentHash, let issue = receipt.issue else { return receipt }
         var receipt = receipt
         let id = mode == .clientID ? LinearIdentity.clipAttachmentID(workspaceID: workspace, key: request.key, contentHash: video.contentHash) : nil
         let operation = LinearOperations.attachClip(id: id, issueID: issue.id, teamID: request.target.team.id, url: video.url, title: request.clipTitle)

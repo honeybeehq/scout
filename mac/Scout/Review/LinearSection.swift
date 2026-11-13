@@ -223,7 +223,7 @@ struct LinearSection: View {
 
     static func outgoing(_ card: SnippetCard, dispatcher: Dispatcher) -> (list: String, video: Bool) {
         let redaction = card.linearOptions.redaction
-        let images = card.hasRecording ? card.snippet.marks.filter { redaction?.cuts($0.at) != true }.count : 0
+        let images = card.hasRecording ? card.snippet.marks.filter { redaction?.cuts(near: $0.at, within: SnippetMedia.pinSlack) != true }.count : 0
         var parts = ["Text"]
         if images > 0 { parts.append(images == 1 ? "1 image" : "\(images) images") }
         let video = dispatcher.includesVideo(card)

@@ -5,6 +5,8 @@ import ScoutCore
 import UniformTypeIdentifiers
 
 enum SnippetMedia {
+    static let pinSlack = 0.5
+
     static func clip(for snippet: Snippet, recorder: SegmentedScreenRecorder, into directory: URL) async -> ExportedClip? {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return try? await recorder.exportClip(from: snippet.range.start, to: snippet.range.end, padding: 1.0, into: directory.appendingPathComponent("clip.mp4"))
@@ -29,11 +31,11 @@ enum SnippetMedia {
             attachments.append(.init(kind: .video, url: clip.url))
         }
         for (index, mark) in snippet.marks.enumerated() {
-            guard redaction?.cuts(mark.at) != true,
+            guard redaction?.cuts(near: mark.at, within: pinSlack) != true,
                   let display = recorder.displays?.display(at: mark.at), display.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)),
                   let captured = await recorder.snapshot(at: mark.at)
             else { continue }
-            let frame = ClipRedactor.covered(captured, regions: redaction?.regions(at: mark.at) ?? [])
+            let frame = ClipRedactor.covered(captured, regions: redaction?.regions(near: mark.at, within: pinSlack) ?? [])
             let image = shot(frame, mark: mark, display: display)
             let url = directory.appendingPathComponent("pin-\(index + 1).png")
             if write(image, to: url) { attachments.append(.init(kind: .image, url: url)) }
@@ -51,10 +53,10 @@ enum SnippetMedia {
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.1, preferredTimescale: 600)
         for (index, mark) in snippet.marks.enumerated() {
-            guard redaction?.cuts(mark.at) != true else { continue }
+            guard redaction?.cuts(near: mark.at, within: pinSlack) != true else { continue }
             let time = CMTime(seconds: max(0, mark.at - video.range.start), preferredTimescale: 600)
             guard let captured = try? await generator.image(at: time).image else { continue }
-            let frame = ClipRedactor.covered(captured, regions: redaction?.regions(at: mark.at) ?? [])
+            let frame = ClipRedactor.covered(captured, regions: redaction?.regions(near: mark.at, within: pinSlack) ?? [])
             let display = displays?.display(at: mark.at)
             let onDisplay = display.map { $0.frame.contains(CGPoint(x: mark.point.x, y: mark.point.y)) } ?? false
             let image = onDisplay ? display.map { shot(frame, mark: mark, display: $0) } ?? frame : display?.cropped(frame) ?? frame
