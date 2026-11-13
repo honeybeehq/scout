@@ -172,6 +172,22 @@ final class Preferences {
         didSet { defaults.set(transcriptionEngine.rawValue, forKey: "voice.engine") }
     }
 
+    var transcriptionModule: TranscriptionModule {
+        didSet { defaults.set(transcriptionModule.rawValue, forKey: "voice.module") }
+    }
+
+    var transcriptionLocale: String {
+        didSet { defaults.set(transcriptionLocale, forKey: "voice.locale") }
+    }
+
+    var transcriptionTerms: String {
+        didSet { defaults.set(transcriptionTerms, forKey: "voice.terms") }
+    }
+
+    var transcriptionTermList: [String] {
+        SpeechContextTerms.userTerms(from: transcriptionTerms)
+    }
+
     static let agents = ["claude", "codex", "grok", "kimi"]
 
     init() {
@@ -185,6 +201,9 @@ final class Preferences {
             "appearance.uiSize": UISize.standard.rawValue,
             "appearance.colorMode": ColorMode.system.rawValue,
             "voice.engine": TranscriptionEngineChoice.apple.rawValue,
+            "voice.module": TranscriptionModule.speech.rawValue,
+            "voice.locale": TranscriptionLocale.automatic,
+            "voice.terms": "",
         ])
         autoSend = defaults.bool(forKey: "delivery.autoSend")
         autoSendDelay = defaults.double(forKey: "delivery.autoSendDelay")
@@ -195,6 +214,9 @@ final class Preferences {
         uiSize = UISize.requested ?? UISize(rawValue: defaults.string(forKey: "appearance.uiSize") ?? "") ?? .standard
         colorMode = ColorMode.requested ?? ColorMode(rawValue: defaults.string(forKey: "appearance.colorMode") ?? "") ?? .system
         transcriptionEngine = TranscriptionEngineChoice.requested ?? TranscriptionEngineChoice(rawValue: defaults.string(forKey: "voice.engine") ?? "") ?? .apple
+        transcriptionModule = TranscriptionModule(rawValue: defaults.string(forKey: "voice.module") ?? "") ?? .speech
+        transcriptionLocale = defaults.string(forKey: "voice.locale") ?? TranscriptionLocale.automatic
+        transcriptionTerms = defaults.string(forKey: "voice.terms") ?? ""
         applyAppearance()
     }
 }

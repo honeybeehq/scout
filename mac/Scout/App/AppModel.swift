@@ -206,6 +206,12 @@ final class AppModel {
         startScouting(result: .tasks)
     }
 
+    func configure(_ transcriber: LiveTranscriber) {
+        transcriber.modulePreference = preferences.transcriptionModule
+        transcriber.localePreference = preferences.transcriptionLocale
+        transcriber.pin(terms: preferences.transcriptionTermList)
+    }
+
     func startScouting(inputFile: URL? = nil, segmentation: Segmentation? = nil, result: SessionResult = .walkthrough, input: TimeInterval = InteractionTimings.now, target: ApiaryTarget? = nil, onInputFinished: (() -> Void)? = nil) {
         guard !isScouting else { return }
         guard inputFile != nil || permissions.state(of: .microphone).isGranted else {
@@ -224,6 +230,7 @@ final class AppModel {
             apiary: apiary
         )
         session.transcriber.inputFile = inputFile
+        configure(session.transcriber)
         if let scenario = SimulationMode.microphoneScenario, let inputFile {
             let transcriber = session.transcriber
             if let route = try? SimulatedRoute(scenario: scenario, audio: inputFile, onFinish: { Task { @MainActor in transcriber.onInputFinished?() } }) {
@@ -487,6 +494,7 @@ final class AppModel {
             transcriptFailure: failure,
             transcriptEvents: transcriber.events,
             language: transcriber.localeIdentifier,
+            engine: transcriber.run?.engine,
             failed: session.captureProblem != nil && preferences.includeClips,
             microphoneSummary: microphone.map {
                 Walkthrough.Microphone(device: $0.device, sampleRate: $0.sampleRate, channels: $0.channels, buffers: $0.buffers, peakDb: $0.peakDecibels, restarts: $0.restarts, retries: $0.retries, channelMode: $0.channelMode, channelSwitches: ($0.channels ?? 1) > 1 ? $0.channelSwitches : nil, droppedBuffers: $0.droppedBuffers > 0 ? $0.droppedBuffers : nil, unlearnedClasses: $0.unlearnedClasses > 0 ? $0.unlearnedClasses : nil)

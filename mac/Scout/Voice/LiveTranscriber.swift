@@ -27,6 +27,10 @@ final class LiveTranscriber {
     private(set) var inputName: String?
     private(set) var localeName: String?
     private(set) var localeIdentifier: String?
+    private(set) var run: TranscriptionRun?
+    private(set) var terms = SpeechContextTerms()
+    var localePreference = TranscriptionLocale.automatic
+    var modulePreference = TranscriptionModule.speech
     private(set) var failure: (message: String, at: SessionTime?, microphone: String?)?
     private(set) var sound = SoundMeter()
     private(set) var events: [Walkthrough.TranscriptEvent] = []
@@ -62,10 +66,28 @@ final class LiveTranscriber {
     static let stallWait: Double = 5
     static let finishWait: Duration = .seconds(3)
     static let watchInterval: Duration = .milliseconds(500)
+    private var pushedTerms: [String] = []
+    private var contextRefresh: Task<Void, Never>?
 
     init(clock: SessionClock? = nil) {
         self.clock = clock
         preset = clock == nil ? .progressiveTranscription : .timeIndexedProgressiveTranscription
+    }
+
+    private func presetName(for module: TranscriptionModule) -> String {
+        switch (module, clock == nil) {
+        case (.speech, true): "progressiveTranscription"
+        case (.speech, false): "timeIndexedProgressiveTranscription"
+        case (.dictation, true): "progressiveLongDictation"
+        case (.dictation, false): "timeIndexedLongDictation"
+        }
+    }
+
+    private func makeModule(_ module: TranscriptionModule, locale: Locale) -> any SpeechModule {
+        switch module {
+        case .speech: SpeechTranscriber(locale: locale, preset: preset)
+        case .dictation: DictationTranscriber(locale: locale, preset: clock == nil ? .progressiveLongDictation : .timeIndexedLongDictation)
+        }
     }
 
     var microphoneSummary: MicrophoneCapture.Summary? {
@@ -96,17 +118,28 @@ final class LiveTranscriber {
         inputName = microphone.inputName
 
         do {
-            let transcriber = try await makeTranscriber()
-            try await installAssetsIfNeeded(for: transcriber)
+            let (module, choice) = try await chooseModule()
+            let transcriber = makeModule(module, locale: choice.locale)
+            let assets = try await installAssetsIfNeeded(for: transcriber, module: module, locale: choice.locale)
             let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             try await analyzer.prepareToAnalyze(in: format)
             guard attempt == generation else { return }
+            let strings = terms.all
+            try await analyzer.setContext(Self.context(for: strings))
+            pushedTerms = strings
+            let run = TranscriptionRun(engine: TranscriptionRun.appleEngine, module: module.moduleName, requestedModule: modulePreference.moduleName, preset: presetName(for: module), locale: choice.identifier, requestedLocale: choice.requested, fellBack: choice.fellBack, assets: assets, contextualTerms: strings.count, userTerms: terms.pinned.count)
+            self.run = run
+            VoiceLog.log("started \(run.logLine)")
 
             let (stream, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self, bufferingPolicy: .unbounded)
             inputContinuation = continuation
             self.analyzer = analyzer
-            consumeResults(of: transcriber)
+            switch transcriber {
+            case let speech as SpeechTranscriber: consume(speech.results)
+            case let dictation as DictationTranscriber: consume(dictation.results)
+            default: break
+            }
 
             if audioWriter == nil, let audioURL, let clock { audioWriter = SessionAudioWriter(url: audioURL, clock: clock) }
             let onBuffer = Self.feed(into: continuation, clock: clock, faultAfter: faultAfter, sound: sound, audio: audioWriter)
@@ -115,6 +148,7 @@ final class LiveTranscriber {
             }
             if let inputFile {
                 try fileFeeder.start(url: inputFile, convertingTo: format, onBuffer: onBuffer, onLevel: onLevel) { [weak self] in
+                    VoiceLog.log("input file finished")
                     Task { @MainActor in self?.onInputFinished?() }
                 }
             } else {
@@ -131,6 +165,7 @@ final class LiveTranscriber {
             phase = .listening
             lastResult = (clock?.now ?? 0, sound.seconds)
             watch()
+            if terms.all != pushedTerms { scheduleContextRefresh() }
         } catch {
             guard attempt == generation else { return }
             await teardown()
@@ -200,6 +235,7 @@ final class LiveTranscriber {
     private func fail(_ error: Error) {
         guard !(error is CancellationError) else { return }
         let message = error.localizedDescription
+        VoiceLog.log("failed: \(message)")
         phase = .failed(message)
         if failure == nil { failure = (message, clock?.now, (error as? MicrophoneCapture.CaptureError)?.reason) }
     }
@@ -260,17 +296,76 @@ final class LiveTranscriber {
         }
     }
 
-    private func makeTranscriber() async throws -> SpeechTranscriber {
-        let preferred = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current)
-        let fallback = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: "en-US"))
-        guard let locale = preferred ?? fallback else { throw TranscriberError.unsupportedLanguage }
-        localeName = Locale.current.localizedString(forIdentifier: locale.identifier)
-        localeIdentifier = locale.identifier(.bcp47)
-        return SpeechTranscriber(locale: locale, preset: preset)
+    private func chooseModule() async throws -> (TranscriptionModule, TranscriptionLocale.Choice) {
+        var module = modulePreference
+        var choice = await TranscriptionLocale.resolve(preference: localePreference, module: module)
+        if choice == nil, module != .speech {
+            VoiceLog.log("\(module.moduleName) has no locale for \(localePreference); using SpeechTranscriber")
+            module = .speech
+            choice = await TranscriptionLocale.resolve(preference: localePreference, module: module)
+        }
+        guard let choice else { throw TranscriberError.unsupportedLanguage }
+        localeName = TranscriptionLocale.title(for: choice.identifier)
+        localeIdentifier = choice.identifier
+        return (module, choice)
     }
 
-    private func installAssetsIfNeeded(for transcriber: SpeechTranscriber) async throws {
-        guard let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) else { return }
+    func pin(terms phrases: [String]) {
+        if terms.pin(phrases) { scheduleContextRefresh() }
+    }
+
+    func note(_ context: AppContext) {
+        if terms.note(context) { scheduleContextRefresh() }
+    }
+
+    func note(_ target: Target) {
+        if terms.note(target) { scheduleContextRefresh() }
+    }
+
+    func learn(_ phrases: [String]) {
+        if terms.remember(phrases) { scheduleContextRefresh() }
+    }
+
+    private func scheduleContextRefresh() {
+        guard analyzer != nil, contextRefresh == nil else { return }
+        contextRefresh = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, !Task.isCancelled else { return }
+            self.contextRefresh = nil
+            await self.pushContext()
+        }
+    }
+
+    private func pushContext() async {
+        guard let analyzer, phase == .listening else { return }
+        let strings = terms.all
+        guard strings != pushedTerms else { return }
+        do {
+            try await analyzer.setContext(Self.context(for: strings))
+            pushedTerms = strings
+            run?.contextualTerms = strings.count
+            VoiceLog.log("context refreshed terms=\(strings.count)")
+        } catch {
+            VoiceLog.log("context refresh failed: \(error.localizedDescription)")
+        }
+    }
+
+    private static func context(for strings: [String]) -> AnalysisContext {
+        let context = AnalysisContext()
+        context.contextualStrings = strings.isEmpty ? [:] : [.general: strings]
+        return context
+    }
+
+    private func installAssetsIfNeeded(for transcriber: any SpeechModule, module: TranscriptionModule, locale: Locale) async throws -> TranscriptionRun.Assets {
+        let identifier = locale.identifier(.bcp47)
+        let installedLocales: [Locale]
+        switch module {
+        case .speech: installedLocales = await SpeechTranscriber.installedLocales
+        case .dictation: installedLocales = await DictationTranscriber.installedLocales
+        }
+        let installed = installedLocales.contains { $0.identifier(.bcp47) == identifier }
+        guard let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) else { return .installed }
+        if !installed { VoiceLog.log("downloading speech assets for \(identifier)") }
         let progress = request.progress
         let watcher = Task { [weak self] in
             while !Task.isCancelled {
@@ -280,15 +375,17 @@ final class LiveTranscriber {
         }
         defer { watcher.cancel() }
         try await request.downloadAndInstall()
+        return installed ? .installed : .downloaded
     }
 
-    private func consumeResults(of transcriber: SpeechTranscriber) {
+    private func consume<Results: AsyncSequence & Sendable>(_ results: Results) where Results.Element: TranscriptResult {
         resultsTask = Task { [weak self] in
             do {
-                for try await result in transcriber.results {
-                    self?.apply(result)
+                for try await result in results {
+                    self?.apply(result.text, isFinal: result.isFinal, range: result.range)
                 }
                 self?.resultsFinished = true
+                VoiceLog.log("results ended")
             } catch {
                 self?.resultsFinished = true
                 guard !Task.isCancelled else { return }
@@ -297,7 +394,7 @@ final class LiveTranscriber {
         }
     }
 
-    private func apply(_ result: SpeechTranscriber.Result) {
+    private func apply(_ attributed: AttributedString, isFinal: Bool, range: CMTimeRange) {
         let now = clock?.now ?? 0
         if let since = stalledSince {
             stalledSince = nil
@@ -305,32 +402,35 @@ final class LiveTranscriber {
         }
         lastResult = (now, sound.seconds)
         soundResumedAt = nil
-        let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
-        if result.isFinal {
+        let text = String(attributed.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        if isFinal {
             finalizedText = [finalizedText, text].filter { !$0.isEmpty }.joined(separator: " ")
             volatileText = ""
             if !text.isEmpty, let onUtterance {
                 utteranceCount += 1
-                onUtterance(Self.utterance(from: result, text: text, id: "u\(utteranceCount)"))
+                onUtterance(Self.utterance(from: attributed, range: range, text: text, id: "u\(utteranceCount)"))
             }
         } else {
             volatileText = text
         }
     }
 
-    private static func utterance(from result: SpeechTranscriber.Result, text: String, id: String) -> Utterance {
+    private static func utterance(from attributed: AttributedString, range: CMTimeRange, text: String, id: String) -> Utterance {
         var words: [Word] = []
-        for run in result.text.runs {
+        for run in attributed.runs {
             guard let range = run.audioTimeRange else { continue }
-            let word = String(result.text[run.range].characters).trimmingCharacters(in: .whitespacesAndNewlines)
+            let word = String(attributed[run.range].characters).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !word.isEmpty else { continue }
             words.append(Word(text: word, range: TimeRange(start: range.start.seconds, end: range.end.seconds), confidence: run.transcriptionConfidence))
         }
-        let range = TimeRange(start: result.range.start.seconds, end: result.range.end.seconds)
+        let range = TimeRange(start: range.start.seconds, end: range.end.seconds)
         return Utterance(id: id, range: range, text: text, words: words)
     }
 
     private func teardown() async {
+        contextRefresh?.cancel()
+        contextRefresh = nil
+        pushedTerms = []
         microphone.stop()
         fileFeeder.stop()
         inputContinuation?.finish()

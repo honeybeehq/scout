@@ -15,6 +15,7 @@ final class SessionReview {
     let directory: URL
     let startedAt: Date
     let segmentation: Segmentation
+    let transcription: TranscriptionRun?
     private(set) var ledger: SessionLedger
     private(set) var tasks: [SnippetCard]
     private(set) var discardedRanges: [TimeRange]
@@ -67,6 +68,7 @@ final class SessionReview {
         directory = session.directory
         startedAt = session.startedAt
         segmentation = session.segmentation
+        transcription = session.transcriber.run
         ledger = session.ledger
         tasks = session.cards.filter { $0.state != .withdrawn }.sorted { $0.snippet.range.start < $1.snippet.range.start }
         discardedRanges = session.discardedRanges
@@ -85,6 +87,7 @@ final class SessionReview {
         self.directory = directory
         startedAt = record.startedAt
         segmentation = Segmentation(rawValue: record.segmentation) ?? .automatic
+        transcription = record.transcription
         self.ledger = ledger
         tasks = cards.sorted { $0.snippet.range.start < $1.snippet.range.start }
         discardedRanges = (record.discarded ?? []).map { TimeRange(start: $0.start, end: $0.end) }
@@ -452,6 +455,7 @@ final class SessionReview {
             display: displays?.start ?? display,
             displayHops: displays.flatMap { $0.hops.isEmpty ? nil : $0.hops },
             discarded: discardedRanges.map { .init(start: $0.start, end: $0.end) },
+            transcription: transcription,
             tasks: tasks.map(ReviewRecord.Task.init)
         )
         do {

@@ -16,6 +16,7 @@ final class WalkthroughRecorder {
         var transcriptFailure: Walkthrough.TranscriptFailure?
         var transcriptEvents: [Walkthrough.TranscriptEvent] = []
         var language: String?
+        var engine: String?
         var failed: Bool
         var microphoneSummary: Walkthrough.Microphone?
     }
@@ -32,7 +33,7 @@ final class WalkthroughRecorder {
     private var prepared = false
     private var finishing = false
     private(set) var failedFrames = 0
-    private var transcriptEngine = "SpeechAnalyzer"
+    private var transcriptEngine: String?
 
     init(startedAt: Date, root: URL = WalkthroughBundle.defaultRoot()) {
         let id = WalkthroughBundle.newID(at: startedAt)
@@ -133,7 +134,7 @@ final class WalkthroughRecorder {
             transcriptFailure: sources.transcriptFailure,
             transcriptEvents: sources.transcriptEvents,
             language: sources.language,
-            transcriptEngine: transcriptEngine,
+            transcriptEngine: transcriptEngine ?? sources.engine ?? TranscriptionRun.appleEngine,
             clip: exported,
             sourceFailed: sources.failed || (media != nil && exported == nil),
             microphone: sources.microphoneSummary

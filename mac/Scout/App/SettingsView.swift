@@ -166,40 +166,50 @@ private struct GeneralSettings: View {
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
-        ScoutScroll {
-            VStack(alignment: .leading, spacing: 16) {
-                UISizeSection()
-                SettingsSection(title: "Scouting") {
-                    SettingRow(title: "Start or stop scouting", detail: "Works in any app. Change it in the setup guide.", divider: false) {
-                        KeyHint(model.shortcut.symbols.joined(), large: true)
-                    }
-                    SettingRow(title: "Aim and pin", detail: "Hold ⌥ while scouting, then click an element.") {
-                        KeyHint("⌥", large: true)
-                    }
-                    SettingRow(title: "Next task", detail: "While scouting, ends the current task and starts the next.") {
-                        KeyHint(model.breakShortcut.symbols.joined(), large: true)
-                    }
-                    SettingRow(title: "Discard recording", detail: "While scouting, asks to discard; press it again to delete the recording. Esc keeps it.") {
-                        KeyHint(model.discardShortcut.symbols.joined(), large: true)
-                    }
+        ScrollViewReader { proxy in
+            ScoutScroll {
+                generalSections
+            }
+            .onAppear {
+                if let anchor = SnapshotMode.settingsScrollAnchor { proxy.scrollTo(anchor, anchor: .top) }
+            }
+        }
+    }
+
+    private var generalSections: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            UISizeSection()
+            SettingsSection(title: "Scouting") {
+                SettingRow(title: "Start or stop scouting", detail: "Works in any app. Change it in the setup guide.", divider: false) {
+                    KeyHint(model.shortcut.symbols.joined(), large: true)
                 }
-                SplittingSection()
-                SettingsSection(title: "App") {
-                    SettingRow(title: "Open Scout at login", detail: nil, divider: false) {
-                        Toggle("", isOn: $opensAtLogin)
-                            .toggleStyle(SignalToggleStyle())
-                            .labelsHidden()
-                            .onChange(of: opensAtLogin) { _, enabled in model.opensAtLogin = enabled }
-                    }
-                    SettingRow(title: "Sessions folder", detail: ScoutPaths.support.appendingPathComponent("Sessions").path) {
-                        Button("Show") { NSWorkspace.shared.open(ScoutPaths.support.appendingPathComponent("Sessions")) }
-                            .buttonStyle(SecondaryButtonStyle())
-                    }
+                SettingRow(title: "Aim and pin", detail: "Hold ⌥ while scouting, then click an element.") {
+                    KeyHint("⌥", large: true)
+                }
+                SettingRow(title: "Next task", detail: "While scouting, ends the current task and starts the next.") {
+                    KeyHint(model.breakShortcut.symbols.joined(), large: true)
+                }
+                SettingRow(title: "Discard recording", detail: "While scouting, asks to discard; press it again to delete the recording. Esc keeps it.") {
+                    KeyHint(model.discardShortcut.symbols.joined(), large: true)
+                }
+            }
+            SplittingSection()
+            VoiceSection().id("voice")
+            SettingsSection(title: "App") {
+                SettingRow(title: "Open Scout at login", detail: nil, divider: false) {
+                    Toggle("", isOn: $opensAtLogin)
+                        .toggleStyle(SignalToggleStyle())
+                        .labelsHidden()
+                        .onChange(of: opensAtLogin) { _, enabled in model.opensAtLogin = enabled }
+                }
+                SettingRow(title: "Sessions folder", detail: ScoutPaths.support.appendingPathComponent("Sessions").path) {
+                    Button("Show") { NSWorkspace.shared.open(ScoutPaths.support.appendingPathComponent("Sessions")) }
+                        .buttonStyle(SecondaryButtonStyle())
                 }
                 UpdatesSection()
             }
-            .padding(20)
         }
+        .padding(20)
     }
 }
 
