@@ -59,6 +59,7 @@ nonisolated struct ReviewRecord: Codable, Sendable {
         display.map { CaptureDisplays(start: $0, hops: displayHops ?? []) }
     }
     var discarded: [Span]?
+    var transcription: TranscriptionRun?
     var tasks: [Task]
 
     static let fileName = "review.json"

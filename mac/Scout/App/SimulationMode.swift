@@ -400,8 +400,11 @@ enum SimulationMode {
         report["bundle"] = done.directory.path
         report["timings"] = done.timings
         report["status"] = done.walkthrough.status.rawValue
+        report["transcription"] = transcriptionReport(session.transcriber.run)
         report["transcript"] = [
             "status": done.walkthrough.transcript.status.rawValue,
+            "engine": done.walkthrough.transcript.engine ?? "",
+            "language": done.walkthrough.transcript.language ?? "",
             "failure": done.walkthrough.transcript.failure.map { ["reason": $0.reason.rawValue, "message": $0.message ?? "", "t": $0.t ?? -1] } ?? [:],
             "soundSeconds": session.transcriber.sound.seconds,
             "events": (try? JSONEncoder().encode(session.transcriber.events)).flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? [],
@@ -1024,6 +1027,11 @@ enum SimulationMode {
         up?.post(tap: .cghidEventTap)
     }
 
+    private static func transcriptionReport(_ run: TranscriptionRun?) -> Any {
+        guard let run, let data = try? JSONEncoder().encode(run), let object = try? JSONSerialization.jsonObject(with: data) else { return [:] }
+        return object
+    }
+
     private static func writeReport(model: AppModel, into directory: URL, elapsed: TimeInterval, extra: [String: Any] = [:]) {
         let cards: [[String: Any]] = (model.review?.tasks ?? model.dispatcher.cards).map { card in
             [
@@ -1044,6 +1052,7 @@ enum SimulationMode {
             "session": model.session?.directory.path ?? "",
             "transcript": model.session?.ledger.utterances.map(\.text).joined(separator: " ") ?? "",
             "liveTranscript": model.session?.transcriber.finalizedText ?? "",
+            "transcription": transcriptionReport(model.session?.transcriber.run),
             "onDeviceTitles": String(describing: SystemLanguageModel.default.availability),
             "aimAvailable": model.session?.aim.isAvailable ?? false,
             "bridgePort": model.bridge.port.map(Int.init) ?? 0,

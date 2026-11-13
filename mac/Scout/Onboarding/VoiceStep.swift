@@ -40,6 +40,7 @@ struct VoiceStep: View {
         }
         .task(id: micGranted) {
             guard micGranted else { return }
+            model.configure(model.transcriber)
             await model.transcriber.start()
         }
         .onDisappear {

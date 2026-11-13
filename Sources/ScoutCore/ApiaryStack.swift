@@ -56,32 +56,33 @@ public struct ApiaryStack: Hashable, Sendable {
     }
 
     public var label: String? {
-        guard let level = innermost else { return nil }
-        let name: String?
-        let role: String?
-        switch kind(level) {
-        case "dom":
-            role = string(level, "role") ?? string(level, "tag")
-            name = string(level, "name") ?? string(level, "text")
-        case "element":
-            role = string(level, "role")
-            name = string(level, "label")
-        case "entity":
-            role = string(level, "kind")
-            name = string(level, "title") ?? string(level, "handle") ?? string(level, "id")
-        case "pane":
-            role = string(level, "viewType").map { "\($0) pane" }
-            name = string(level, "title")
-        case "window":
-            role = "window"
-            name = string(level, "title")
-        default:
-            return nil
-        }
+        guard let (role, name) = roleAndName else { return nil }
         let kind = role ?? "element"
         guard let name else { return kind }
         let short = name.count > 60 ? String(name.prefix(59)) + "…" : name
         return "\(kind) “\(short)”"
+    }
+
+    public var name: String? {
+        roleAndName?.name
+    }
+
+    private var roleAndName: (role: String?, name: String?)? {
+        guard let level = innermost else { return nil }
+        switch kind(level) {
+        case "dom":
+            return (string(level, "role") ?? string(level, "tag"), string(level, "name") ?? string(level, "text"))
+        case "element":
+            return (string(level, "role"), string(level, "label"))
+        case "entity":
+            return (string(level, "kind"), string(level, "title") ?? string(level, "handle") ?? string(level, "id"))
+        case "pane":
+            return (string(level, "viewType").map { "\($0) pane" }, string(level, "title"))
+        case "window":
+            return ("window", string(level, "title"))
+        default:
+            return nil
+        }
     }
 }
 

@@ -144,6 +144,9 @@ final class ScoutingSession {
             return reply.element.target(clientID: reply.client.id, viewport: reply.viewport)
         }
         aim.start()
+        pointing?.onHit = { [weak self] hit in
+            if let name = hit.stack.name { self?.transcriber.learn([name]) }
+        }
         pointing?.start(watchesPointer: !SimulationMode.replaysEvents)
         bridge.onHover = { [weak self] client, element, viewport, date in
             self?.webHover(element.target(clientID: client.id, viewport: viewport), at: date)
@@ -164,7 +167,10 @@ final class ScoutingSession {
                 Task { @MainActor in self?.accessibilityFocus(focus) }
             },
             onHover: { [weak self] target in
-                Task { @MainActor in self?.hoverTarget = target }
+                Task { @MainActor in
+                    self?.hoverTarget = target
+                    if let target { self?.transcriber.note(target) }
+                }
             }
         )
         self.contextTracker = contextTracker
@@ -184,6 +190,7 @@ final class ScoutingSession {
         }
 
         await transcriber.start()
+        transcriber.run?.write(to: directory)
         await recorderStart?.value
         guard !stopRequested else { return }
         if case .failed(let message) = transcriber.phase {
@@ -205,6 +212,7 @@ final class ScoutingSession {
         contextTracker?.stop()
         pointerTracker?.stop()
         await transcriber.stop()
+        transcriber.run?.write(to: directory)
         let secondPass = refiningTranscript ? startSecondPass() : nil
         await recorder?.stop()
         let end = clock.now
@@ -362,8 +370,15 @@ final class ScoutingSession {
         log.append(signal)
         ledger.record(signal)
         walkthrough?.record(signal)
-        if case .mark(let mark) = signal { pointing?.pin(mark) }
-        if case .context(let change) = signal { context = change.context }
+        if case .mark(let mark) = signal {
+            pointing?.pin(mark)
+            if let target = mark.target { transcriber.note(target) }
+        }
+        if case .focus(let focus) = signal { transcriber.note(focus.target) }
+        if case .context(let change) = signal {
+            context = change.context
+            transcriber.note(change.context)
+        }
         handle(segmenter.ingest(signal))
     }
 
@@ -418,7 +433,7 @@ extension ScoutingSession {
             return nil
         }
         let locale = transcriber.localeIdentifier.map(Locale.init(identifier:)) ?? Locale.current
-        let request = TranscriptionRequest(audio: audio.url, locale: locale)
+        let request = TranscriptionRequest(audio: audio.url, locale: locale, contextualStrings: transcriber.terms.all)
         let engines = [transcriptionEngine] + (fallbackEngine.map { [$0] } ?? [])
         let limit = Self.secondPassLimit(forAudio: audio.seconds)
         return Task.detached(priority: .userInitiated) {

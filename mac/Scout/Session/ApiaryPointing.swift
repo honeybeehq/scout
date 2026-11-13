@@ -13,6 +13,7 @@ final class ApiaryPointing {
     private var lastDwell: (stack: ApiaryStack, at: SessionTime)?
     private(set) var calls = 0
     private(set) var skipped = 0
+    var onHit: ((SemanticHit) -> Void)?
 
     init(bridge: ApiaryBridge, clock: SessionClock, recorder: WalkthroughRecorder) {
         self.bridge = bridge
@@ -76,7 +77,9 @@ final class ApiaryPointing {
                     }
                     self.lastDwell = (stack, time)
                 }
-                return SemanticHit(at: time, via: via, point: point, markID: markID, stack: stack)
+                let hit = SemanticHit(at: time, via: via, point: point, markID: markID, stack: stack)
+                self?.onHit?(hit)
+                return hit
             }
         )
     }

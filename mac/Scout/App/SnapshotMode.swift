@@ -68,6 +68,10 @@ enum SnapshotMode {
         directory != nil && linearState == .mappings ? "routing" : nil
     }
 
+    static var settingsScrollAnchor: String? {
+        directory != nil ? argument("--settings-scroll=") : nil
+    }
+
     static func makeLinearAccount() -> LinearAccount {
         let state = SettingsView.requestedPane == .linear ? linearState : nil
         let volatile = directory != nil && state != nil && state != .keychain
