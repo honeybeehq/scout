@@ -28,19 +28,23 @@ public enum WalkthroughText {
             }
         }
 
-        var segmentLines: [String]
+        var notes: [String] = []
         if let failure = walkthrough.transcript.failure {
-            segmentLines = [missingLine(failure, heard: walkthrough.transcript.segments.count)]
-            segmentLines += walkthrough.transcript.segments.map { segment in
+            notes.append(missingLine(failure, heard: walkthrough.transcript.segments.count))
+        }
+        notes += (walkthrough.transcript.events ?? []).map(eventLine)
+        var segmentLines: [String]
+        if walkthrough.transcript.failure != nil {
+            segmentLines = notes + walkthrough.transcript.segments.map { segment in
                 let refs = ((segment.pointers ?? []) + (segment.drawings ?? [])).map { " [\($0)]" }.joined()
                 return "\(segment.id) \(clock(segment.start))–\(clock(segment.end)) \(oneLine(segment.text))\(refs)"
             }
         } else if walkthrough.transcript.status == .unavailable {
-            segmentLines = ["Not available: Scout had no microphone or transcription for this recording."]
+            segmentLines = notes + ["Not available: Scout had no microphone or transcription for this recording."]
         } else if walkthrough.transcript.segments.isEmpty {
-            segmentLines = ["Nothing was said."]
+            segmentLines = notes + ["Nothing was said."]
         } else {
-            segmentLines = walkthrough.transcript.segments.map { segment in
+            segmentLines = notes + walkthrough.transcript.segments.map { segment in
                 let refs = ((segment.pointers ?? []) + (segment.drawings ?? [])).map { " [\($0)]" }.joined()
                 return "\(segment.id) \(clock(segment.start))–\(clock(segment.end)) \(oneLine(segment.text))\(refs)"
             }
@@ -73,8 +77,8 @@ public enum WalkthroughText {
         }
         var text = assemble(segmentLines)
         var keep = segmentLines.count
-        let kept = walkthrough.transcript.failure == nil ? 0 : 1
-        while text.utf8.count > inlineLimit, keep > kept, walkthrough.transcript.status == .ready || kept == 1, !walkthrough.transcript.segments.isEmpty {
+        let kept = notes.count
+        while text.utf8.count > inlineLimit, keep > kept, walkthrough.transcript.status == .ready || walkthrough.transcript.failure != nil, !walkthrough.transcript.segments.isEmpty {
             keep -= 1
             text = assemble(Array(segmentLines.prefix(keep)) + ["… transcript continues in walkthrough.json (\(segmentLines.count - keep) more segments)"])
         }
@@ -98,6 +102,24 @@ public enum WalkthroughText {
             let why = failure.message.map { " (\(oneLine($0)))" } ?? ""
             let rest = heard > 0 ? "Only the segments below, heard before it, were transcribed; the rest is missing, not silent." : "There are no words for this recording; the transcript is missing, not empty."
             return "Missing: the microphone stopped\(when)\(why). \(rest)"
+        }
+    }
+
+    static func eventLine(_ event: Walkthrough.TranscriptEvent) -> String {
+        let at = clock(event.t)
+        switch event.kind {
+        case .stall:
+            let span = event.until.map { "\(at)–\(clock($0))" } ?? "from \(at)"
+            return "Gap \(span): sound was heard but nothing was transcribed. Words may be missing there; it was not silent."
+        case .dropped:
+            let count = event.words.map { "\($0) \($0 == 1 ? "word" : "words")" } ?? "Words"
+            return "Dropped at \(at): \(count) still being transcribed when the recording stopped never finalised and are missing."
+        case .restart:
+            let why = event.message.map { " (\(oneLine($0)))" } ?? ""
+            return "Microphone restarted at \(at)\(why). A moment around it may be missing."
+        case .error:
+            let why = event.message.map { ": \(oneLine($0))" } ?? ""
+            return "Transcription error at \(at)\(why)."
         }
     }
 

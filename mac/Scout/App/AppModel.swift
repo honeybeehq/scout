@@ -430,6 +430,7 @@ final class AppModel {
             accessibility: AXIsProcessTrusted() ? .granted : .denied,
             transcript: failure == nil ? .ready : .unavailable,
             transcriptFailure: failure,
+            transcriptEvents: transcriber.events,
             language: transcriber.localeIdentifier,
             failed: session.captureProblem != nil && preferences.includeClips,
             microphoneSummary: microphone.map {

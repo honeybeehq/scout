@@ -14,6 +14,7 @@ final class WalkthroughRecorder {
         var accessibility: Walkthrough.Grant
         var transcript: Walkthrough.Availability
         var transcriptFailure: Walkthrough.TranscriptFailure?
+        var transcriptEvents: [Walkthrough.TranscriptEvent] = []
         var language: String?
         var failed: Bool
         var microphoneSummary: Walkthrough.Microphone?
@@ -130,6 +131,7 @@ final class WalkthroughRecorder {
             displays: media?.displays ?? [],
             transcript: sources.transcript,
             transcriptFailure: sources.transcriptFailure,
+            transcriptEvents: sources.transcriptEvents,
             language: sources.language,
             transcriptEngine: transcriptEngine,
             clip: exported,

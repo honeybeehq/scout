@@ -340,6 +340,8 @@ struct TargetPickerView: View {
             case .ready:
                 if model.walkthrough?.walkthrough.transcript.failure != nil {
                     StatusBadge(text: "No transcript", tone: .caution)
+                } else if model.walkthrough?.walkthrough.transcript.isIncomplete == true {
+                    StatusBadge(text: "Transcript gaps", tone: .caution)
                 } else {
                     StatusBadge(text: "Ready", tone: .positive)
                 }
@@ -386,7 +388,16 @@ struct TargetPickerView: View {
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
                         .lineLimit(2)
-                } else if items.isEmpty {
+                } else if let events = model.walkthrough?.walkthrough.transcript.events, !events.isEmpty {
+                    Text(TranscriptProblem.gapsTitle(events))
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Palette.text)
+                    Text(TranscriptProblem.gapsDetail(events))
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                        .lineLimit(2)
+                }
+                if items.isEmpty, model.walkthrough?.walkthrough.transcript.isIncomplete != true {
                     Text("No asks found. The agent reads the transcript.")
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textTertiary)
@@ -583,6 +594,26 @@ enum TranscriptProblem {
         case .noAudio: "\(sentence(failure.message ?? "the microphone sent no audio")) The walkthrough tells the agent nothing was recorded, not that nothing was said."
         case .micStopped: "\(sentence(failure.message ?? "the microphone stopped")) The walkthrough keeps what was heard before it and says the rest is missing."
         }
+    }
+
+    static func gapsTitle(_ events: [Walkthrough.TranscriptEvent]) -> String {
+        let stalls = events.filter { $0.kind == .stall }.count
+        let dropped = events.filter { $0.kind == .dropped }.count
+        if stalls > 0, dropped == 0 { return stalls == 1 ? "Transcription stalled once" : "Transcription stalled \(stalls) times" }
+        if dropped > 0, stalls == 0 { return "Some words were never finalised" }
+        return "The transcript has gaps"
+    }
+
+    static func gapsDetail(_ events: [Walkthrough.TranscriptEvent]) -> String {
+        let spans = events.compactMap { event -> String? in
+            switch event.kind {
+            case .stall: event.until.map { "\(WalkthroughText.clock(event.t))–\(WalkthroughText.clock($0))" } ?? "from \(WalkthroughText.clock(event.t))"
+            case .dropped: "\(event.words ?? 0) words at \(WalkthroughText.clock(event.t))"
+            case .restart: "mic restart at \(WalkthroughText.clock(event.t))"
+            case .error: "error at \(WalkthroughText.clock(event.t))"
+            }
+        }
+        return "Words may be missing (\(spans.joined(separator: ", "))). The walkthrough tells the agent where."
     }
 
     private static func sentence(_ text: String) -> String {

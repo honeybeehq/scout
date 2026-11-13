@@ -29,11 +29,14 @@ final class LiveTranscriber {
     private(set) var localeIdentifier: String?
     private(set) var failure: (message: String, at: SessionTime?, microphone: String?)?
     private(set) var sound = SoundMeter()
+    private(set) var events: [Walkthrough.TranscriptEvent] = []
+    private(set) var stalledSince: SessionTime?
 
     var heardSound: Bool { sound.heardSound }
     var faultAfter: Double?
 
     var onUtterance: ((Utterance) -> Void)?
+    var onEvent: ((Walkthrough.TranscriptEvent) -> Void)?
     var inputFile: URL?
     var onInputFinished: (() -> Void)?
     var audioURL: URL?
@@ -49,6 +52,16 @@ final class LiveTranscriber {
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
     private var resultsTask: Task<Void, Never>?
     private var audioWriter: SessionAudioWriter?
+    private var resultsFinished = false
+    private var watchdog: Task<Void, Never>?
+    private var lastResult: (at: SessionTime, heard: Double) = (0, 0)
+    private var soundResumedAt: SessionTime?
+    private var seenRestarts = 0
+
+    static let stallSound: Double = 3
+    static let stallWait: Double = 5
+    static let finishWait: Duration = .seconds(3)
+    static let watchInterval: Duration = .milliseconds(500)
 
     init(clock: SessionClock? = nil) {
         self.clock = clock
@@ -74,6 +87,11 @@ final class LiveTranscriber {
         finalizedText = ""
         volatileText = ""
         failure = nil
+        events = []
+        stalledSince = nil
+        soundResumedAt = nil
+        seenRestarts = 0
+        resultsFinished = false
         sound = SoundMeter()
         inputName = microphone.inputName
 
@@ -111,6 +129,8 @@ final class LiveTranscriber {
                 return
             }
             phase = .listening
+            lastResult = (clock?.now ?? 0, sound.seconds)
+            watch()
         } catch {
             guard attempt == generation else { return }
             await teardown()
@@ -121,10 +141,60 @@ final class LiveTranscriber {
     private func inputStopped(_ error: Error, attempt: Int) async {
         guard attempt == generation else { return }
         generation += 1
+        let stopped = clock?.now
         await flush()
         await teardown()
+        settle(at: stopped)
         level = 0
         fail(error)
+    }
+
+    private func watch() {
+        guard let clock else { return }
+        watchdog?.cancel()
+        watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.watchInterval)
+                guard let self else { return }
+                guard !Task.isCancelled, self.phase == .listening else { continue }
+                self.check(at: clock.now)
+            }
+        }
+    }
+
+    private func check(at now: SessionTime) {
+        let restarts = microphone.summary.restarts
+        if restarts > seenRestarts {
+            seenRestarts = restarts
+            record(Walkthrough.TranscriptEvent(kind: .restart, t: Walkthrough.milliseconds(now), message: microphone.summary.device))
+        }
+        guard stalledSince == nil else { return }
+        let heard = sound.seconds
+        if soundResumedAt == nil, heard > lastResult.heard { soundResumedAt = now }
+        guard let soundResumedAt, heard - lastResult.heard >= Self.stallSound, now - lastResult.at >= Self.stallWait else { return }
+        stalledSince = soundResumedAt
+        NSLog("[scout-voice] stalled: %.1f s of sound and no result since %.1f s", heard - lastResult.heard, lastResult.at)
+    }
+
+    private func settle(at now: SessionTime?) {
+        watchdog?.cancel()
+        watchdog = nil
+        guard let clock else { return }
+        let end = now ?? clock.now
+        if let since = stalledSince {
+            stalledSince = nil
+            record(Walkthrough.TranscriptEvent(kind: .stall, t: Walkthrough.milliseconds(since), until: Walkthrough.milliseconds(end)))
+        }
+        let pending = volatileText.split(whereSeparator: \.isWhitespace).count
+        if pending > 0 {
+            record(Walkthrough.TranscriptEvent(kind: .dropped, t: Walkthrough.milliseconds(end), words: pending))
+        }
+    }
+
+    private func record(_ event: Walkthrough.TranscriptEvent) {
+        events.append(event)
+        onEvent?(event)
+        NSLog("[scout-voice] %@ at %d ms%@%@%@", event.kind.rawValue, event.t, event.until.map { " until \($0) ms" } ?? "", event.words.map { " words \($0)" } ?? "", event.message.map { " · \($0)" } ?? "")
     }
 
     private func fail(_ error: Error) {
@@ -136,6 +206,7 @@ final class LiveTranscriber {
 
     func stop() async {
         generation += 1
+        let stopped = clock?.now
         await flush()
         await teardown()
         if let audioWriter {
@@ -144,6 +215,7 @@ final class LiveTranscriber {
             recordedAudio = seconds > 0 ? (audioWriter.url, seconds) : nil
             self.audioWriter = nil
         }
+        settle(at: stopped)
         phase = .idle
         level = 0
     }
@@ -154,13 +226,20 @@ final class LiveTranscriber {
         inputContinuation?.finish()
         inputContinuation = nil
         guard let analyzer, phase == .listening else { return }
-        try? await analyzer.finalizeAndFinishThroughEndOfInput()
+        do {
+            try await analyzer.finalizeAndFinishThroughEndOfInput()
+        } catch {
+            record(Walkthrough.TranscriptEvent(kind: .error, t: Walkthrough.milliseconds(clock?.now ?? 0), message: "Finishing the transcript failed: \(error.localizedDescription)"))
+        }
         if let resultsTask {
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await resultsTask.value }
-                group.addTask { try? await Task.sleep(for: .seconds(3)) }
+                group.addTask { try? await Task.sleep(for: Self.finishWait) }
                 await group.next()
                 group.cancelAll()
+            }
+            if !resultsFinished {
+                record(Walkthrough.TranscriptEvent(kind: .error, t: Walkthrough.milliseconds(clock?.now ?? 0), message: "The transcriber did not finish within \(Self.finishWait.components.seconds) seconds"))
             }
         }
         self.analyzer = nil
@@ -209,7 +288,9 @@ final class LiveTranscriber {
                 for try await result in transcriber.results {
                     self?.apply(result)
                 }
+                self?.resultsFinished = true
             } catch {
+                self?.resultsFinished = true
                 guard !Task.isCancelled else { return }
                 self?.fail(error)
             }
@@ -217,6 +298,13 @@ final class LiveTranscriber {
     }
 
     private func apply(_ result: SpeechTranscriber.Result) {
+        let now = clock?.now ?? 0
+        if let since = stalledSince {
+            stalledSince = nil
+            record(Walkthrough.TranscriptEvent(kind: .stall, t: Walkthrough.milliseconds(since), until: Walkthrough.milliseconds(now)))
+        }
+        lastResult = (now, sound.seconds)
+        soundResumedAt = nil
         let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
         if result.isFinal {
             finalizedText = [finalizedText, text].filter { !$0.isEmpty }.joined(separator: " ")
@@ -253,5 +341,7 @@ final class LiveTranscriber {
         analyzer = nil
         resultsTask?.cancel()
         resultsTask = nil
+        watchdog?.cancel()
+        watchdog = nil
     }
 }

@@ -235,6 +235,17 @@ struct ScoutingPill: View {
                         .truncationMode(.tail)
                 }
                 .help(message)
+            } else if transcriber.stalledSince != nil {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Palette.caution)
+                        .frame(width: 6, height: 6)
+                    Text("Transcription stalled · still recording")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.textSecondary)
+                        .lineLimit(1)
+                }
+                .help("Scout hears you, but the transcriber hasn't returned words for a while. The recording continues; the gap is noted in the walkthrough.")
             } else if session.aim.isAiming || (tail.isEmpty && transcriber.volatileText.isEmpty) {
                 Text(hint(session))
                     .font(.system(size: 12))

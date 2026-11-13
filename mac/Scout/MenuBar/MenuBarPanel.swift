@@ -89,6 +89,7 @@ struct MenuBarPanel: View {
             title: value.title ?? "Walkthrough",
             summary: "\(WalkthroughText.clock(value.duration)) · \(asks) \(asks == 1 ? "ask" : "asks") · copied, paste with ⌘V",
             transcriptProblem: value.transcript.failure.map { "\(TranscriptProblem.title($0)): no transcript" }
+                ?? (value.transcript.isIncomplete ? "\(TranscriptProblem.gapsTitle(value.transcript.events ?? [])): words may be missing" : nil)
         )
     }
 }

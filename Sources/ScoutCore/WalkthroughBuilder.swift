@@ -53,6 +53,7 @@ public struct WalkthroughBuilder: Sendable {
         public var displays: [Walkthrough.Display]
         public var transcript: Walkthrough.Availability
         public var transcriptFailure: Walkthrough.TranscriptFailure?
+        public var transcriptEvents: [Walkthrough.TranscriptEvent]
         public var language: String?
         public var transcriptEngine: String?
         public var clip: Walkthrough.Clip?
@@ -67,6 +68,7 @@ public struct WalkthroughBuilder: Sendable {
             displays: [Walkthrough.Display] = [],
             transcript: Walkthrough.Availability,
             transcriptFailure: Walkthrough.TranscriptFailure? = nil,
+            transcriptEvents: [Walkthrough.TranscriptEvent] = [],
             language: String? = nil,
             transcriptEngine: String? = nil,
             clip: Walkthrough.Clip? = nil,
@@ -80,6 +82,7 @@ public struct WalkthroughBuilder: Sendable {
             self.displays = displays
             self.transcript = transcript
             self.transcriptFailure = transcriptFailure
+            self.transcriptEvents = transcriptEvents
             self.language = language
             self.transcriptEngine = transcriptEngine
             self.clip = clip
@@ -325,6 +328,7 @@ public struct WalkthroughBuilder: Sendable {
                 language: finish.language,
                 engine: finish.transcriptEngine,
                 failure: finish.transcriptFailure,
+                events: finish.transcriptEvents.isEmpty ? nil : finish.transcriptEvents,
                 segments: transcriptReady || finish.transcriptFailure != nil ? segments : []
             ),
             frames: frames,
