@@ -42,20 +42,20 @@ baseline=$(head -1 "$samples")
 if [[ "$variant" == [de] ]]; then
   if ! "${cmd[@]}" 2> "$out.err"; then
     cat "$out.err" >&2
-    if grep -q "sandbox_apply" "$out.err"; then
-      echo "  sandbox-exec unavailable here; rerunning with a socket watch instead" >&2
-      "${cmd[@]:3}" &
-      child=$!
-      sockets=0
-      while kill -0 $child 2>/dev/null; do
-        if lsof -a -i -n -P -p $child 2>/dev/null | grep -q -v COMMAND; then sockets=1; lsof -a -i -n -P -p $child >&2; fi
-        sleep 0.25
-      done
-      wait $child
-      [[ $sockets == 0 ]] || { echo "network socket seen during whisper run; result rejected" >&2; rm -f "$out"; exit 3; }
-      echo "  no network sockets observed during the whisper run" >&2
+    if grep -q "sandbox_apply" "$out.err" && [[ "${SCOUT_EVAL_ALLOW_UNSANDBOXED:-0}" == 1 ]]; then
+      echo "  sandbox-exec refused; running UNSANDBOXED because SCOUT_EVAL_ALLOW_UNSANDBOXED=1" >&2
+      "${cmd[@]:3}"
+      python3 -I - "$out" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+d["metrics"]["networkDenied"] = False
+with open(sys.argv[1], "w") as f: json.dump(d, f, indent=2, sort_keys=True)
+PY
+    elif grep -q "sandbox_apply" "$out.err"; then
+      echo "  sandbox-exec refused to run the whisper process here; variant $variant FAILED (rerun with --allow-unsandboxed only after Needle approves)" >&2
+      rm -f "$out.err"; exit 4
     else
-      exit 1
+      rm -f "$out.err"; exit 1
     fi
   fi
   rm -f "$out.err"
