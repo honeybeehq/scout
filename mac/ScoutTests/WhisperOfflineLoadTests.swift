@@ -28,12 +28,23 @@ nonisolated final class NetworkBlock: URLProtocol, @unchecked Sendable {
 }
 
 nonisolated enum WhisperTestFolders {
-    static var model: URL {
-        URL(fileURLWithPath: ProcessInfo.processInfo.environment["SCOUT_WHISPER_MODEL_FOLDER"] ?? "/nonexistent/scout-whisper-model", isDirectory: true)
+    static let modelVariable = "SCOUT_WHISPER_MODEL_FOLDER"
+    static let tokenizerVariable = "SCOUT_WHISPER_TOKENIZER_FOLDER"
+
+    static func model() throws -> URL {
+        guard let path = ProcessInfo.processInfo.environment[modelVariable] else {
+            throw XCTSkip("SKIPPED, NOT PASSED: \(modelVariable) is not set. Export it as an environment variable (TEST_RUNNER_\(modelVariable)=… in the shell before xcodebuild test, not as a build setting) pointing at the verified model folder.")
+        }
+        let folder = URL(fileURLWithPath: path, isDirectory: true)
+        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("config.json").path) else {
+            throw XCTSkip("SKIPPED, NOT PASSED: \(modelVariable)=\(path) has no config.json; point it at the verified model folder.")
+        }
+        return folder
     }
 
-    static var tokenizer: URL {
-        ProcessInfo.processInfo.environment["SCOUT_WHISPER_TOKENIZER_FOLDER"].map { URL(fileURLWithPath: $0, isDirectory: true) } ?? model
+    static func tokenizer() throws -> URL {
+        guard let path = ProcessInfo.processInfo.environment[tokenizerVariable] else { return try model() }
+        return URL(fileURLWithPath: path, isDirectory: true)
     }
 }
 
@@ -50,9 +61,8 @@ nonisolated final class WhisperOfflineLoadTests: XCTestCase {
     }
 
     func testModelAndTokenizerLoadWithoutAnyNetworkRequest() async throws {
-        let model = WhisperTestFolders.model
-        let tokenizer = WhisperTestFolders.tokenizer
-        try XCTSkipUnless(WhisperModelFiles.isComplete(model) || FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "set SCOUT_WHISPER_MODEL_FOLDER to the verified model folder (and SCOUT_WHISPER_TOKENIZER_FOLDER if the tokenizer lives elsewhere); nothing at \(model.path)")
+        let model = try WhisperTestFolders.model()
+        let tokenizer = try WhisperTestFolders.tokenizer()
         let engine = WhisperEngine(modelFolder: model, tokenizerFolder: tokenizer)
         try await engine.prepare()
         let loaded = await engine.isLoaded
@@ -64,8 +74,7 @@ nonisolated final class WhisperOfflineLoadTests: XCTestCase {
     }
 
     func testMissingTokenizerFailsInsteadOfFetchingFromTheHub() async throws {
-        let model = WhisperTestFolders.model
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "set SCOUT_WHISPER_MODEL_FOLDER to the verified model folder (and SCOUT_WHISPER_TOKENIZER_FOLDER if the tokenizer lives elsewhere); nothing at \(model.path)")
+        let model = try WhisperTestFolders.model()
         let empty = FileManager.default.temporaryDirectory.appendingPathComponent("scout-whisper-no-tokenizer-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: empty) }
@@ -83,9 +92,8 @@ nonisolated final class WhisperOfflineLoadTests: XCTestCase {
     }
 
     func testPinnedTableMatchesTheVerifiedFiles() throws {
-        let model = WhisperTestFolders.model
-        let tokenizer = WhisperTestFolders.tokenizer
-        try XCTSkipUnless(FileManager.default.fileExists(atPath: model.appendingPathComponent("config.json").path), "set SCOUT_WHISPER_MODEL_FOLDER to the verified model folder (and SCOUT_WHISPER_TOKENIZER_FOLDER if the tokenizer lives elsewhere); nothing at \(model.path)")
+        let model = try WhisperTestFolders.model()
+        let tokenizer = try WhisperTestFolders.tokenizer()
         XCTAssertEqual(WhisperPins.files.count, 24)
         XCTAssertEqual(WhisperPins.totalBytes, 648_662_093)
         for file in WhisperPins.files {
