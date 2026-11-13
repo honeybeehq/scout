@@ -40,7 +40,8 @@ final class SessionReview {
     var linearParentTitle: String?
     var linearSessionLine: SessionLine?
     var linearParent: LinearParent?
-    var isLoadingSessionLine = false
+    @ObservationIgnored var sessionLineLoad: Task<Void, Never>?
+    @ObservationIgnored var parentFiling: Task<LinearIssueRef, Error>?
     var editingParentTitle = false
 
     static let minimumTaskLength: SessionTime = 0.6

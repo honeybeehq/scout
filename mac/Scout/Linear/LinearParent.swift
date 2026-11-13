@@ -73,14 +73,18 @@ extension SessionReview {
     }
 
     func loadSessionLine() async {
-        guard linearSessionLine == nil, !isLoadingSessionLine, !tasks.isEmpty else { return }
-        isLoadingSessionLine = true
-        let line = await TaskSummarisers.current.sessionLine(for: tasks.map(\.briefInput))
-        isLoadingSessionLine = false
-        if let line, linearSessionLine == nil {
-            linearSessionLine = line
-            save()
+        if let running = sessionLineLoad { return await running.value }
+        guard linearSessionLine == nil, !tasks.isEmpty else { return }
+        let inputs = tasks.map(\.briefInput)
+        let load = Task {
+            let line = await TaskSummarisers.current.sessionLine(for: inputs)
+            if let line, linearSessionLine == nil {
+                linearSessionLine = line
+                save()
+            }
         }
+        sessionLineLoad = load
+        await load.value
     }
 
     func parentDraft(_ plan: LinearParentPlan) -> IssueDraft {
@@ -109,6 +113,14 @@ extension SessionReview {
     func ensureLinearParent(for card: SnippetCard) async throws -> LinearIssueRef? {
         guard !dispatcher.dryRun, let plan = linearPlan, plan.children.contains(where: { $0 === card }) else { return nil }
         if let parent = linearParent { return parent.issue }
+        if let running = parentFiling { return try await running.value }
+        let filing = Task { try await fileParent(plan, reporting: card) }
+        parentFiling = filing
+        defer { parentFiling = nil }
+        return try await filing.value
+    }
+
+    private func fileParent(_ plan: LinearParentPlan, reporting card: SnippetCard) async throws -> LinearIssueRef {
         await loadSessionLine()
         let draft = parentDraft(plan)
         let request = LinearFiler.Request(
@@ -125,9 +137,14 @@ extension SessionReview {
             parent: nil,
             compose: { _ in draft }
         )
-        let receipt = try await dispatcher.linear.filer.file(request, pending: { _ in }, report: { [weak card] step in
-            card?.linearStep = step == .creating ? .creatingParent : step
-        })
+        let receipt: LinearReceipt
+        do {
+            receipt = try await dispatcher.linear.filer.file(request, pending: { _ in }, report: { [weak card] step in
+                card?.linearStep = step == .creating ? .creatingParent : step
+            })
+        } catch LinearError.deletedRemotely {
+            throw LinearError.server("It was deleted in Linear. Choose One issue per task to file the rest.")
+        }
         guard let issue = receipt.issue else { throw LinearError.server("Linear didn't create the parent issue.") }
         if let parent = linearParent { return parent.issue }
         linearParent = LinearParent(issue: issue, target: plan.target, description: draft.markdown)

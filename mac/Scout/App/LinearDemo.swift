@@ -115,6 +115,10 @@ enum LinearDemo {
             review.save()
         } else if send == "all" {
             await model.sendAll(in: review)
+        } else if send == "all-twice" {
+            async let first: Void = model.sendAll(in: review)
+            async let second: Void = model.sendAll(in: review)
+            _ = await (first, second)
         } else if send == "first", let card = review.tasks.first {
             await model.dispatcher.send(card)
             review.save()
