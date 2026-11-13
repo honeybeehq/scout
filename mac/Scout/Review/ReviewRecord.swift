@@ -28,6 +28,10 @@ nonisolated struct ReviewRecord: Codable, Sendable {
         var destinationChosenByUser: Bool?
         var runtimeNotes: [String]?
         var project: ProjectReference?
+        var brief: TaskBrief?
+        var linear: LinearTaskOptions?
+        var linearReceipt: LinearReceipt?
+        var linearGeneration: Int?
 
         @MainActor
         init(_ card: SnippetCard) {
@@ -44,6 +48,10 @@ nonisolated struct ReviewRecord: Codable, Sendable {
             destinationChosenByUser = card.destinationChosenByUser
             runtimeNotes = card.runtimeNotes.isEmpty ? nil : card.runtimeNotes
             project = card.project
+            brief = card.brief
+            linear = card.linearOptions == LinearTaskOptions() ? nil : card.linearOptions
+            linearReceipt = card.linearReceipt
+            linearGeneration = card.linearGeneration > 0 ? card.linearGeneration : nil
         }
     }
 

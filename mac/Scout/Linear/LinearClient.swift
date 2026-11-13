@@ -9,6 +9,9 @@ nonisolated enum LinearError: Error, Equatable, Sendable {
     case malformed
     case outsideTestTeam
     case keychain(OSStatus)
+    case notFound
+    case deletedRemotely
+    case uploadFailed
     case server(String)
 
     var message: String {
@@ -22,6 +25,9 @@ nonisolated enum LinearError: Error, Equatable, Sendable {
         case .malformed: "Linear sent a reply Scout couldn't read."
         case .outsideTestTeam: "Development builds only file into the test team."
         case .keychain: "Scout couldn't use your Keychain."
+        case .notFound: "Linear couldn't find that."
+        case .deletedRemotely: "This task's issue was deleted in Linear."
+        case .uploadFailed: "An image couldn't be uploaded to Linear."
         case .server(let message): message
         }
     }
@@ -36,7 +42,7 @@ nonisolated struct LinearOperation<Response: Decodable & Sendable>: Sendable {
     var name: String
     var kind: Kind = .query
     var document: String
-    var variables: [String: String] = [:]
+    var variables: [String: LinearValue] = [:]
 
     #if DEBUG
     static var testTeamIDs: Set<String> {
@@ -53,6 +59,34 @@ nonisolated struct LinearOperation<Response: Decodable & Sendable>: Sendable {
 
 nonisolated protocol LinearAPI: Sendable {
     func perform<Response>(_ operation: LinearOperation<Response>, credential: LinearCredential) async throws(LinearError) -> Response
+    func upload(_ file: URL, to target: LinearUploadTarget) async throws(LinearError)
+}
+
+nonisolated enum LinearValue: Encodable, Hashable, Sendable {
+    case string(String)
+    case int(Int)
+    case bool(Bool)
+    case list([LinearValue])
+    case object([String: LinearValue])
+
+    var string: String? {
+        if case .string(let value) = self { value } else { nil }
+    }
+
+    var object: [String: LinearValue]? {
+        if case .object(let value) = self { value } else { nil }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value): try container.encode(value)
+        case .int(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .list(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        }
+    }
 }
 
 nonisolated struct LinearViewer: Decodable, Hashable, Sendable {
@@ -183,7 +217,7 @@ nonisolated enum LinearOperations {
         LinearOperation(
             name: "projects",
             document: "query($team: String!) { team(id: $team) { projects(first: 100) { nodes { id name completedAt canceledAt } } } }",
-            variables: ["team": team]
+            variables: ["team": .string(team)]
         )
     }
 
@@ -191,7 +225,7 @@ nonisolated enum LinearOperations {
         LinearOperation(
             name: "labels",
             document: "query($team: String!) { team(id: $team) { labels(first: 250) { nodes { id name parent { id } } } } }",
-            variables: ["team": team]
+            variables: ["team": .string(team)]
         )
     }
 }
@@ -226,12 +260,18 @@ nonisolated enum LinearResponse {
             case "AUTHENTICATION_ERROR": throw .unauthorized
             case "FORBIDDEN": throw .forbidden
             case "RATELIMITED": throw .rateLimited(until: resetAt)
+            case _ where failure.message?.localizedCaseInsensitiveContains("not found") == true: throw .notFound
             default: throw .server(String(RemoteText.clean(failure.message ?? "Linear returned an error.").prefix(200)))
             }
         }
         guard let payload = envelope.data else { throw .malformed }
         return payload
     }
+}
+
+nonisolated struct LinearRequestBody: Encodable {
+    var query: String
+    var variables: [String: LinearValue]
 }
 
 nonisolated struct LinearClient: LinearAPI {
@@ -244,7 +284,7 @@ nonisolated struct LinearClient: LinearAPI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(credential.authorization, forHTTPHeaderField: "Authorization")
-        guard let body = try? JSONSerialization.data(withJSONObject: ["query": operation.document, "variables": operation.variables]) else { throw .malformed }
+        guard let body = try? JSONEncoder().encode(LinearRequestBody(query: operation.document, variables: operation.variables)) else { throw .malformed }
         request.httpBody = body
         let data: Data
         let response: URLResponse
@@ -256,23 +296,19 @@ nonisolated struct LinearClient: LinearAPI {
         guard let http = response as? HTTPURLResponse else { throw .malformed }
         return try LinearResponse.decode(data, status: http.statusCode, rateLimitReset: http.value(forHTTPHeaderField: "X-RateLimit-Requests-Reset"))
     }
-}
 
-nonisolated struct FixtureLinearClient: LinearAPI {
-    var directory: URL
-    var rejectsKeys = false
-
-    func perform<Response>(_ operation: LinearOperation<Response>, credential: LinearCredential) async throws(LinearError) -> Response {
-        try operation.checkAllowed()
-        try? await Task.sleep(for: .milliseconds(150))
-        let names = [
-            rejectsKeys ? "\(operation.name)-rejected" : nil,
-            operation.variables["team"].map { "\(operation.name)-\($0)" },
-            operation.name,
-        ].compactMap { $0 }
-        let file = names.map { directory.appendingPathComponent("\($0).json") }.first { FileManager.default.fileExists(atPath: $0.path) }
-        guard let file, let data = try? Data(contentsOf: file) else { throw .offline }
-        return try LinearResponse.decode(data, status: 200, rateLimitReset: nil)
+    func upload(_ file: URL, to target: LinearUploadTarget) async throws(LinearError) {
+        var request = URLRequest(url: target.uploadURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 600)
+        request.httpMethod = "PUT"
+        request.setValue(target.contentType, forHTTPHeaderField: "Content-Type")
+        for (key, value) in target.headers { request.setValue(value, forHTTPHeaderField: key) }
+        let response: URLResponse
+        do {
+            (_, response) = try await Self.session.upload(for: request, fromFile: file)
+        } catch {
+            throw .offline
+        }
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw .uploadFailed }
     }
 }
 

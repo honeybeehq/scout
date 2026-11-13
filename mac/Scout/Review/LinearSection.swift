@@ -1,0 +1,287 @@
+import AppKit
+import ScoutCore
+import SwiftUI
+
+struct LinearSection: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.stillRender) private var still
+    let review: SessionReview
+    let card: SnippetCard
+    let target: LinearTarget
+    @State private var previewing = false
+    @State private var writing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            VStack(alignment: .leading, spacing: 0) {
+                summary
+                SettingRow(title: "Labels", detail: nil) { labels }
+                SettingRow(title: "Priority", detail: nil) { priority }
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .surfaceCard(Palette.surface, stroke: Palette.stroke)
+            HStack(spacing: 8) {
+                Button("Preview issue") { previewing = true }
+                    .buttonStyle(SecondaryButtonStyle())
+                Text(leavesTheMac)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .task(id: card.briefInput.fingerprint) {
+            guard !still else { return }
+            await model.linear.loadTeamDetails(target.team.id)
+            await model.dispatcher.ensureBrief(for: card)
+        }
+        .sheet(isPresented: $previewing) {
+            IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, imageCount: imageCount) { previewing = false }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Text("Linear issue").eyebrowStyle(Palette.textTertiary)
+            if card.brief?.edited == true { StateTag(text: "Edited", tone: .neutral) }
+            Spacer(minLength: 0)
+            if !card.isLocked, OnDeviceSummariser.isAvailable {
+                Button(card.brief?.edited == true ? "Use the generated one" : "Regenerate") {
+                    Task {
+                        await model.dispatcher.ensureBrief(for: card, regenerate: true)
+                        review.edited(card)
+                    }
+                }
+                .buttonStyle(QuietButtonStyle())
+                .disabled(card.isBriefing)
+                .padding(.vertical, -6)
+            }
+        }
+        .frame(height: 14)
+    }
+
+    @ViewBuilder
+    private var summary: some View {
+        if card.isBriefing && card.brief?.edited != true || card.brief == nil && !card.isLocked && !still {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Summarising on this Mac…")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            .padding(.vertical, 12)
+        } else if let brief = card.brief, brief.hasSummary || brief.edited || writing && !card.isLocked {
+            VStack(alignment: .leading, spacing: 8) {
+                BriefField(label: "Problem", text: text(\.problem), locked: card.isLocked)
+                BriefField(label: "Expected", text: text(\.expected), locked: card.isLocked)
+                BriefField(label: "Actual", text: text(\.actual), locked: card.isLocked)
+                BriefField(label: "Steps", text: lines(\.steps), locked: card.isLocked, placeholder: "One step per line")
+                BriefField(label: "Done when", text: lines(\.acceptance), locked: card.isLocked, placeholder: "One check per line")
+            }
+            .padding(.vertical, 12)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(OnDeviceSummariser.isAvailable ? "Nothing to summarise yet, so the issue leads with what you said." : "Apple Intelligence is off on this Mac, so the issue leads with what you said.")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !card.isLocked {
+                    Button("Write a summary") { writing = true }
+                        .buttonStyle(QuietButtonStyle())
+                        .padding(.horizontal, -8)
+                }
+            }
+            .padding(.vertical, 12)
+        }
+    }
+
+    private var labels: some View {
+        let all = model.dispatcher.teamLabels(target.team.id)
+        let chosen = model.dispatcher.labelIDs(for: card, team: target.team.id)
+        let names = chosen.compactMap { id in all.first { $0.id == id } }
+        let others = all.filter { !chosen.contains($0.id) }
+        return HStack(spacing: 6) {
+            if names.isEmpty {
+                Text("None").font(Typography.caption).foregroundStyle(Palette.textTertiary)
+            }
+            ForEach(names) { label in
+                HStack(spacing: 4) {
+                    Text(label.name).lineLimit(1)
+                    if !card.isLocked {
+                        Button {
+                            setLabels(chosen.filter { $0 != label.id })
+                        } label: {
+                            Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Palette.textTertiary)
+                        .help("Remove \(label.name)")
+                    }
+                }
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Palette.text)
+                .padding(.horizontal, 7)
+                .frame(height: 22)
+                .background(Palette.fill, in: .rect(cornerRadius: Radius.tag, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous).strokeBorder(Palette.hairline))
+            }
+            if !card.isLocked, !others.isEmpty {
+                ScoutMenu {
+                    ForEach(others) { label in
+                        Button(label.name) { setLabels(chosen + [label.id]) }
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Palette.textSecondary)
+                        .frame(width: 22, height: 22)
+                        .background(Palette.surface, in: .rect(cornerRadius: Radius.tag, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous).strokeBorder(Palette.stroke))
+                }
+                .fixedSize()
+                .help("Add a label from \(target.team.key)")
+            }
+        }
+    }
+
+    private var priority: some View {
+        let current = LinearPriority(rawValue: model.dispatcher.priority(for: card)) ?? .none
+        return ChoiceMenu(options: LinearPriority.allCases, selection: Binding(
+            get: { current },
+            set: { value in
+                card.linearOptions.priority = value.rawValue
+                review.edited(card)
+            }
+        ), title: \.title)
+        .disabled(card.isLocked)
+    }
+
+    private var imageCount: Int {
+        card.sessionVideo != nil || card.recorder != nil ? card.snippet.marks.count : 0
+    }
+
+    private var leavesTheMac: String {
+        if let issue = card.linearReceipt?.issue { return "Filed in \(target.team.key) as \(issue.identifier)." }
+        let images = imageCount == 0 ? "" : imageCount == 1 ? " and 1 image" : " and \(imageCount) images"
+        return "Text\(images) go to \(target.team.key) when you file. No video."
+    }
+
+    private func setLabels(_ ids: [String]) {
+        card.linearOptions.labelIDs = ids
+        review.edited(card)
+    }
+
+    private func text(_ path: WritableKeyPath<TaskBrief, String?>) -> Binding<String> {
+        Binding(
+            get: { card.brief?[keyPath: path] ?? "" },
+            set: { value in edit { $0[keyPath: path] = value.isEmpty ? nil : value } }
+        )
+    }
+
+    private func lines(_ path: WritableKeyPath<TaskBrief, [String]>) -> Binding<String> {
+        Binding(
+            get: { card.brief?[keyPath: path].joined(separator: "\n") ?? "" },
+            set: { value in edit { $0[keyPath: path] = value.isEmpty ? [] : value.components(separatedBy: "\n") } }
+        )
+    }
+
+    private func edit(_ change: (inout TaskBrief) -> Void) {
+        guard var brief = card.brief, !card.isLocked else { return }
+        change(&brief)
+        brief.edited = true
+        card.brief = brief
+        review.edited(card)
+    }
+}
+
+private struct BriefField: View {
+    let label: String
+    @Binding var text: String
+    let locked: Bool
+    var placeholder = "Not said"
+    @Environment(\.stillRender) private var still
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Palette.textTertiary)
+                .frame(width: 72, alignment: .leading)
+            if locked || still {
+                Text(text.isEmpty ? "–" : text)
+                    .foregroundStyle(text.isEmpty ? Palette.textQuaternary : Palette.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            } else {
+                TextField(placeholder, text: $text, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...8)
+                    .foregroundStyle(Palette.text)
+            }
+        }
+        .font(.system(size: 12.5))
+    }
+}
+
+struct IssuePreview: View {
+    let draft: IssueDraft
+    let target: LinearTarget
+    let imageCount: Int
+    let close: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Preview · \(target.label)").eyebrowStyle(Palette.textTertiary)
+                Text(draft.title)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(Palette.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    StatusDot(tone: .neutral)
+                    Text(summary)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
+            }
+            .padding(20)
+            Rectangle().fill(Palette.hairline).frame(height: 1)
+            ScoutScroll(indicators: .automatic) {
+                Text(draft.markdown)
+                    .font(Typography.mono)
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineSpacing(2)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+            }
+            .background(Palette.sunken)
+            Rectangle().fill(Palette.hairline).frame(height: 1)
+            HStack(spacing: 8) {
+                Text("This is the exact text Scout sends. Images upload when you file.")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                Spacer(minLength: 0)
+                Button("Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("# \(draft.title)\n\n\(draft.markdown)", forType: .string)
+                }
+                .buttonStyle(SecondaryButtonStyle())
+                Button("Done", action: close)
+                    .buttonStyle(PrimaryButtonStyle(large: false))
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+        }
+        .frame(width: 600, height: 620)
+        .background(Palette.surface)
+    }
+
+    private var summary: String {
+        let images = imageCount == 0 ? "" : imageCount == 1 ? ", 1 image" : ", \(imageCount) images"
+        return "Leaves this Mac when you file: text\(images) → Linear \(target.team.key). No video."
+    }
+}

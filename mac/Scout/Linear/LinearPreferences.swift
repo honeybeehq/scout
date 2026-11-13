@@ -52,7 +52,7 @@ final class LinearPreferences {
     static let initialManualStructure = LinearStructure.parent
     static let initialIncludesVideo = false
 
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
 
     var defaultTeam: LinearTeam? {
         didSet {

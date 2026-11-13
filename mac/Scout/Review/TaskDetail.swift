@@ -22,6 +22,9 @@ struct TaskDetail: View {
                             ContextSection(card: card)
                         }
                         TranscriptField(review: review, card: card)
+                        if let target = card.destination?.linearTarget {
+                            LinearSection(review: review, card: card, target: target)
+                        }
                         TargetsSection(review: review, card: card)
                         RuntimeNotes(card: card)
                     }
@@ -427,37 +430,73 @@ private struct HandoffBar: View {
     let review: SessionReview
     let card: SnippetCard
 
+    private var isLinear: Bool { card.destination?.linearTarget != nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if case .sent(let destination) = card.state {
                 HStack(spacing: 10) {
-                    Label(destination == "clipboard" ? "Copied to the clipboard" : "Sent to \(destination)", systemImage: "checkmark")
+                    Label(sentText(destination), systemImage: "checkmark")
                         .font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(Palette.positive)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .layoutPriority(1)
                     Spacer(minLength: 0)
-                    Button("Copy task") { copy() }
+                    if let issue = card.linearReceipt?.issue {
+                        Button("Copy link") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(issue.url.absoluteString, forType: .string)
+                        }
+                        .buttonStyle(QuietButtonStyle())
+                        .fixedSize()
+                        Button("Open") {
+                            if let url = RemoteURL.issue(issue.url.absoluteString) { NSWorkspace.shared.open(url) }
+                        }
                         .buttonStyle(SecondaryButtonStyle())
+                        .fixedSize()
+                        .help("Open \(issue.identifier) in Linear")
+                    } else {
+                        Button("Copy task") { copy() }
+                            .buttonStyle(SecondaryButtonStyle())
+                    }
                 }
             } else {
                 if let message = card.state.problem {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         StatusDot(tone: .negative, size: 6)
                         Text(message).lineLimit(2)
+                        if card.linearReceipt?.status == .deletedRemotely {
+                            Spacer(minLength: 0)
+                            Button("File as new issue") {
+                                Task {
+                                    await model.dispatcher.fileAsNewIssue(card)
+                                    review.save()
+                                }
+                            }
+                            .buttonStyle(QuietButtonStyle())
+                            .padding(.vertical, -6)
+                        }
                     }
                     .help(message)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                } else if let step = card.linearStep {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.mini)
+                        Text(Self.caption(step)).lineLimit(1)
+                    }
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                 }
                 DestinationPicker(card: card)
                 HStack(spacing: 8) {
                     if card.destination != .clipboard {
-                        Button("Copy task") { copy() }
+                        Button(isLinear ? "Copy issue" : "Copy task") { copy() }
                             .buttonStyle(SecondaryButtonStyle())
                     }
                     Spacer(minLength: 0)
-                    if card.state == .sending {
+                    if card.state == .sending, card.linearStep == nil {
                         ProgressView().controlSize(.small)
                     }
                     Button {
@@ -467,12 +506,12 @@ private struct HandoffBar: View {
                         }
                     } label: {
                         HStack(spacing: 8) {
-                            Text(card.state == .sending ? "Sending…" : card.destination == .clipboard ? "Copy task" : "Send task")
+                            Text(primaryTitle)
                             KeyHint("⌘↩", emphasized: true)
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle(large: false))
-                    .disabled(card.destination == nil || card.isLocked)
+                    .disabled(card.destination == nil || card.isLocked || card.linearReceipt?.status == .deletedRemotely)
                     .keyboardShortcut(.return, modifiers: .command)
                 }
             }
@@ -483,9 +522,34 @@ private struct HandoffBar: View {
         .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 
+    private var primaryTitle: String {
+        if isLinear { return card.state == .sending ? "Filing…" : "File issue" }
+        return card.state == .sending ? "Sending…" : card.destination == .clipboard ? "Copy task" : "Send task"
+    }
+
+    private func sentText(_ destination: String) -> String {
+        guard let issue = card.linearReceipt?.issue else { return destination == "clipboard" ? "Copied to the clipboard" : "Sent to \(destination)" }
+        return "Filed as \(issue.identifier)"
+    }
+
+    static func caption(_ step: LinearFiler.Step) -> String {
+        switch step {
+        case .checking: "Checking Linear…"
+        case .uploading(let index, let count): "Uploading image \(index) of \(count)…"
+        case .creating: "Creating issue…"
+        case .waiting(let until): "Linear asked Scout to slow down. Continues at \(until.formatted(date: .omitted, time: .shortened))."
+        }
+    }
+
     private func copy() {
-        let snippet = card.deliverableSnippet
-        let markdown = (try? TaskComposer.compose(snippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory).markdown) ?? card.transcript
+        let markdown: String
+        if isLinear {
+            let draft = model.dispatcher.previewIssue(for: card)
+            markdown = "# \(draft.title)\n\n\(draft.markdown)"
+        } else {
+            let snippet = card.deliverableSnippet
+            markdown = (try? TaskComposer.compose(snippet, title: card.title, project: card.project, runtimeNotes: card.runtimeNotes, sessionDirectory: card.sessionDirectory).markdown) ?? card.transcript
+        }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(markdown, forType: .string)
     }

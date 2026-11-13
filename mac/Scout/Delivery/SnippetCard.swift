@@ -6,12 +6,25 @@ enum Destination: Hashable, Codable {
     case session(id: String, title: String, agent: String)
     case newSession(cwd: String, agent: String)
     case clipboard
+    case linear(LinearTarget)
+
+    var allowsAutoSend: Bool {
+        switch self {
+        case .session, .newSession: true
+        case .clipboard, .linear: false
+        }
+    }
+
+    var linearTarget: LinearTarget? {
+        if case .linear(let target) = self { target } else { nil }
+    }
 
     var label: String {
         switch self {
         case .session(_, let title, let agent): "\(title) · \(agent)"
         case .newSession(let cwd, let agent): "New \(agent) session in \(URL(fileURLWithPath: cwd).lastPathComponent)"
         case .clipboard: "Clipboard"
+        case .linear(let target): target.label
         }
     }
 
@@ -20,6 +33,7 @@ enum Destination: Hashable, Codable {
         case .session(let id, _, _): "session-\(id)"
         case .newSession(let cwd, let agent): "new-\(agent)-\(cwd)"
         case .clipboard: "clipboard"
+        case .linear(let target): "linear-\(target.team.id)-\(target.project?.id ?? "")"
         }
     }
 }
@@ -76,6 +90,12 @@ final class SnippetCard: Identifiable {
     var state: State = .preparing
     var attachments: [ComposedTask.Attachment] = []
     var runtimeNotes: [String] = []
+    var brief: TaskBrief?
+    var isBriefing = false
+    var linearOptions = LinearTaskOptions()
+    var linearReceipt: LinearReceipt?
+    var linearGeneration = 0
+    var linearStep: LinearFiler.Step?
     var recorder: SegmentedScreenRecorder?
     var sessionVideo: ExportedClip?
     var sessionDisplays: CaptureDisplays?
@@ -95,6 +115,14 @@ final class SnippetCard: Identifiable {
 
     var transcript: String {
         transcriptOverride ?? snippet.transcript
+    }
+
+    var linearKey: String {
+        "scout:\(sessionID):\(snippet.id)" + (linearGeneration > 0 ? ":g\(linearGeneration)" : "")
+    }
+
+    var briefInput: BriefInput {
+        BriefInput(transcript: transcript, targets: targets, context: snippet.primaryContext, runtimeNotes: runtimeNotes, pinCount: snippet.marks.count)
     }
 
     var targets: [Target] {

@@ -64,6 +64,10 @@ enum SnapshotMode {
         argument("--linear-fixture=").map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
+    static var linearFixtureState: URL? {
+        argument("--linear-fixture-state=").map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
     static var linearScrollAnchor: String? {
         directory != nil && linearState == .mappings ? "routing" : nil
     }
@@ -74,14 +78,14 @@ enum SnapshotMode {
 
     static func makeLinearAccount() -> LinearAccount {
         let state = SettingsView.requestedPane == .linear ? linearState : nil
-        let volatile = directory != nil && state != nil && state != .keychain
+        let volatile = (directory != nil && state != nil && state != .keychain) || LinearDemo.directory != nil || ReviewGallery.directory != nil
         var defaults = UserDefaults.standard
         if volatile {
-            let suite = "com.trmdy.scout.linear-snapshot"
-            UserDefaults.standard.removePersistentDomain(forName: suite)
+            let suite = LinearDemo.directory == nil ? "com.trmdy.scout.linear-snapshot" : "com.trmdy.scout.linear-demo"
+            if LinearDemo.directory == nil { UserDefaults.standard.removePersistentDomain(forName: suite) }
             defaults = UserDefaults(suiteName: suite) ?? .standard
         }
-        let api: any LinearAPI = linearFixture.map { FixtureLinearClient(directory: $0, rejectsKeys: state == .error) } ?? LinearClient()
+        let api: any LinearAPI = linearFixture.map { FixtureLinearClient(directory: $0, rejectsKeys: state == .error, state: linearFixtureState) } ?? LinearClient()
         return LinearAccount(
             api: api,
             credentials: LinearCredentials(storage: volatile ? .memory : .keychain, defaults: defaults),

@@ -11,13 +11,15 @@ final class Dispatcher {
     var dryRun = false
     var onCardChanged: ((SnippetCard) -> Void)?
 
+    let linear: LinearAccount
     private let integrations: Integrations
     private let bridge: BridgeServer
     private let preferences: Preferences
     private let resolver = ProjectResolver()
     private var clipboardBatch: [ComposedTask]?
 
-    init(integrations: Integrations, bridge: BridgeServer, preferences: Preferences) {
+    init(integrations: Integrations, bridge: BridgeServer, preferences: Preferences, linear: LinearAccount) {
+        self.linear = linear
         self.integrations = integrations
         self.bridge = bridge
         self.preferences = preferences
@@ -37,9 +39,9 @@ final class Dispatcher {
                 card.state = .needsDestination
             } else if card.holdRequested {
                 card.state = .held
-            } else if sendImmediately {
+            } else if sendImmediately, card.destination?.linearTarget == nil {
                 await send(card)
-            } else if preferences.autoSend, card.destination != .clipboard {
+            } else if preferences.autoSend, card.destination?.allowsAutoSend == true {
                 await countdown(card)
             } else {
                 card.state = .held
@@ -81,6 +83,11 @@ final class Dispatcher {
             card.state = .needsDestination
             return
         }
+        if let target = destination.linearTarget {
+            await file(card, in: target)
+            onCardChanged?(card)
+            return
+        }
         card.state = .sending
         let task: ComposedTask
         do {
@@ -116,6 +123,8 @@ final class Dispatcher {
                 case .clipboard:
                     copy(task)
                     card.state = .sent("clipboard")
+                case .linear:
+                    break
                 }
             }
         } catch {
@@ -181,6 +190,11 @@ final class Dispatcher {
             options.append(.newSession(cwd: root, agent: defaultAgent))
         }
         options.append(.clipboard)
+        if linear.isConnected {
+            let routed = LinearRouting.target(for: card, preferences: linear.preferences)
+            let teams = (linear.teams.value ?? []).filter { $0.id != routed?.team.id }.prefix(8)
+            options += ([routed].compactMap { $0 } + teams.map { LinearTarget(team: $0, project: nil, reason: .defaultTeam) }).map(Destination.linear)
+        }
         if let destination = card.destination, !options.contains(destination) {
             options.insert(destination, at: 0)
         }
@@ -206,8 +220,9 @@ final class Dispatcher {
 
     private func suggestTitle(for card: SnippetCard) {
         let original = card.snippet
+        let input = card.briefInput
         Task {
-            guard let title = await TitleWriter.title(for: original) else { return }
+            guard let title = await TaskSummarisers.current.title(for: input) else { return }
             guard !card.titleIsCustom, card.snippet == original, !card.isLocked, card.state != .withdrawn else { return }
             card.title = title
         }
@@ -276,7 +291,7 @@ final class Dispatcher {
         return widened
     }
 
-    static func fingerprint(_ text: String) -> String {
+    nonisolated static func fingerprint(_ text: String) -> String {
         var hash: UInt64 = 0xCBF2_9CE4_8422_2325
         for byte in text.utf8 {
             hash ^= UInt64(byte)

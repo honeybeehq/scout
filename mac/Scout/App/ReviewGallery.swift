@@ -10,11 +10,22 @@ enum ReviewGallery {
 
     static let windowSize = CGSize(width: 1260, height: 820)
 
+    static var only: String? {
+        let prefix = "--review-gallery-only="
+        return ProcessInfo.processInfo.arguments.first { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count)) }
+    }
+
     static func run(model: AppModel, into directory: URL) async {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try? await Task.sleep(for: .milliseconds(300))
         let frame = DesignGallery.mockFrame()
-        let reviews = fixtures.map { ($0.name, $0.make(model.dispatcher)) }
+        if SnapshotMode.linearFixture != nil {
+            model.linear.draftKey = "lin_api_SCOUTFIXTURENOTAREALKEY00003f9a"
+            await model.linear.connect()
+            model.linear.preferences.defaultTeam = testTeam
+            await model.linear.loadTeamDetails(testTeam.id)
+        }
+        let reviews = fixtures.filter { only == nil || $0.name.hasPrefix(only ?? "") }.map { ($0.name, $0.make(model.dispatcher)) }
         for scheme in DesignGallery.schemes {
             NSApp.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
             try? await Task.sleep(for: .milliseconds(80))
@@ -31,7 +42,16 @@ enum ReviewGallery {
                 }
             }
         }
-        await captureLiveWindow(model: model, frame: frame, into: directory)
+        for (name, review) in reviews where name.hasPrefix("linear") {
+            guard let card = review?.selectedTask, let target = card.destination?.linearTarget else { continue }
+            for scheme in DesignGallery.schemes {
+                NSApp.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+                try? await Task.sleep(for: .milliseconds(80))
+                let preview = IssuePreview(draft: model.dispatcher.previewIssue(for: card), target: target, imageCount: card.snippet.marks.count) {}
+                render(preview.environment(model), scheme: scheme, to: directory.appendingPathComponent("review-\(name)-preview-\(scheme == .dark ? "dark" : "light").png"))
+            }
+        }
+        if only == nil { await captureLiveWindow(model: model, frame: frame, into: directory) }
         NSApp.terminate(nil)
     }
 
@@ -101,6 +121,8 @@ enum ReviewGallery {
         var targets: [Target] = []
         var pins: [SessionTime] = []
         var excluded: Bool = false
+        var brief: TaskBrief?
+        var receipt: LinearReceipt?
     }
 
     struct Fixture {
@@ -112,9 +134,7 @@ enum ReviewGallery {
         var selected: Int = 0
         var empty = false
 
-        @MainActor
-        func make(_ dispatcher: Dispatcher) -> SessionReview? {
-            guard !empty else { return nil }
+        var signals: [Signal] {
             var signals: [Signal] = contexts.map { .context(ContextChange(at: $0.0, context: $0.1)) }
             var counter = 0
             for task in tasks {
@@ -133,9 +153,15 @@ enum ReviewGallery {
                 counter += 1
                 signals.append(.utterance(Utterance(id: "u\(counter)", range: TimeRange(start: spoken.start, end: spoken.end), text: spoken.text)))
             }
-            var ledger = SessionLedger(replaying: signals.sorted { $0.time < $1.time })
+            return signals.sorted { $0.time < $1.time }
+        }
+
+        @MainActor
+        func make(_ dispatcher: Dispatcher, directory chosen: URL? = nil) -> SessionReview? {
+            guard !empty else { return nil }
+            var ledger = SessionLedger(replaying: signals)
             ledger.extend(to: duration)
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("scout-review-gallery/\(name)", isDirectory: true)
+            let directory = chosen ?? FileManager.default.temporaryDirectory.appendingPathComponent("scout-review-gallery/\(name)", isDirectory: true)
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let sessionID = "gallery-\(name)"
             let cards = tasks.enumerated().map { index, task -> SnippetCard in
@@ -144,6 +170,8 @@ enum ReviewGallery {
                 card.transcriptOverride = task.edited
                 card.destination = task.destination
                 card.state = task.state
+                card.brief = task.brief
+                card.linearReceipt = task.receipt
                 card.project = contexts.first?.1.project
                 if task.excluded, let first = task.targets.first { card.excludedTargetIDs = [first.id] }
                 return card
@@ -254,6 +282,65 @@ enum ReviewGallery {
         }
     }
 
+    private static let homeProject = ProjectReference(rootPath: NSHomeDirectory() + "/Code/acme-web", name: "acme-web", gitBranch: "checkout-polish")
+    private static let safariWithQuery = AppContext(app: AppIdentity(bundleID: "com.apple.Safari", name: "Safari"), windowTitle: "Checkout · Acme", location: "http://localhost:3000/checkout?cart=8812&token=tok_demo_should_not_leave", project: homeProject)
+
+    private static var demoTasks: [TaskSpec] {
+        threeTasks.map { task in
+            var task = task
+            task.state = .held
+            task.destination = toLinear
+            task.edited = nil
+            task.excluded = false
+            task.targets = task.targets.map { target in
+                var target = target
+                let file = target.source?.file ?? ""
+                target.source?.file = homeProject.rootPath + "/" + file
+                return target
+            }
+            return task
+        }
+    }
+
+    static let demo = Fixture(name: "demo-linear", duration: 34, contexts: [(0, safariWithQuery)], tasks: demoTasks, selected: 0)
+
+    static let testTeam = LinearTeam(id: "9b1d6c3e-0a51-4b8e-9f6a-2c1f5e7a0099", key: "TST", name: "Scout test")
+    private static let toLinear = Destination.linear(LinearTarget(team: testTeam, project: nil, reason: .defaultTeam))
+
+    private static var linearTasks: [TaskSpec] {
+        var tasks = threeTasks
+        let filed = LinearIssueRef(id: "4f6b1c2a-9d0e-4b7a-8c3d-2e1f0a9b8c7d", identifier: "TST-1", url: URL(string: "https://linear.app/acme/issue/tst-1")!)
+        tasks[0].state = .sent("TST-1")
+        tasks[0].destination = toLinear
+        tasks[0].receipt = LinearReceipt(key: "scout:gallery-linear:task-0", status: .filed(filed), assets: [])
+        tasks[1].state = .held
+        tasks[1].destination = toLinear
+        tasks[1].edited = nil
+        tasks[1].excluded = false
+        tasks[1].brief = TaskBrief(
+            problem: "The footer covers the cookie banner when the page is scrolled to the bottom.",
+            expected: "The banner stays above the footer and Accept can be clicked.",
+            actual: "The Accept button sits under the footer and can't be reached.",
+            steps: ["Open the checkout page", "Scroll all the way down"],
+            acceptance: ["The cookie banner is never covered by the footer", "Accept works at every scroll position"],
+            kind: .bug,
+            urgency: .medium,
+            source: .onDevice(model: OnDeviceSummariser.modelName),
+            inputFingerprint: ""
+        )
+        tasks[2].state = .failed(LinearError.deletedRemotely.message)
+        tasks[2].destination = toLinear
+        tasks[2].receipt = LinearReceipt(key: "scout:gallery-linear:task-2", status: .deletedRemotely, assets: [])
+        tasks[2].brief = TaskBrief(source: .template, inputFingerprint: "")
+        return tasks
+    }
+
+    private static var linearTemplateTasks: [TaskSpec] {
+        var tasks = linearTasks
+        tasks[1].brief = TaskBrief(source: .template, inputFingerprint: "")
+        return tasks
+    }
+
     static let fixtures: [Fixture] = [
         Fixture(name: "one", duration: 14, contexts: [(0, safari)], tasks: [threeTasks[1]].map { var task = $0; task.edited = nil; task.start = 1; task.end = 11; return task }),
         Fixture(name: "three", duration: 34, contexts: [(0, safari)], tasks: threeTasks, leftovers: [Spoken(start: 31.0, end: 33.2, text: "Oh, and the coupon field is too narrow.")], selected: 1),
@@ -265,5 +352,9 @@ enum ReviewGallery {
         Fixture(name: "walkthrough", duration: 296, contexts: [(0, safari), (140, simulator), (230, safari)], tasks: walkthroughTasks, leftovers: [Spoken(start: 280, end: 288, text: "That's mostly it, maybe look at the footer links too.")], selected: 2),
         Fixture(name: "leftover", duration: 20, contexts: [(0, safari)], tasks: [], leftovers: [Spoken(start: 2, end: 7, text: "The search field should keep focus after clearing it."), Spoken(start: 10, end: 15, text: "And the results count is hard to read.")]),
         Fixture(name: "empty", duration: 0, contexts: [], tasks: [], empty: true),
+        Fixture(name: "linear", duration: 34, contexts: [(0, safari)], tasks: linearTasks, selected: 1),
+        Fixture(name: "linear-sent", duration: 34, contexts: [(0, safari)], tasks: linearTasks, selected: 0),
+        Fixture(name: "linear-deleted", duration: 34, contexts: [(0, safari)], tasks: linearTasks, selected: 2),
+        Fixture(name: "linear-template", duration: 34, contexts: [(0, safari)], tasks: linearTemplateTasks, selected: 1),
     ]
 }

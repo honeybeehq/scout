@@ -27,6 +27,7 @@ final class LinearAccount {
     }
 
     let preferences: LinearPreferences
+    let filer: LinearFiler
     private let api: any LinearAPI
     private let credentials: LinearCredentials
     private(set) var status: Status
@@ -40,6 +41,7 @@ final class LinearAccount {
         self.api = api
         self.credentials = credentials
         self.preferences = preferences
+        filer = LinearFiler(api: api, memory: LinearFiler.Memory(defaults: preferences.defaults))
         status = credentials.hint.map { .connected($0, .checking) } ?? .disconnected(nil)
     }
 
@@ -131,6 +133,11 @@ final class LinearAccount {
 
     func team(id: String) -> LinearTeam? {
         teams.value?.first { $0.id == id }
+    }
+
+    func credential() throws(LinearError) -> LinearCredential {
+        guard let credential = try credentials.current() else { throw .unauthorized }
+        return credential
     }
 
     private func perform<Response>(_ operation: LinearOperation<Response>) async throws(LinearError) -> Response {

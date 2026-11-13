@@ -8,6 +8,18 @@ Without hive, Scout copies `task.md` to the clipboard as text, adds the snippet 
 
 A walkthrough recording leaves its bundle path on the clipboard so you can paste it into a compatible app. The recording stays on disk.
 
+## Linear
+
+Linear is a destination like a hive session. The personal API key lives only in the Keychain (see experience.md, Settings → Linear). Filing happens only from the review window.
+
+- **Issue content.** `IssueComposer` turns a task into a title and markdown: the summary (when there is one), the verbatim transcript (capped at 6,000 characters), pin images, and context (app and window, URL without its query string, repo name and branch, targets with repo-relative `file:line`, runtime errors). The home folder never leaves the Mac as a path; it is written as `~`. The footer carries the task's key, `scout:<session>:<task>`.
+- **Summary.** `TaskSummariser` runs on this Mac only (`OnDeviceSummariser`, FoundationModels guided generation). Without Apple Intelligence `TemplateSummariser` returns no summary fields and the issue leads with the transcript. The result is a `TaskBrief` (ScoutCore) stored in `review.json`, so it is generated once and shared with any other consumer.
+- **Labels and priority.** The brief's kind maps to an existing team label by name (Bug; Improvement or Polish; Feature; Question); urgency maps to Linear's priority. Both are editable, and Scout never creates labels.
+- **Images.** Pin images are stored through `StorageProvider`; `LinearStorage` asks `fileUpload` for a signed URL, PUTs the bytes without the Linear key, and uses the returned `uploads.linear.app` asset URL. Uploads already done for a task are skipped by content hash on retry. Video is not uploaded in this version.
+- **Idempotency.** The issue id is derived: a UUID v4 from SHA-256 of the workspace id and the task key. Before creating, `LinearFiler` reads `issue(id:)`; an existing issue is adopted, a trashed or archived one marks the task *deleted in Linear*, and only *File as new issue* (which bumps the key's generation) makes a second issue. A failed create is followed by the same read, so a lost reply converges on the same issue. If a workspace refuses client-chosen ids, Scout remembers that and falls back to searching for the footer key before creating. A pending receipt is saved to `review.json` before the create call.
+- **Queue and limits.** Filing is serial. Offline errors retry after 2, 8 and 30 s; `RATELIMITED` waits until the reset time and shows when filing continues.
+- **Untrusted replies.** Every reply is decoded into narrow types; issue URLs must be `https://linear.app/…`, asset URLs `https://uploads.linear.app/…`. Remote text is shown as plain text and never fed to the summariser. Debug builds refuse mutations outside `SCOUT_LINEAR_TEST_TEAM`.
+
 ## Optional hive and Apiary integration
 
 hive manages coding-agent sessions. Apiary is a desktop workspace for those sessions. Apiary panes are hive sessions (tagged `apiary:workspace=<id>`), so one hive client reaches both. The following sections describe their developer protocols. A Champion is Apiary’s named agent for a workspace.

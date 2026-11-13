@@ -74,7 +74,7 @@ final class AppModel {
         let integrations = Integrations()
         self.integrations = integrations
         linear = SnapshotMode.makeLinearAccount()
-        dispatcher = Dispatcher(integrations: integrations, bridge: bridge, preferences: preferences)
+        dispatcher = Dispatcher(integrations: integrations, bridge: bridge, preferences: preferences, linear: linear)
         OptimiseReview.sweepWorkspaces()
         if let data = UserDefaults.standard.data(forKey: Self.shortcutKey),
            let saved = try? JSONDecoder().decode(KeyShortcut.self, from: data) {
@@ -131,6 +131,9 @@ final class AppModel {
         }
         if let directory = ReviewGallery.directory {
             Task { await ReviewGallery.run(model: self, into: directory) }
+        }
+        if let directory = LinearDemo.directory {
+            Task { await LinearDemo.run(model: self, directory: directory) }
         }
         if let directory = SimulationMode.deliveryCheck {
             Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }
@@ -742,6 +745,10 @@ final class AppModel {
                 card.optimiseAttachments = task.optimiseAttachments
                 card.runtimeNotes = task.runtimeNotes ?? []
                 card.project = task.project
+                card.brief = task.brief
+                card.linearOptions = task.linear ?? LinearTaskOptions()
+                card.linearReceipt = task.linearReceipt
+                card.linearGeneration = task.linearGeneration ?? 0
                 card.sessionVideo = video
                 card.sessionDisplays = record.displays
                 card.holdRequested = true

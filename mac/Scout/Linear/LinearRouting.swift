@@ -1,8 +1,8 @@
 import Foundation
 import ScoutCore
 
-nonisolated struct LinearTarget: Hashable, Sendable {
-    enum Reason: Hashable, Sendable {
+nonisolated struct LinearTarget: Codable, Hashable, Sendable {
+    enum Reason: Codable, Hashable, Sendable {
         case repo(rootPath: String)
         case app(bundleID: String)
         case defaultTeam

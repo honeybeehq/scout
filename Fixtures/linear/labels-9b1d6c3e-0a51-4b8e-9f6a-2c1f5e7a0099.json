@@ -1,0 +1,35 @@
+{
+  "data": {
+    "team": {
+      "labels": {
+        "nodes": [
+          {
+            "id": "1abe0000-0000-4000-8000-009900000000",
+            "name": "Bug",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-009900000001",
+            "name": "Improvement",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-009900000002",
+            "name": "Feature",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-009900000003",
+            "name": "Question",
+            "parent": null
+          },
+          {
+            "id": "1abe0000-0000-4000-8000-009900000004",
+            "name": "UI",
+            "parent": null
+          }
+        ]
+      }
+    }
+  }
+}

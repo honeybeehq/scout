@@ -5,10 +5,10 @@ import ScoutCore
 import UniformTypeIdentifiers
 
 enum SnippetMedia {
-    static func attachments(for snippet: Snippet, recorder: SegmentedScreenRecorder, into directory: URL) async -> [ComposedTask.Attachment] {
+    static func attachments(for snippet: Snippet, recorder: SegmentedScreenRecorder, into directory: URL, clip includesClip: Bool = true) async -> [ComposedTask.Attachment] {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var attachments: [ComposedTask.Attachment] = []
-        if let clip = try? await recorder.exportClip(from: snippet.range.start, to: snippet.range.end, padding: 1.0, into: directory.appendingPathComponent("clip.mp4")) {
+        if includesClip, let clip = try? await recorder.exportClip(from: snippet.range.start, to: snippet.range.end, padding: 1.0, into: directory.appendingPathComponent("clip.mp4")) {
             attachments.append(.init(kind: .video, url: clip.url))
         }
         for (index, mark) in snippet.marks.enumerated() {
@@ -22,15 +22,15 @@ enum SnippetMedia {
         return attachments
     }
 
-    static func attachments(for snippet: Snippet, video: ExportedClip, displays: CaptureDisplays?, into directory: URL) async -> [ComposedTask.Attachment] {
+    static func attachments(for snippet: Snippet, video: ExportedClip, displays: CaptureDisplays?, into directory: URL, clip includesClip: Bool = true) async -> [ComposedTask.Attachment] {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var attachments: [ComposedTask.Attachment] = []
         let asset = AVURLAsset(url: video.url)
         let start = max(0, snippet.range.start - 1 - video.range.start)
         let end = min(video.range.duration, snippet.range.end + 1 - video.range.start)
         let clipURL = directory.appendingPathComponent("clip.mp4")
-        try? FileManager.default.removeItem(at: clipURL)
-        if end > start, let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) {
+        if includesClip { try? FileManager.default.removeItem(at: clipURL) }
+        if includesClip, end > start, let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) {
             export.timeRange = CMTimeRange(start: CMTime(seconds: start, preferredTimescale: 600), end: CMTime(seconds: end, preferredTimescale: 600))
             if (try? await export.export(to: clipURL, as: .mp4)) != nil {
                 attachments.append(.init(kind: .video, url: clipURL))
