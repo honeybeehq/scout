@@ -16,6 +16,7 @@ nonisolated struct TranscriptionRun: Codable, Equatable, Sendable {
     var assets: Assets
     var contextualTerms: Int
     var userTerms: Int
+    var secondPass: String?
 
     static let appleEngine = "SpeechAnalyzer"
 

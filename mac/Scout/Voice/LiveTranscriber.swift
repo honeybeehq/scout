@@ -326,6 +326,10 @@ final class LiveTranscriber {
         if terms.remember(phrases) { scheduleContextRefresh() }
     }
 
+    func noteSecondPass(engine: String) {
+        run?.secondPass = engine
+    }
+
     private func scheduleContextRefresh() {
         guard analyzer != nil, contextRefresh == nil else { return }
         contextRefresh = Task { [weak self] in
