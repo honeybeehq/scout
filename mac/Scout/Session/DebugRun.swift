@@ -211,8 +211,8 @@ final class DebugRun {
         do {
             try manager.linkItem(at: source, to: target)
         } catch {
-            try? manager.createSymbolicLink(at: target, withDestinationURL: source)
-            NSLog("[scout-debug] hard link for %@ failed (%@); used a symbolic link", name, error.localizedDescription)
+            let copied = (try? manager.copyItem(at: source, to: target)) != nil
+            NSLog("[scout-debug] hard link for %@ failed (%@); %@", name, error.localizedDescription, copied ? "copied it instead" : "copy failed too")
         }
     }
 

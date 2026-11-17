@@ -120,7 +120,7 @@ Debug data: with Settings → General → Keep debug data on (off by default in 
 ```
 debug/
   run.json           run id and kind, app, input, audio format, live and second-pass engine, module, preset, locale and contextual strings, walkthrough id and bundle
-  audio.wav          a hard link to the session's audio.wav (no copy)
+  audio.wav          a hard link to the session's audio.wav (a copy only if linking fails)
   live.jsonl         every live result as it arrived: t, final, text, start, end, words; volatile and final
   second-pass.json   the whole-recording pass: engine, locale, contextual strings, start, finish, outcome and its raw segments with word timings
   events.jsonl       a hard link to transcript-events.jsonl: stalls, restarts, dropped words, errors
