@@ -1,7 +1,7 @@
 import Foundation
 import Speech
 
-enum TranscriptionModule: String, CaseIterable, Identifiable {
+nonisolated enum TranscriptionModule: String, CaseIterable, Identifiable, Sendable {
     case speech
     case dictation
 

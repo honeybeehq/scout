@@ -433,7 +433,7 @@ extension ScoutingSession {
             return nil
         }
         let locale = transcriber.localeIdentifier.map(Locale.init(identifier:)) ?? Locale.current
-        let request = TranscriptionRequest(audio: audio.url, locale: locale, contextualStrings: transcriber.terms.all)
+        let request = TranscriptionRequest(audio: audio.url, locale: locale, contextualStrings: transcriber.terms.all, module: transcriber.modulePreference)
         let engines = [transcriptionEngine] + (fallbackEngine.map { [$0] } ?? [])
         let limit = Self.secondPassLimit(forAudio: audio.seconds)
         return Task.detached(priority: .userInitiated) {
@@ -495,6 +495,8 @@ extension ScoutingSession {
         }
         ledger.replaceUtterances(with: utterances)
         walkthrough?.replaceTranscript(with: utterances, engine: transcript.engine)
+        transcriber.noteSecondPass(engine: transcript.engine)
+        transcriber.run?.write(to: directory)
         for card in cards where !card.isLocked {
             let snippet = card.snippet
             refineCard?(card, ledger.snippet(id: snippet.id, range: snippet.range, closedBy: snippet.closedBy))
