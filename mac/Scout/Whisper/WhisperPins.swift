@@ -7,6 +7,8 @@ nonisolated enum WhisperPins {
         var bytes: Int64
         var sha256: String
         var url: URL
+
+        var isTokenizer: Bool { path.hasPrefix("tokenizer") }
     }
 
     static let variant = "openai_whisper-large-v3-v20240930_turbo_632MB"
@@ -71,7 +73,13 @@ nonisolated enum WhisperModelFiles {
     }
 
     static func isComplete(_ folder: URL) -> Bool {
-        WhisperPins.files.allSatisfy { size(of: folder.appendingPathComponent($0.path)) == $0.bytes }
+        isComplete(model: folder, tokenizer: folder)
+    }
+
+    static func isComplete(model: URL, tokenizer: URL) -> Bool {
+        WhisperPins.files.allSatisfy { file in
+            size(of: (file.isTokenizer ? tokenizer : model).appendingPathComponent(file.path)) == file.bytes
+        }
     }
 
     static func diskUsage(of folder: URL) -> Int64 {

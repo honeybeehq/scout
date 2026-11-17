@@ -75,21 +75,20 @@ final class WhisperModelStore {
     }
 
     func refresh() {
-        guard !state.isBusy else { return }
-        let installed = WhisperModelFiles.isComplete(folder) && hasTokenizer
         installedBytes = WhisperModelFiles.diskUsage(of: folder)
         partialBytes = WhisperModelFiles.diskUsage(of: partialFolder)
-        if installed {
-            if engine == nil { engine = WhisperEngine(modelFolder: folder, tokenizerFolder: tokenizerFolder) }
-            if case .failed = state {} else { state = .ready }
-        } else {
-            engine = nil
-            if case .failed = state {} else { state = .notInstalled }
-        }
+        guard !state.isBusy else { return }
+        if case .failed = state { return }
+        state = installedEngine() == nil ? .notInstalled : .ready
     }
 
-    private var hasTokenizer: Bool {
-        FileManager.default.fileExists(atPath: tokenizerFolder.appendingPathComponent("tokenizer.json").path)
+    private func installedEngine() -> WhisperEngine? {
+        guard WhisperModelFiles.isComplete(model: folder, tokenizer: tokenizerFolder) else {
+            engine = nil
+            return nil
+        }
+        if engine == nil { engine = WhisperEngine(modelFolder: folder, tokenizerFolder: tokenizerFolder) }
+        return engine
     }
 
     func download() {
@@ -98,7 +97,7 @@ final class WhisperModelStore {
     }
 
     func warmUp() {
-        guard !state.isBusy, isInstalled, let engine else { return }
+        guard !state.isBusy, let engine = installedEngine() else { return }
         job = Task { await prepare(engine) }
     }
 
@@ -123,7 +122,7 @@ final class WhisperModelStore {
     }
 
     private func install() async {
-        if !WhisperModelFiles.isComplete(folder) {
+        if !WhisperModelFiles.isComplete(model: folder, tokenizer: tokenizerFolder) {
             do {
                 try await downloadFiles()
                 try await verifyFiles()
@@ -139,9 +138,11 @@ final class WhisperModelStore {
                 return
             }
         }
-        state = .ready
-        refresh()
-        guard let engine else { return }
+        guard let engine = installedEngine() else {
+            state = .failed("The model files are incomplete.")
+            refresh()
+            return
+        }
         await prepare(engine)
     }
 
@@ -188,6 +189,11 @@ final class WhisperModelStore {
     }
 
     private func prepare(_ engine: WhisperEngine) async {
+        if await engine.isLoaded {
+            state = .ready
+            refresh()
+            return
+        }
         state = .preparing
         preparingSince = .now
         defer { preparingSince = nil }

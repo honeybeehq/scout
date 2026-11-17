@@ -271,11 +271,12 @@ final class AppModel {
     }
 
     private func watchTranscriptionEngine() {
-        withObservationTracking {
-            if preferences.transcriptionEngine == .whisper { whisperModels.warmUp() }
+        let choice = withObservationTracking {
+            preferences.transcriptionEngine
         } onChange: {
             Task { @MainActor [weak self] in self?.watchTranscriptionEngine() }
         }
+        if choice == .whisper { whisperModels.warmUp() }
     }
 
     @ObservationIgnored private var prefetched = TargetDirectory(targets: [], source: .loading)
