@@ -406,7 +406,7 @@ extension ScoutingSession {
         30 + seconds
     }
 
-    nonisolated static let prepareLimit: Double = 240
+    nonisolated static let prepareLimit: Double = 15
 
     private func startSecondPass() -> Task<SecondPassResult, Never>? {
         guard let audio = transcriber.recordedAudio else {

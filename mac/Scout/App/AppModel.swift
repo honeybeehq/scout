@@ -265,6 +265,7 @@ final class AppModel {
         if let engine = whisperModels.readyEngine {
             session.transcriptionEngine = engine
             session.fallbackEngine = AppleTranscriptionEngine()
+            if whisperModels.state != .ready { NSLog("[scout-transcript] Whisper is %@; this session falls back to the Apple pass unless it is ready %d s after the session ends", whisperModels.state.summary, Int(ScoutingSession.prepareLimit)) }
         } else {
             NSLog("[scout-transcript] Whisper is selected but the model is %@; using the Apple pass", whisperModels.state.summary)
         }

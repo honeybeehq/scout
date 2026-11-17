@@ -66,6 +66,10 @@ enum SimulationMode {
         ProcessInfo.processInfo.arguments.contains("--simulate-whisper-failure")
     }
 
+    static var whisperWaitsReady: Bool {
+        ProcessInfo.processInfo.arguments.contains("--whisper-wait-ready")
+    }
+
     static var whisperDownloads: Bool {
         ProcessInfo.processInfo.arguments.contains("--whisper-download")
     }
@@ -584,6 +588,13 @@ enum SimulationMode {
         try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         try? await Task.sleep(for: .seconds(1))
 
+        if whisperWaitsReady {
+            let waiting = Date()
+            while model.whisperModels.state != .ready, Date().timeIntervalSince(waiting) < 600 {
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            NSLog("[scout-whisper] simulation waited %.1f s for the model: %@", Date().timeIntervalSince(waiting), model.whisperModels.state.summary)
+        }
         var finished = false
         let pasteboardBefore = (NSPasteboard.general.changeCount, NSPasteboard.general.string(forType: .string))
         model.startScouting(inputFile: audio, segmentation: segmentation, result: result) { finished = true }
@@ -947,7 +958,8 @@ enum SimulationMode {
         var report: [String: Any] = [
             "elapsed": elapsed,
             "session": model.session?.directory.path ?? "",
-            "transcript": model.session?.transcriber.finalizedText ?? "",
+            "transcript": model.session?.ledger.utterances.map(\.text).joined(separator: " ") ?? "",
+            "liveTranscript": model.session?.transcriber.finalizedText ?? "",
             "onDeviceTitles": String(describing: SystemLanguageModel.default.availability),
             "aimAvailable": model.session?.aim.isAvailable ?? false,
             "bridgePort": model.bridge.port.map(Int.init) ?? 0,

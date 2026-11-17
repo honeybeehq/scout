@@ -8,6 +8,7 @@ final class WhisperModelStore {
         case notInstalled
         case downloading(progress: Double)
         case verifying(progress: Double)
+        case installed
         case preparing
         case ready
         case failed(String)
@@ -15,7 +16,7 @@ final class WhisperModelStore {
         var isBusy: Bool {
             switch self {
             case .downloading, .verifying, .preparing: true
-            case .notInstalled, .ready, .failed: false
+            case .notInstalled, .installed, .ready, .failed: false
             }
         }
 
@@ -24,9 +25,17 @@ final class WhisperModelStore {
             case .notInstalled: "not installed"
             case .downloading(let progress): "downloading \(Int(progress * 100))%"
             case .verifying(let progress): "verifying \(Int(progress * 100))%"
+            case .installed: "installed, not loaded"
             case .preparing: "preparing"
             case .ready: "ready"
             case .failed(let reason): "failed: \(reason)"
+            }
+        }
+
+        fileprivate var logStep: Int? {
+            switch self {
+            case .downloading(let progress), .verifying(let progress): Int(progress * 20)
+            default: nil
             }
         }
     }
@@ -41,8 +50,10 @@ final class WhisperModelStore {
         didSet {
             guard state != oldValue else { return }
             switch (oldValue, state) {
-            case (.downloading, .downloading), (.verifying, .verifying): break
-            default: NSLog("[scout-whisper] %@", state.summary)
+            case (.downloading, .downloading), (.verifying, .verifying):
+                if oldValue.logStep != state.logStep { NSLog("[scout-whisper] %@ (%lld of %lld bytes)", state.summary, partialBytes, Self.downloadBytes) }
+            default:
+                NSLog("[scout-whisper] %@", state.summary)
             }
         }
     }
@@ -50,6 +61,7 @@ final class WhisperModelStore {
     private(set) var partialBytes: Int64 = 0
     private(set) var preparingSince: Date?
     private(set) var engine: WhisperEngine?
+    private(set) var isLoaded = false
     @ObservationIgnored private var job: Task<Void, Never>?
 
     nonisolated static func installFolder(under support: URL) -> URL {
@@ -60,12 +72,15 @@ final class WhisperModelStore {
         self.folder = folder
         self.tokenizerFolder = tokenizerFolder ?? folder
         partialFolder = folder.deletingLastPathComponent().appendingPathComponent(folder.lastPathComponent + ".partial", isDirectory: true)
-        refresh()
+        installedBytes = WhisperModelFiles.diskUsage(of: folder)
+        partialBytes = WhisperModelFiles.diskUsage(of: partialFolder)
+        state = installedEngine() == nil ? .notInstalled : .installed
+        NSLog("[scout-whisper] %@ at %@", state.summary, folder.path)
     }
 
     var isInstalled: Bool {
         switch state {
-        case .ready, .preparing: true
+        case .installed, .preparing, .ready: true
         case .notInstalled, .downloading, .verifying, .failed: false
         }
     }
@@ -79,7 +94,7 @@ final class WhisperModelStore {
         partialBytes = WhisperModelFiles.diskUsage(of: partialFolder)
         guard !state.isBusy else { return }
         if case .failed = state { return }
-        state = installedEngine() == nil ? .notInstalled : .ready
+        state = installedEngine() == nil ? .notInstalled : (isLoaded ? .ready : .installed)
     }
 
     private func installedEngine() -> WhisperEngine? {
@@ -97,14 +112,14 @@ final class WhisperModelStore {
     }
 
     func warmUp() {
-        guard !state.isBusy, let engine = installedEngine() else { return }
+        guard !state.isBusy, !isLoaded, let engine = installedEngine() else { return }
         job = Task { await prepare(engine) }
     }
 
     func cancel() {
         switch state {
         case .downloading, .verifying: job?.cancel()
-        case .notInstalled, .preparing, .ready, .failed: break
+        case .notInstalled, .installed, .preparing, .ready, .failed: break
         }
     }
 
@@ -114,6 +129,7 @@ final class WhisperModelStore {
         Task {
             await engine?.unload()
             engine = nil
+            isLoaded = false
             try? FileManager.default.removeItem(at: folder)
             try? FileManager.default.removeItem(at: partialFolder)
             state = .notInstalled
@@ -190,6 +206,7 @@ final class WhisperModelStore {
 
     private func prepare(_ engine: WhisperEngine) async {
         if await engine.isLoaded {
+            isLoaded = true
             state = .ready
             refresh()
             return
@@ -199,6 +216,7 @@ final class WhisperModelStore {
         defer { preparingSince = nil }
         do {
             try await engine.prepare()
+            isLoaded = true
             state = .ready
         } catch {
             NSLog("[scout-whisper] the model did not load: %@", error.localizedDescription)

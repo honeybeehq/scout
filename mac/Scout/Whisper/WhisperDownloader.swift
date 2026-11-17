@@ -15,7 +15,7 @@ nonisolated struct WhisperDownloader: Sendable {
         }
     }
 
-    static let chunkBytes = 1 << 20
+    static let chunkBytes = 256 << 10
 
     var destination: URL
     var onProgress: @Sendable (Int64) -> Void

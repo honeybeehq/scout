@@ -1,3 +1,4 @@
+@preconcurrency import AVFoundation
 import Foundation
 import ScoutCore
 import WhisperKit
@@ -50,8 +51,10 @@ actor WhisperEngine: TranscriptionEngine {
             whisper.clearState()
             throw error
         }
-        let segments = results.flatMap(\.segments).compactMap(Self.segment(from:))
-        NSLog("[scout-transcript] %@ decoded %d segments in %.1f s (language %@)", name, segments.count, Date().timeIntervalSince(started), results.first?.language ?? "?")
+        let duration = Self.duration(of: request.audio)
+        let decoded = results.flatMap(\.segments)
+        let segments = decoded.compactMap { Self.segment(from: $0, within: duration) }
+        NSLog("[scout-transcript] %@ decoded %d segments in %.1f s (language %@); kept %d within %.1f s of audio", name, decoded.count, Date().timeIntervalSince(started), results.first?.language ?? "?", segments.count, duration)
         return EngineTranscript(engine: name, locale: results.first?.language, segments: segments)
     }
 
@@ -96,17 +99,30 @@ actor WhisperEngine: TranscriptionEngine {
         return String(terms.joined(separator: ", ").prefix(600))
     }
 
-    static func segment(from segment: TranscriptionSegment) -> TranscribedSegment? {
+    static let noSpeechThreshold: Float = 0.6
+    static let logProbThreshold: Float = -1.0
+    static let compressionRatioThreshold: Float = 2.4
+
+    static func duration(of audio: URL) -> Double {
+        guard let file = try? AVAudioFile(forReading: audio), file.processingFormat.sampleRate > 0 else { return .infinity }
+        return Double(file.length) / file.processingFormat.sampleRate
+    }
+
+    static func segment(from segment: TranscriptionSegment, within duration: Double) -> TranscribedSegment? {
+        guard Double(segment.start) < duration else { return nil }
+        if segment.noSpeechProb > noSpeechThreshold, segment.avgLogprob < logProbThreshold { return nil }
+        if segment.compressionRatio > compressionRatioThreshold { return nil }
         let words: [Word] = (segment.words ?? []).compactMap { timing in
             let text = timing.word.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { return nil }
             let start = Double(timing.start)
-            return Word(text: text, range: TimeRange(start: start, end: max(start, Double(timing.end))), confidence: Double(timing.probability))
+            guard !text.isEmpty, start < duration else { return nil }
+            return Word(text: text, range: TimeRange(start: start, end: min(duration, max(start, Double(timing.end)))), confidence: Double(timing.probability))
         }
+        if words.isEmpty, segment.words?.isEmpty == false { return nil }
         let text = words.isEmpty ? segment.text.trimmingCharacters(in: .whitespacesAndNewlines) : words.map(\.text).joined(separator: " ")
         guard !text.isEmpty else { return nil }
         let start = words.first.map(\.range.start) ?? Double(segment.start)
-        let end = words.last.map(\.range.end) ?? Double(segment.end)
+        let end = min(duration, words.last.map(\.range.end) ?? Double(segment.end))
         return TranscribedSegment(range: TimeRange(start: start, end: max(start, end)), text: text, words: words)
     }
 }
