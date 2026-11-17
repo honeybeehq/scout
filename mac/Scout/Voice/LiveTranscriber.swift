@@ -78,15 +78,23 @@ final class LiveTranscriber {
         switch (module, clock == nil) {
         case (.speech, true): "progressiveTranscription"
         case (.speech, false): "timeIndexedProgressiveTranscription"
-        case (.dictation, true): "progressiveLongDictation"
-        case (.dictation, false): "timeIndexedLongDictation"
+        case (.dictation, true): "progressiveLongDictation+frequentFinalization"
+        case (.dictation, false): "progressiveLongDictation+frequentFinalization+timeIndexed"
         }
     }
 
     private func makeModule(_ module: TranscriptionModule, locale: Locale) -> any SpeechModule {
         switch module {
-        case .speech: SpeechTranscriber(locale: locale, preset: preset)
-        case .dictation: DictationTranscriber(locale: locale, preset: clock == nil ? .progressiveLongDictation : .timeIndexedLongDictation)
+        case .speech:
+            SpeechTranscriber(locale: locale, preset: preset)
+        case .dictation:
+            DictationTranscriber(
+                locale: locale,
+                contentHints: [],
+                transcriptionOptions: [.punctuation],
+                reportingOptions: [.volatileResults, .frequentFinalization],
+                attributeOptions: clock == nil ? [.transcriptionConfidence] : [.audioTimeRange, .transcriptionConfidence]
+            )
         }
     }
 
@@ -410,16 +418,18 @@ final class LiveTranscriber {
         if isFinal {
             finalizedText = [finalizedText, text].filter { !$0.isEmpty }.joined(separator: " ")
             volatileText = ""
-            if !text.isEmpty, let onUtterance {
+            guard !text.isEmpty, let onUtterance else { return }
+            let splitsAtPauses = run?.module == TranscriptionModule.dictation.moduleName
+            for piece in Self.utterances(from: attributed, range: range, text: text, splittingAtPauses: splitsAtPauses) {
                 utteranceCount += 1
-                onUtterance(Self.utterance(from: attributed, range: range, text: text, id: "u\(utteranceCount)"))
+                onUtterance(Utterance(id: "u\(utteranceCount)", range: piece.range, text: piece.text, words: piece.words))
             }
         } else {
             volatileText = text
         }
     }
 
-    private static func utterance(from attributed: AttributedString, range: CMTimeRange, text: String, id: String) -> Utterance {
+    nonisolated static func words(in attributed: AttributedString) -> [Word] {
         var words: [Word] = []
         for run in attributed.runs {
             guard let range = run.audioTimeRange else { continue }
@@ -427,8 +437,18 @@ final class LiveTranscriber {
             guard !word.isEmpty else { continue }
             words.append(Word(text: word, range: TimeRange(start: range.start.seconds, end: range.end.seconds), confidence: run.transcriptionConfidence))
         }
-        let range = TimeRange(start: range.start.seconds, end: range.end.seconds)
-        return Utterance(id: id, range: range, text: text, words: words)
+        return words
+    }
+
+    nonisolated static func utterances(from attributed: AttributedString, range: CMTimeRange, text: String, splittingAtPauses: Bool) -> [(range: TimeRange, text: String, words: [Word])] {
+        let words = words(in: attributed)
+        let whole = TimeRange(start: range.start.seconds, end: range.end.seconds)
+        guard splittingAtPauses, words.count > 1 else { return [(whole, text, words)] }
+        let groups = WordGapSplitter.groups(words)
+        guard groups.count > 1 else { return [(whole, text, words)] }
+        return groups.map { group in
+            (TimeRange(start: group[0].range.start, end: group[group.count - 1].range.end), group.map(\.text).joined(separator: " "), group)
+        }
     }
 
     private func teardown() async {

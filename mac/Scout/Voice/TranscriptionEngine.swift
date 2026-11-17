@@ -56,11 +56,11 @@ nonisolated struct AppleTranscriptionEngine: TranscriptionEngine {
         let context = AnalysisContext()
         if !request.contextualStrings.isEmpty { context.contextualStrings[.general] = request.contextualStrings }
         let engineName = "\(module.moduleName).file"
-        VoiceLog.log("second pass module=\(module.moduleName)\(module == request.module ? "" : " (requested \(request.module.moduleName))") locale=\(locale.identifier(.bcp47)) terms=\(request.contextualStrings.count)")
+        VoiceLog.log("second pass module=\(module.moduleName)\(module == request.module ? "" : " (requested \(request.module.moduleName))") locale=\(locale.identifier(.bcp47)) terms=\(request.contextualStrings.count)\(module == .speech ? " (SpeechTranscriber ignores terms)" : "")")
         let collector: Task<[TranscribedSegment], any Error>
         switch transcriber {
-        case let speech as SpeechTranscriber: collector = Self.collect(speech.results)
-        case let dictation as DictationTranscriber: collector = Self.collect(dictation.results)
+        case let speech as SpeechTranscriber: collector = Self.collect(speech.results, splittingAtPauses: false)
+        case let dictation as DictationTranscriber: collector = Self.collect(dictation.results, splittingAtPauses: true)
         default: throw EngineError.unsupportedModule
         }
         let analyzer: SpeechAnalyzer
@@ -93,26 +93,20 @@ nonisolated struct AppleTranscriptionEngine: TranscriptionEngine {
         return (.speech, match)
     }
 
-    private static func collect<Results: AsyncSequence & Sendable>(_ results: Results) -> Task<[TranscribedSegment], any Error> where Results.Element: TranscriptResult {
+    private static func collect<Results: AsyncSequence & Sendable>(_ results: Results, splittingAtPauses: Bool) -> Task<[TranscribedSegment], any Error> where Results.Element: TranscriptResult {
         Task {
             var segments: [TranscribedSegment] = []
             for try await result in results where result.isFinal {
-                if let segment = segment(from: result) { segments.append(segment) }
+                segments.append(contentsOf: self.segments(from: result, splittingAtPauses: splittingAtPauses))
             }
             return segments
         }
     }
 
-    private static func segment(from result: some TranscriptResult) -> TranscribedSegment? {
+    private static func segments(from result: some TranscriptResult, splittingAtPauses: Bool) -> [TranscribedSegment] {
         let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return nil }
-        var words: [Word] = []
-        for run in result.text.runs {
-            guard let range = run.audioTimeRange else { continue }
-            let word = String(result.text[run.range].characters).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !word.isEmpty else { continue }
-            words.append(Word(text: word, range: TimeRange(start: range.start.seconds, end: range.end.seconds), confidence: run.transcriptionConfidence))
-        }
-        return TranscribedSegment(range: TimeRange(start: result.range.start.seconds, end: result.range.end.seconds), text: text, words: words)
+        guard !text.isEmpty else { return [] }
+        return LiveTranscriber.utterances(from: result.text, range: result.range, text: text, splittingAtPauses: splittingAtPauses)
+            .map { TranscribedSegment(range: $0.range, text: $0.text, words: $0.words) }
     }
 }

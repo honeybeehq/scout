@@ -21,7 +21,7 @@ nonisolated struct TranscriptionRun: Codable, Equatable, Sendable {
     static let appleEngine = "SpeechAnalyzer"
 
     var logLine: String {
-        "engine=\(engine) module=\(module)\(module == requestedModule ? "" : " (requested \(requestedModule))") preset=\(preset) locale=\(locale) requested=\(requestedLocale)\(fellBack ? " (fell back)" : "") assets=\(assets.rawValue) terms=\(contextualTerms) userTerms=\(userTerms)"
+        "engine=\(engine) module=\(module)\(module == requestedModule ? "" : " (requested \(requestedModule))") preset=\(preset) locale=\(locale) requested=\(requestedLocale)\(fellBack ? " (fell back)" : "") assets=\(assets.rawValue) terms=\(contextualTerms) userTerms=\(userTerms)\(module == "SpeechTranscriber" ? " (SpeechTranscriber ignores terms)" : "")"
     }
 
     static let fileName = "transcription.json"
