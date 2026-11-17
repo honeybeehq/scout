@@ -59,7 +59,7 @@ struct TranscriberStepContent: View {
                         symbol: "text.magnifyingglass",
                         title: "\(WhisperModelStore.displayName), on device",
                         subtitle: "\(whisper.downloadSize) download",
-                        message: "Better with names and terms. Writes the transcript again after you stop.",
+                        message: "Writes the whole transcript again after you stop. Apple still shows your words live.",
                         selected: engine == .whisper
                     ) {
                         WhisperCardAction(engine: engine, whisper: whisper, useWhisper: useWhisper, actions: actions)

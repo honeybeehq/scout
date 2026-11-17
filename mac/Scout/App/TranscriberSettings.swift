@@ -194,7 +194,7 @@ extension TranscriptionEngineChoice {
     var settingsNote: String {
         switch self {
         case .apple: "Apple's built-in transcriber writes down your words live, on this Mac."
-        case .whisper: "Apple still shows your words live. After you stop, Whisper writes the transcript again on this Mac, better with names and terms."
+        case .whisper: "Apple still shows your words live. After you stop, Whisper writes the whole transcript again on this Mac."
         }
     }
 }
