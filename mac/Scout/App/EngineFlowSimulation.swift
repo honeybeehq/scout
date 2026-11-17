@@ -77,6 +77,7 @@ enum EngineFlowSimulation: String {
         try? await Task.sleep(for: hold)
         step("Try again")
         model.installWhisper()
+        guard await wait(model, until: "the retry to start", { !$0.state.isFailed }, failureEnds: false, within: .seconds(30)) else { return }
         guard await wait(model, until: "installed", { $0.state == .ready || $0.state == .installed }) else { return }
         try? await Task.sleep(for: hold)
         step("Remove")
