@@ -29,6 +29,7 @@ struct MenuBarPanelState {
     var canCheckForUpdates = true
     var updatesUnavailable: String?
     var update: Updates.Available?
+    var hasDebugData = false
 }
 
 struct MenuBarPanelActions {
@@ -38,6 +39,7 @@ struct MenuBarPanelActions {
     var sendWalkthrough: () -> Void = {}
     var copyWalkthrough: () -> Void = {}
     var revealWalkthrough: () -> Void = {}
+    var revealDebugData: () -> Void = {}
     var openSetup: () -> Void = {}
     var openSettings: () -> Void = {}
     var checkForUpdates: () -> Void = {}
@@ -71,7 +73,8 @@ struct MenuBarPanel: View {
             version: model.updates.version,
             canCheckForUpdates: model.updates.canCheckNow,
             updatesUnavailable: model.updates.unavailableReason,
-            update: model.updates.available
+            update: model.updates.available,
+            hasDebugData: model.canRevealDebugData
         )
     }
 
@@ -83,6 +86,7 @@ struct MenuBarPanel: View {
             sendWalkthrough: { model.sendLastWalkthrough() },
             copyWalkthrough: { model.copyLastWalkthrough() },
             revealWalkthrough: { model.revealLastWalkthrough() },
+            revealDebugData: { model.revealDebugData() },
             openSetup: {
                 model.onboarding.restart()
                 model.openOnboarding?()
@@ -216,6 +220,18 @@ struct MenuBarPanelContent: View {
 
             if let walkthrough = state.lastWalkthrough {
                 LastWalkthroughRow(walkthrough: walkthrough, isScouting: state.isScouting, actions: actions)
+            }
+            if state.hasDebugData, !state.isScouting {
+                Button(action: actions.revealDebugData) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "ladybug")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Reveal debug data")
+                    }
+                }
+                .buttonStyle(QuietButtonStyle())
+                .padding(.horizontal, -Self.quietInset)
+                .help("Open the last recording's debug folder in Finder")
             }
             if state.lastSessionSaveFailed {
                 HStack(spacing: 6) {

@@ -80,6 +80,7 @@ nonisolated enum ScoutPaths {
                 }
                 Task.detached(priority: .background) { await removeFinishedMedia(of: folder) }
                 SessionAudioWriter.repair(folder.appendingPathComponent(SessionAudioWriter.fileName))
+                DebugRun.prune(sessionFolder: folder, now: now, trash: trash)
                 if age > mediaAge {
                     trash(folder.appendingPathComponent("media"), age: age)
                 }

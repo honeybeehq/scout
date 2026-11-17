@@ -37,6 +37,7 @@ final class ScoutingSession {
     private(set) var capture = CaptureTimeline()
     let segmentation: Segmentation
     let walkthrough: WalkthroughRecorder?
+    let debug: DebugRun?
     @ObservationIgnored private(set) var pointing: ApiaryPointing?
 
     var presentScope: ((ScopeChange, _ input: TimeInterval) -> Void)?
@@ -48,6 +49,7 @@ final class ScoutingSession {
     var fallbackEngine: (any TranscriptionEngine)?
     private(set) var transcriptPass: TranscriptPass?
     private(set) var secondPassFailures: [String] = []
+    @ObservationIgnored private var secondPassStart: (request: TranscriptionRequest, limit: Double, at: SessionTime)?
 
     enum TranscriptPass {
         case refined(FinalTranscript)
@@ -76,6 +78,7 @@ final class ScoutingSession {
     private var startTask: Task<Void, Never>?
     private var recorderStart: Task<Void, Never>?
     private var stopRequested = false
+    private var stopRequestedAt: SessionTime?
     private let bridge: BridgeServer
     private var webDwell: (target: Target, since: SessionTime)?
     private var activity: NSObjectProtocol?
@@ -91,7 +94,7 @@ final class ScoutingSession {
 
     var startedAt: Date { clock.originDate }
 
-    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation, producesWalkthrough: Bool = false, apiary: ApiaryBridge? = nil) {
+    init(bridge: BridgeServer, recordsScreen: Bool, segmentation: Segmentation, producesWalkthrough: Bool = false, keepsDebugData: Bool = false, apiary: ApiaryBridge? = nil) {
         self.bridge = bridge
         self.recordsScreen = recordsScreen
         self.segmentation = segmentation
@@ -107,6 +110,7 @@ final class ScoutingSession {
         transcriber.audioURL = directory.appendingPathComponent(SessionAudioWriter.fileName)
         aim = AimController(clock: clock)
         walkthrough = producesWalkthrough ? WalkthroughRecorder(startedAt: clock.originDate) : nil
+        debug = keepsDebugData ? DebugRun(sessionID: id, sessionDirectory: directory, clock: clock, kind: producesWalkthrough ? "walkthrough" : "tasks") : nil
         follower = CaptureFollower(clock: clock)
         if let walkthrough, let apiary { pointing = ApiaryPointing(bridge: apiary, clock: clock, recorder: walkthrough) }
     }
@@ -129,6 +133,7 @@ final class ScoutingSession {
     func end(refiningTranscript: Bool = true) async {
         guard !stopRequested else { return }
         stopRequested = true
+        stopRequestedAt = clock.now
         await startTask?.value
         await teardown(refiningTranscript: refiningTranscript)
     }
@@ -136,6 +141,7 @@ final class ScoutingSession {
     private func start() async {
         transcriber.onUtterance = { [weak self] utterance in self?.hear(utterance) }
         transcriber.onEvent = { [weak self] event in self?.transcriptLog.append(event) }
+        if let debug { transcriber.onResult = { [weak debug] entry in debug?.heard(entry) } }
         aim.onPin = { [weak self] mark in self?.ingest(.mark(mark)) }
         aim.onStroke = { [weak self] stroke in self?.record(stroke) }
         aim.onAimChanged = { [weak self] active in self?.bridge.setAim(active: active) }
@@ -191,6 +197,7 @@ final class ScoutingSession {
 
         await transcriber.start()
         transcriber.run?.write(to: directory)
+        debug?.started(input: debugInput, live: liveSetupForDebug)
         await recorderStart?.value
         guard !stopRequested else { return }
         if case .failed(let message) = transcriber.phase {
@@ -211,20 +218,45 @@ final class ScoutingSession {
         closeWebDwell(at: clock.now)
         contextTracker?.stop()
         pointerTracker?.stop()
+        debug?.mark("stopRequested", at: stopRequestedAt)
         await transcriber.stop()
         transcriber.run?.write(to: directory)
+        debug?.mark("transcriberStopped")
+        debug?.updateLive(liveSetupForDebug)
         let secondPass = refiningTranscript ? startSecondPass() : nil
         await recorder?.stop()
         let end = clock.now
         ledger.extend(to: end)
         handle(segmenter.finish(at: end))
-        if let secondPass { apply(await secondPass.value) }
+        if let secondPass {
+            let result = await secondPass.value
+            apply(result)
+            recordSecondPassForDebug(result)
+        }
         log.close()
         captureLog.close()
         transcriptLog.close()
+        debug?.sessionEnded(audioSeconds: transcriber.recordedAudio?.seconds)
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
         phase = .ended
+    }
+
+    private var liveSetupForDebug: DebugTranscriberSetup {
+        let run = transcriber.run
+        return DebugTranscriberSetup(
+            engine: run?.engine ?? TranscriptionRun.appleEngine,
+            module: run?.module ?? transcriber.modulePreference.moduleName,
+            preset: run?.preset,
+            requestedLocale: run?.requestedLocale,
+            locale: run?.locale ?? transcriber.localeIdentifier,
+            contextualStrings: transcriber.terms.all
+        )
+    }
+
+    private var debugInput: DebugRunRecord.Input {
+        if let file = transcriber.inputFile { return .init(kind: "file", file: file.lastPathComponent) }
+        return .init(kind: "microphone", microphone: transcriber.inputName)
     }
 
     func record(_ change: ScopeChange, input: TimeInterval) {
@@ -436,6 +468,7 @@ extension ScoutingSession {
         let request = TranscriptionRequest(audio: audio.url, locale: locale, contextualStrings: transcriber.terms.all, module: transcriber.modulePreference)
         let engines = [transcriptionEngine] + (fallbackEngine.map { [$0] } ?? [])
         let limit = Self.secondPassLimit(forAudio: audio.seconds)
+        secondPassStart = (request, limit, clock.now)
         return Task.detached(priority: .userInitiated) {
             let started = Date()
             var failures: [String] = []
@@ -503,6 +536,31 @@ extension ScoutingSession {
         }
         transcriptPass = .refined(final)
         NSLog("[scout-transcript] final transcript by %@ (%@): %d utterances from %.1f s of audio in %.1f s%@", transcript.engine, transcript.locale ?? "?", utterances.count, result.audioSeconds, result.elapsed, result.failures.isEmpty ? "" : "; after " + result.failures.joined(separator: "; "))
+    }
+
+    private func recordSecondPassForDebug(_ result: SecondPassResult) {
+        guard let debug, let start = secondPassStart else { return }
+        let outcome: (String, String?) = switch transcriptPass {
+        case .refined: ("refined", nil)
+        case .keptLive(let reason): ("keptLive", reason)
+        case nil: ("none", nil)
+        }
+        debug.recordSecondPass(DebugSecondPass(
+            engine: result.transcript?.engine ?? transcriptionEngine.name,
+            requestedLocale: start.request.locale.identifier(.bcp47),
+            locale: result.transcript?.locale,
+            contextualStrings: start.request.contextualStrings,
+            limitSeconds: start.limit,
+            startedAt: start.at,
+            finishedAt: start.at + result.elapsed,
+            audioSeconds: result.audioSeconds,
+            elapsedSeconds: result.elapsed,
+            outcome: outcome.0,
+            reason: outcome.1,
+            engines: [transcriptionEngine.name] + (fallbackEngine.map { [$0.name] } ?? []),
+            failures: result.failures,
+            segments: result.transcript?.segments ?? []
+        ))
     }
 
     private func keepLive(_ reason: String, engine: String) {

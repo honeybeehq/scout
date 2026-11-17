@@ -472,6 +472,26 @@ enum SimulationMode {
         }
     }
 
+    private static func debugDataReport(model: AppModel, output: URL) async -> [String: Any] {
+        await model.debugFinish?.value
+        var report: [String: Any] = ["keepsDebugData": model.preferences.keepsDebugData]
+        guard let directory = model.lastDebugDirectory else { return report }
+        report["directory"] = directory.path
+        let manager = FileManager.default
+        report["files"] = ((try? manager.contentsOfDirectory(atPath: directory.path)) ?? []).sorted().map { name -> [String: Any] in
+            let url = directory.appendingPathComponent(name)
+            let attributes = (try? manager.attributesOfItem(atPath: url.path)) ?? [:]
+            return ["name": name, "bytes": (attributes[.size] as? Int) ?? 0, "links": (attributes[.referenceCount] as? Int) ?? 0, "inode": (attributes[.systemFileNumber] as? Int) ?? 0]
+        }
+        let audio = model.session?.directory.appendingPathComponent(SessionAudioWriter.fileName)
+        report["sessionAudioInode"] = audio.flatMap { (try? manager.attributesOfItem(atPath: $0.path))?[.systemFileNumber] as? Int } ?? 0
+        ViewShot.write(MenuBarPanel().environment(model), to: output.appendingPathComponent("menu-bar-debug.png"))
+        if ProcessInfo.processInfo.arguments.contains("--simulate-reveal-debug") {
+            report["revealed"] = model.revealDebugData()?.path ?? ""
+        }
+        return report
+    }
+
     private static func waitFor(_ seconds: Double, _ condition: () -> Bool) async {
         let deadline = Date().addingTimeInterval(seconds)
         while !condition(), Date() < deadline { try? await Task.sleep(for: .milliseconds(10)) }
@@ -732,6 +752,11 @@ enum SimulationMode {
             try? await Task.sleep(for: .milliseconds(250))
         }
         try? await Task.sleep(for: .seconds(4))
+        if result == .walkthrough {
+            await waitFor(30) { model.lastWalkthrough != nil || model.walkthroughProblem != nil }
+            try? await Task.sleep(for: .milliseconds(300))
+            pickerSnapshot(model, "debug", into: output)
+        }
         if DesignGallery.directory != nil {
             await DesignGallery.captureReview(model: model)
         }
@@ -764,7 +789,8 @@ enum SimulationMode {
         model.review?.save()
         try? await Task.sleep(for: .seconds(1))
         snapshotPanels(into: output, suffix: "after-stop")
-        writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport])
+        let debugReport = await debugDataReport(model: model, output: output)
+        writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport, "debugData": debugReport])
         if DesignGallery.directory != nil {
             await DesignGallery.captureFinished(model: model)
         }

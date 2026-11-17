@@ -27,6 +27,8 @@ final class AppModel {
     private(set) var session: ScoutingSession?
     private(set) var lastWalkthrough: FinishedWalkthrough?
     private(set) var walkthroughProblem: String?
+    private(set) var lastDebugDirectory: URL?
+    @ObservationIgnored private(set) var debugFinish: Task<Void, Never>?
     private(set) var review: SessionReview?
     private var reviews: [String: SessionReview] = [:]
     private var latestSessionID: String?
@@ -110,6 +112,7 @@ final class AppModel {
         }
         picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
         picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
+        picker.model.onRevealDebug = { [weak self] url in self?.revealDebugData(at: url) }
         ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
         ScoutAppDelegate.onWillFinishLaunching = { [preferences] in preferences.applyAppearance() }
         if !Self.rendersOnly {
@@ -227,6 +230,7 @@ final class AppModel {
             recordsScreen: preferences.includeClips && SimulationMode.fixtureVideo == nil,
             segmentation: segmentation ?? preferences.segmentation,
             producesWalkthrough: result == .walkthrough,
+            keepsDebugData: preferences.keepsDebugData,
             apiary: apiary
         )
         session.transcriber.inputFile = inputFile
@@ -410,6 +414,7 @@ final class AppModel {
             guard !review.tasks.isEmpty || !review.leftoverSpeech.isEmpty else {
                 handedOff?()
                 stackChanged()
+                finishDebug(of: session)
                 return
             }
             reviews[session.id] = review
@@ -427,8 +432,10 @@ final class AppModel {
                 }
             }
             await session.exportVideo()
+            session.debug?.mark("videoExported")
             review.videoFinished()
             removeSegments(of: session)
+            finishDebug(of: session)
         }
     }
 
@@ -440,7 +447,7 @@ final class AppModel {
             if SimulationMode.writesPasteboard { WalkthroughPasteboard.put(outcome.directory) }
             var timings = outcome.timings.mapValues { $0 + (ended - pressedAt).seconds }
             timings["sessionEnded"] = (ended - pressedAt).seconds
-            let finished = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings)
+            let finished = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings, debugDirectory: session.debug?.directory)
             lastWalkthrough = finished
             walkthroughProblem = nil
             handedOff?()
@@ -459,6 +466,7 @@ final class AppModel {
             }
         }
         stackChanged()
+        finishDebug(of: session, walkthrough: lastWalkthrough?.walkthrough.id == walkthrough.bundle.id ? lastWalkthrough : nil)
         let media = session.directory.appendingPathComponent("media", isDirectory: true)
         Task.detached(priority: .background) {
             try? FileManager.default.removeItem(at: media)
@@ -644,6 +652,30 @@ final class AppModel {
         WalkthroughPasteboard.put(lastWalkthrough.directory)
     }
 
+    private func finishDebug(of session: ScoutingSession, walkthrough: FinishedWalkthrough? = nil) {
+        guard let debug = session.debug else { return }
+        lastDebugDirectory = debug.directory
+        let interactions = InteractionTimings.shared.samples
+        debugFinish = Task {
+            await debug.finish(walkthroughID: walkthrough?.walkthrough.id, walkthroughBundle: walkthrough?.directory, interactions: interactions, afterStopPressed: walkthrough?.timings ?? [:])
+        }
+    }
+
+    var canRevealDebugData: Bool {
+        lastDebugDirectory.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+    }
+
+    @discardableResult
+    func revealDebugData(at directory: URL? = nil) -> URL? {
+        guard let url = directory ?? lastDebugDirectory, FileManager.default.fileExists(atPath: url.path) else {
+            NSSound.beep()
+            return nil
+        }
+        NSWorkspace.shared.open(url)
+        NSLog("[scout-debug] revealed %@", url.path)
+        return url
+    }
+
     func revealLastWalkthrough() {
         guard let lastWalkthrough else { return }
         NSWorkspace.shared.activateFileViewerSelecting([lastWalkthrough.directory])
@@ -776,4 +808,5 @@ struct FinishedWalkthrough {
     let directory: URL
     let walkthrough: Walkthrough
     let timings: [String: Double]
+    var debugDirectory: URL? = nil
 }

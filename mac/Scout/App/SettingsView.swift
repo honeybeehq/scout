@@ -206,8 +206,14 @@ private struct GeneralSettings: View {
                     Button("Show") { NSWorkspace.shared.open(ScoutPaths.support.appendingPathComponent("Sessions")) }
                         .buttonStyle(SecondaryButtonStyle())
                 }
+                SettingRow(title: "Keep debug data", detail: "Saves each recording's audio, live and final transcripts, transcriber settings, events, log and timings in a debug folder. Kept for 7 days.") {
+                    Toggle("", isOn: Bindable(model.preferences).keepsDebugData)
+                        .toggleStyle(SignalToggleStyle())
+                        .labelsHidden()
+                }
                 UpdatesSection()
             }
+            .id("app")
         }
         .padding(20)
     }

@@ -91,6 +91,7 @@ Pruning runs only in the release app launched without `--` flags and without an 
     audio.wav                  the microphone, 16 kHz mono 16-bit PCM, sample 0 = session start, gaps filled with silence
     transcript.json            the final transcript from the whole-recording second pass (FinalTranscript); replaces the live utterances
     session.mp4                the whole recording, joined from the segments on stop (passthrough)
+    debug/                     only with Settings → General → Keep debug data (see Debug data below)
     review.json                task ranges, titles, edits and delivery state; reopens the session later
     media/init.mp4             fMP4 init segment (while recording)
     media/seg-00001.m4s …      2 s media segments (deleted once session.mp4 exists)
@@ -112,7 +113,22 @@ A recording started with the hotkey or Start scouting ends as a walkthrough. `Wa
 
 Transcription runs twice. The live `SpeechTranscriber` pass drives the recording bar and the segmenter while you talk, and every buffer it hears is also written to `audio.wav` on the session clock (the header is rewritten every 2 s, and launch repairs it after a crash). When the session stops, a `TranscriptionEngine` (Voice/TranscriptionEngine.swift; Apple's `SpeechTranscriber` or the selected, installed WhisperKit large-v3-turbo model, both on device) transcribes the whole recording. Its words are split at every ⌃⌥B cut and in the middle of each gap between tasks, words inside spoken commands are dropped, and the result replaces the live utterances in the ledger, the walkthrough and every task that isn't sent yet. Task ranges and pins stay as they were cut live; only the speech inside them changes. If the pass fails, times out (30 s plus the recording's length) or hears nothing, the live transcript stays. A walkthrough's `transcript.engine` names the engine that produced it.
 
-Retention (release app only, see above): when a session ends, its segments are joined into `session.mp4` (passthrough). Once `review.json` records that video and `session.mp4` plays for the recorded duration, `media/` is deleted two minutes after the video was written, so a send already reading segments can finish; launch runs the same check for every session, so quitting inside those two minutes no longer leaves `media/` behind. A walkthrough's `media/` is deleted as soon as finishing ends, since nothing reads it afterwards. A session keeps one copy of its video. `session.mp4` and `audio.wav` are pruned after 7 days and whole sessions after 14; `review.json` and the snippet folders of sent tasks go with the session.
+Retention (release app only, see above): when a session ends, its segments are joined into `session.mp4` (passthrough). Once `review.json` records that video and `session.mp4` plays for the recorded duration, `media/` is deleted two minutes after the video was written, so a send already reading segments can finish; launch runs the same check for every session, so quitting inside those two minutes no longer leaves `media/` behind. A walkthrough's `media/` is deleted as soon as finishing ends, since nothing reads it afterwards. A session keeps one copy of its video. `session.mp4` and `audio.wav` are pruned after 7 days and whole sessions after 14; `review.json` and the snippet folders of sent tasks go with the session. A session's `debug/` folder is trashed 7 days after it was last written.
+
+Debug data: with Settings → General → Keep debug data on (off by default in the release app, on in every other bundle), each run, tasks or walkthrough, keeps `debug/` in its session folder. Every time in it is seconds on the session clock that `audio.wav` uses, except `events.jsonl`, which keeps the walkthrough's milliseconds.
+
+```
+debug/
+  run.json           run id and kind, app, input, audio format, live and second-pass engine, module, preset, locale and contextual strings, walkthrough id and bundle
+  audio.wav          a hard link to the session's audio.wav (no copy)
+  live.jsonl         every live result as it arrived: t, final, text, start, end, words; volatile and final
+  second-pass.json   the whole-recording pass: engine, locale, contextual strings, start, finish, outcome and its raw segments with word timings
+  events.jsonl       a hard link to transcript-events.jsonl: stalls, restarts, dropped words, errors
+  scout.log          Scout's [scout-…] log lines and any error or fault from the process during the run
+  timings.json       phase times (transcriber ready, first volatile and final, stop, second pass, end), interaction timings, walkthrough finish timings
+```
+
+"Reveal debug data" in the menu bar panel, the review window's Sessions menu and the walkthrough picker opens the folder in Finder. With the toggle off nothing extra is written.
 
 ## Permissions model
 

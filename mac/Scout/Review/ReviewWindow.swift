@@ -173,6 +173,10 @@ private struct ReviewHeader: View {
                     }
                 }
                 if sessions.isEmpty { Text("No earlier sessions") }
+                if let debug = DebugRun.existing(in: review.directory) {
+                    Divider()
+                    Button("Reveal debug data") { model.revealDebugData(at: debug) }
+                }
             } label: {
                 Label("Sessions", systemImage: "clock.arrow.circlepath")
                     .modifier(SecondaryLabel())

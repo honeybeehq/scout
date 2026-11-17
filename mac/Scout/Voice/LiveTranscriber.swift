@@ -41,6 +41,7 @@ final class LiveTranscriber {
 
     var onUtterance: ((Utterance) -> Void)?
     var onEvent: ((Walkthrough.TranscriptEvent) -> Void)?
+    var onResult: ((LiveTranscriptEntry) -> Void)?
     var inputFile: URL?
     var onInputFinished: (() -> Void)?
     var audioURL: URL?
@@ -415,6 +416,10 @@ final class LiveTranscriber {
         lastResult = (now, sound.seconds)
         soundResumedAt = nil
         let text = String(attributed.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        if let onResult {
+            let words = Self.words(in: attributed).filter { $0.range.start.isFinite && $0.range.end.isFinite && ($0.confidence?.isFinite ?? true) }
+            onResult(LiveTranscriptEntry(t: now, final: isFinal, text: text, start: Self.finite(range.start.seconds), end: Self.finite(range.end.seconds), words: words))
+        }
         if isFinal {
             finalizedText = [finalizedText, text].filter { !$0.isEmpty }.joined(separator: " ")
             volatileText = ""
@@ -427,6 +432,10 @@ final class LiveTranscriber {
         } else {
             volatileText = text
         }
+    }
+
+    nonisolated private static func finite(_ value: Double) -> Double? {
+        value.isFinite ? value : nil
     }
 
     nonisolated static func words(in attributed: AttributedString) -> [Word] {

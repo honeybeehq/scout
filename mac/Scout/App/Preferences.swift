@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import ScoutCore
 
 enum Segmentation: String, CaseIterable, Identifiable {
     case automatic
@@ -157,6 +158,10 @@ final class Preferences {
         didSet { defaults.set(uiSize.rawValue, forKey: "appearance.uiSize") }
     }
 
+    var keepsDebugData: Bool {
+        didSet { defaults.set(keepsDebugData, forKey: "debug.keepData") }
+    }
+
     var colorMode: ColorMode {
         didSet {
             defaults.set(colorMode.rawValue, forKey: "appearance.colorMode")
@@ -204,6 +209,7 @@ final class Preferences {
             "voice.module": TranscriptionModule.speech.rawValue,
             "voice.locale": TranscriptionLocale.automatic,
             "voice.terms": "",
+            "debug.keepData": !ScoutDataRoot.current.isRelease,
         ])
         autoSend = defaults.bool(forKey: "delivery.autoSend")
         autoSendDelay = defaults.double(forKey: "delivery.autoSendDelay")
@@ -211,6 +217,7 @@ final class Preferences {
         includeClips = defaults.bool(forKey: "capture.includeClips")
         segmentation = Segmentation(rawValue: defaults.string(forKey: "scouting.segmentation") ?? "") ?? .automatic
         reviewOpening = ReviewOpening(rawValue: defaults.string(forKey: "review.opening") ?? "") ?? .whenNeeded
+        keepsDebugData = defaults.bool(forKey: "debug.keepData")
         uiSize = UISize.requested ?? UISize(rawValue: defaults.string(forKey: "appearance.uiSize") ?? "") ?? .standard
         colorMode = ColorMode.requested ?? ColorMode(rawValue: defaults.string(forKey: "appearance.colorMode") ?? "") ?? .system
         transcriptionEngine = TranscriptionEngineChoice.requested ?? TranscriptionEngineChoice(rawValue: defaults.string(forKey: "voice.engine") ?? "") ?? .apple

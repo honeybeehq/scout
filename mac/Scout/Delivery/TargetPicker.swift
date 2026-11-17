@@ -43,6 +43,11 @@ final class TargetPickerModel {
 
     var onChoose: ((ApiaryTarget, DeliveryMode) -> Void)?
     var onDismiss: (() -> Void)?
+    var onRevealDebug: ((URL) -> Void)?
+
+    var debugDirectory: URL? {
+        walkthrough?.debugDirectory.flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+    }
 
     private func filterTargets() {
         let words = query.lowercased().split(whereSeparator: \.isWhitespace)
@@ -526,6 +531,11 @@ struct TargetPickerView: View {
             hint("esc", "clipboard only")
             if model.canPaste { hint("⌘↩", "send now") }
             Spacer()
+            if let debug = model.debugDirectory {
+                Button("Reveal debug data") { model.onRevealDebug?(debug) }
+                    .buttonStyle(QuietButtonStyle())
+                    .help("Open this walkthrough's debug folder in Finder")
+            }
             if let problem = model.problem {
                 HStack(spacing: 6) {
                     StatusDot(tone: .negative)
