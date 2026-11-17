@@ -342,6 +342,7 @@ enum SimulationMode {
             model.simulatedInput = fixture.audio
             model.onSessionCreated = { session in session.transcriber.onInputFinished = { finished = true } }
             try? "waiting".write(to: output.appendingPathComponent("awaiting-url"), atomically: true, encoding: .utf8)
+            if let url = recordURL, let request = RecordRequest.parse(url) { model.record(request) }
             await waitFor(300) { model.session != nil }
             report["recordURL"] = model.boundTarget.map { "\($0.kind):\($0.id)" } ?? ""
         } else {
@@ -537,6 +538,10 @@ enum SimulationMode {
         }
         try? await Task.sleep(for: .milliseconds(1800))
         return result
+    }
+
+    static var recordURL: URL? {
+        argument("record-url").flatMap(URL.init(string:))
     }
 
     static var awaitsRecordURL: Bool {

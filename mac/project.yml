@@ -50,6 +50,14 @@ targets:
         SUPublicEDKey: $(SCOUT_SPARKLE_PUBLIC_KEY)
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
+    postBuildScripts:
+      - name: Register the scout URL scheme only in the release bundle
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "$PRODUCT_BUNDLE_IDENTIFIER" != "com.trmdy.scout" ]; then
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$TARGET_BUILD_DIR/$INFOPLIST_PATH" 2>/dev/null || true
+            echo "Removed CFBundleURLTypes from $PRODUCT_BUNDLE_IDENTIFIER"
+          fi
     entitlements:
       path: Scout/Scout.entitlements
       properties:

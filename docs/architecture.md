@@ -77,6 +77,8 @@ Every file Scout writes lives under one data root (`ScoutDataRoot`, ScoutCore). 
 
 Delivery follows the same split. Builds other than the release app run in dry-run mode: task cards write `message.txt` instead of sending, walkthrough delivery records a dry-run outcome instead of calling Apiary or hive, and finished walkthroughs don't replace the clipboard. `--live-delivery` opts back in, and `--dry-run-delivery` forces dry run in any build. Launch logs `[scout-data] delivery dry-run|live (<reason>)`.
 
+Only the release bundle registers the `scout://` URL scheme. A build phase deletes `CFBundleURLTypes` from any other bundle before signing, so a test copy can't receive record links meant for the real app. Simulations pass the link with `--record-url=scout://record?target=proof:<id>` (together with `--await-record-url`).
+
 Pruning runs only in the release app launched without `--` flags and without an override. It moves old items to the Trash instead of deleting them, logging each one as `[scout-prune] trashed <path> age <days> size <bytes>`. Stale walkthrough `.partial` folders follow the same rule.
 
 ```
