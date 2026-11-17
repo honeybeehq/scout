@@ -38,7 +38,9 @@ with `(deny network*)` so WhisperKit's tokenizer Hub fallback can never fire.
 
 `<data-dir>` (outside the repo) holds `audio/<name>.wav`, `refs/<name>.txt` and optionally
 `context/<name>.txt` or `context.txt`. References are plain text with names and terms tagged like
-`[WezTerm]`; `score.py` reports WER and the share of tagged terms that came out wrong.
+`[WezTerm]`; `score.py` reports WER and the share of tagged terms that came out wrong, twice: in spoken form
+(CamelCase, hyphens and case ignored, so "speech analyzer" counts for `SpeechAnalyzer`) and in written form
+(case ignored, but `SpeechAnalyzer` must appear as one word and `scout-segment` with its hyphen).
 `context_from_session.py signals.jsonl` builds a contextual-strings file from a Scout session the way
 the app would. `screen_terms_check.py walkthrough.json` checks a walkthrough transcript against the
 on-screen labels of its pointers when there is no audio to score.

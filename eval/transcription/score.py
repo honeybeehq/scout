@@ -10,7 +10,10 @@ NUMBERS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five
            "hundred": "100", "thousand": "1000"}
 SPELLINGS = {"ok": "okay", "colour": "color", "grey": "gray", "e-mail": "email", "%": "percent"}
 
+CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+
 def normalize(text):
+    text = CAMEL.sub(" ", text)
     text = text.lower().replace("’", "'").replace("‘", "'").replace("…", " ")
     text = re.sub(r"[-–—/]", " ", text)
     text = re.sub(r"[^\w\s'%]", " ", text)
@@ -68,14 +71,17 @@ def score(reference_text, hypothesis_text):
     term_results = []
     for name, start, end in terms:
         ok = all(ref_status.get(k) == "match" for k in range(start, end))
-        term_results.append({"term": name, "correct": ok})
+        exact = re.search(r"(?<!\w)" + re.escape(name.lower()) + r"(?!\w)", hypothesis_text.lower()) is not None
+        term_results.append({"term": name, "correct": ok, "exact": exact})
     wrong = sum(1 for t in term_results if not t["correct"])
+    not_exact = sum(1 for t in term_results if not t["exact"])
     return {
         "ref_words": len(ref), "hyp_words": len(hyp),
         "sub": counts["sub"], "del": counts["del"], "ins": counts["ins"], "errors": errors,
         "wer": errors / len(ref) if ref else None,
-        "terms": len(terms), "terms_wrong": wrong,
+        "terms": len(terms), "terms_wrong": wrong, "terms_not_exact": not_exact,
         "term_error_rate": wrong / len(terms) if terms else None,
+        "term_exact_error_rate": not_exact / len(terms) if terms else None,
         "term_results": term_results,
     }
 
@@ -93,7 +99,7 @@ def main():
     p.add_argument("--json", help="write the full score table here")
     args = p.parse_args()
     variants = args.variants.split(",")
-    rows, totals = [], {v: {"ref_words": 0, "errors": 0, "terms": 0, "terms_wrong": 0, "files": 0} for v in variants}
+    rows, totals = [], {v: {"ref_words": 0, "errors": 0, "terms": 0, "terms_wrong": 0, "terms_not_exact": 0, "files": 0} for v in variants}
     for ref_path in sorted(glob.glob(os.path.join(args.refs, "*.txt"))):
         name = os.path.splitext(os.path.basename(ref_path))[0]
         with open(ref_path) as f:
@@ -107,23 +113,25 @@ def main():
             rows.append(s)
             t = totals[v]
             t["ref_words"] += s["ref_words"]; t["errors"] += s["errors"]
-            t["terms"] += s["terms"]; t["terms_wrong"] += s["terms_wrong"]; t["files"] += 1
-    print("| case | variant | ref words | S | D | I | WER | terms | term errors | term error rate |")
+            t["terms"] += s["terms"]; t["terms_wrong"] += s["terms_wrong"]; t["terms_not_exact"] += s["terms_not_exact"]; t["files"] += 1
+    print("| case | variant | ref words | S | D | I | WER | terms | term errors (spoken) | term errors (written form) |")
     print("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|")
     for s in rows:
-        print(f"| {s['name']} | {s['variant']} | {s['ref_words']} | {s['sub']} | {s['del']} | {s['ins']} | {s['wer']:.1%} | {s['terms']} | {s['terms_wrong']} | {(s['term_error_rate'] if s['term_error_rate'] is not None else 0):.0%} |")
+        print(f"| {s['name']} | {s['variant']} | {s['ref_words']} | {s['sub']} | {s['del']} | {s['ins']} | {s['wer']:.1%} | {s['terms']} | {s['terms_wrong']} | {s['terms_not_exact']} |")
     print()
-    print("| variant | files | ref words | WER (micro) | terms | term error rate (micro) |")
-    print("|---|---:|---:|---:|---:|---:|")
+    print("| variant | files | ref words | WER | terms | term error rate (spoken form) | term error rate (written form) |")
+    print("|---|---:|---:|---:|---:|---:|---:|")
     for v, t in totals.items():
         if t["files"] == 0: continue
         wer = t["errors"] / t["ref_words"] if t["ref_words"] else 0
         ter = t["terms_wrong"] / t["terms"] if t["terms"] else 0
-        print(f"| {v} | {t['files']} | {t['ref_words']} | {wer:.1%} | {t['terms']} | {ter:.0%} |")
+        tex = t["terms_not_exact"] / t["terms"] if t["terms"] else 0
+        print(f"| {v} | {t['files']} | {t['ref_words']} | {wer:.1%} | {t['terms']} | {ter:.0%} | {tex:.0%} |")
     if args.details:
         for s in rows:
             missed = [t["term"] for t in s["term_results"] if not t["correct"]]
-            print(f"{s['name']} {s['variant']} missed terms: {missed}")
+            misspelled = [t["term"] for t in s["term_results"] if t["correct"] and not t["exact"]]
+            print(f"{s['name']} {s['variant']} missed terms: {missed}; right words, written differently: {misspelled}")
     if args.json:
         with open(args.json, "w") as f:
             json.dump({"rows": rows, "totals": totals}, f, indent=2)
