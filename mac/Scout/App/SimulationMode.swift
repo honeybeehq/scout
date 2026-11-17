@@ -486,6 +486,13 @@ enum SimulationMode {
         let audio = model.session?.directory.appendingPathComponent(SessionAudioWriter.fileName)
         report["sessionAudioInode"] = audio.flatMap { (try? manager.attributesOfItem(atPath: $0.path))?[.systemFileNumber] as? Int } ?? 0
         ViewShot.write(MenuBarPanel().environment(model), to: output.appendingPathComponent("menu-bar-debug.png"))
+        let folder = directory.deletingLastPathComponent()
+        report["retention"] = [6.0, 8.0, 15.0].map { days -> [String: Any] in
+            var wouldTrash: [String] = []
+            DebugRun.prune(sessionFolder: folder, now: Date().addingTimeInterval(days * 86_400)) { url, _ in wouldTrash.append(url.lastPathComponent) }
+            return ["days": days, "wouldTrash": wouldTrash]
+        }
+        report["releasePruning"] = ScoutPaths.allowsPruning
         if ProcessInfo.processInfo.arguments.contains("--simulate-reveal-debug") {
             report["revealed"] = model.revealDebugData()?.path ?? ""
         }
