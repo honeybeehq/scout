@@ -671,9 +671,9 @@ final class AppModel {
             NSSound.beep()
             return nil
         }
-        NSWorkspace.shared.open(url)
-        NSLog("[scout-debug] revealed %@", url.path)
-        return url
+        let opened = NSWorkspace.shared.open(url)
+        NSLog("[scout-debug] reveal debug data: %@ %@ in Finder", opened ? "opened" : "failed to open", url.path)
+        return opened ? url : nil
     }
 
     func revealLastWalkthrough() {

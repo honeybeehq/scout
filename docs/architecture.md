@@ -124,7 +124,7 @@ debug/
   live.jsonl         every live result as it arrived: t, final, text, start, end, words; volatile and final
   second-pass.json   the whole-recording pass: engine, locale, contextual strings, start, finish, outcome and its raw segments with word timings
   events.jsonl       a hard link to transcript-events.jsonl: stalls, restarts, dropped words, errors
-  scout.log          Scout's [scout-…] log lines and any error or fault from the process during the run
+  scout.log          Scout's own [scout-…] log lines during the run, teed from stderr: session time, wall time, message
   timings.json       phase times (transcriber ready, first volatile and final, stop, second pass, end), interaction timings, walkthrough finish timings
 ```
 

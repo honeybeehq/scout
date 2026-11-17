@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 import ScoutCore
 
 nonisolated struct LiveTranscriptEntry: Encodable, Sendable {
@@ -97,6 +96,7 @@ final class DebugRun {
     private var phases: [String: SessionTime] = [:]
     private var record: DebugRunRecord
     private(set) var finished = false
+    private let logTap: UUID
 
     nonisolated static func directory(in sessionDirectory: URL) -> URL {
         sessionDirectory.appendingPathComponent(folderName, isDirectory: true)
@@ -114,6 +114,7 @@ final class DebugRun {
         self.sessionDirectory = sessionDirectory
         self.clock = clock
         live = SignalLog(url: directory.appendingPathComponent(File.live))
+        logTap = ScoutLogTap.shared.start()
         let info = Bundle.main.infoDictionary
         record = DebugRunRecord(
             id: sessionID,
@@ -126,6 +127,10 @@ final class DebugRun {
             files: []
         )
         NSLog("[scout-debug] keeping debug data for %@ in %@", sessionID, directory.path)
+    }
+
+    deinit {
+        _ = ScoutLogTap.shared.stop(logTap)
     }
 
     func mark(_ phase: String, at time: SessionTime? = nil) {
@@ -180,13 +185,13 @@ final class DebugRun {
             interactions: interactions.map { DebugTimings.Interaction(t: $0.input - offset, sample: $0) }
         )
         write(timings, to: File.timings)
-        let from = clock.originDate.addingTimeInterval(-1)
+        NSLog("[scout-debug] finished %@", record.id)
+        try? await Task.sleep(for: .milliseconds(200))
         let origin = clock.originDate
-        let url = directory.appendingPathComponent(File.log)
-        let lines = await Task.detached(priority: .utility) { Self.logLines(since: from, origin: origin) }.value
-        try? Data(lines.utf8).write(to: url, options: .atomic)
+        let stamp = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        let lines = ScoutLogTap.shared.stop(logTap).map { String(format: "%10.3f  ", $0.at.timeIntervalSince(origin)) + "\($0.at.formatted(stamp))  \($0.message)\n" }
+        try? Data(lines.joined().utf8).write(to: directory.appendingPathComponent(File.log), options: .atomic)
         writeRecord()
-        NSLog("[scout-debug] finished %@: %@", record.id, record.files.joined(separator: ", "))
     }
 
     private func writeRecord() {
@@ -216,32 +221,6 @@ final class DebugRun {
         }
     }
 
-    nonisolated private static func logLines(since start: Date, origin: Date) -> String {
-        guard let store = try? OSLogStore(scope: .currentProcessIdentifier) else { return "log unavailable: OSLogStore could not open this process's log\n" }
-        let position = store.position(date: start)
-        guard let entries = try? store.getEntries(at: position) else { return "log unavailable: no entries\n" }
-        var lines: [String] = []
-        let stamp = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-        for case let entry as OSLogEntryLog in entries {
-            let message = entry.composedMessage
-            guard message.hasPrefix("[scout") || entry.level == .error || entry.level == .fault else { continue }
-            let t = entry.date.timeIntervalSince(origin)
-            lines.append(String(format: "%10.3f  ", t) + "\(entry.date.formatted(stamp))  \(Self.level(entry.level))  \(message)")
-        }
-        return lines.joined(separator: "\n") + (lines.isEmpty ? "" : "\n")
-    }
-
-    nonisolated private static func level(_ level: OSLogEntryLog.Level) -> String {
-        switch level {
-        case .debug: "debug"
-        case .info: "info"
-        case .notice: "notice"
-        case .error: "error"
-        case .fault: "fault"
-        default: "default"
-        }
-    }
-
     nonisolated static func prune(sessionFolder folder: URL, now: Date, trash: (URL, TimeInterval) -> Void) {
         let debug = directory(in: folder)
         guard let modified = (try? debug.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate else { return }
@@ -260,4 +239,70 @@ nonisolated struct DebugTimings: Encodable, Sendable {
     var audioSeconds: Double?
     var afterStopPressed: [String: Double]
     var interactions: [Interaction]
+}
+
+nonisolated final class ScoutLogTap: @unchecked Sendable {
+    struct Line: Sendable {
+        var at: Date
+        var message: String
+    }
+
+    static let shared = ScoutLogTap()
+
+    private let lock = NSLock()
+    private var installed = false
+    private var original: Int32 = -1
+    private var reader: FileHandle?
+    private var pending = Data()
+    private var listeners: [UUID: [Line]] = [:]
+
+    func start() -> UUID {
+        lock.lock()
+        defer { lock.unlock() }
+        installIfNeeded()
+        let id = UUID()
+        listeners[id] = []
+        return id
+    }
+
+    func stop(_ id: UUID) -> [Line] {
+        lock.lock()
+        defer { lock.unlock() }
+        return listeners.removeValue(forKey: id) ?? []
+    }
+
+    private func installIfNeeded() {
+        guard !installed else { return }
+        var fds: [Int32] = [0, 0]
+        guard pipe(&fds) == 0 else { return }
+        let original = dup(STDERR_FILENO)
+        guard original >= 0, dup2(fds[1], STDERR_FILENO) >= 0 else {
+            close(fds[0])
+            close(fds[1])
+            return
+        }
+        close(fds[1])
+        self.original = original
+        installed = true
+        let reader = FileHandle(fileDescriptor: fds[0], closeOnDealloc: true)
+        reader.readabilityHandler = { [weak self] handle in self?.receive(handle.availableData) }
+        self.reader = reader
+    }
+
+    private func receive(_ data: Data) {
+        guard !data.isEmpty else { return }
+        let original = self.original
+        _ = data.withUnsafeBytes { write(original, $0.baseAddress, data.count) }
+        let now = Date()
+        lock.lock()
+        defer { lock.unlock() }
+        pending.append(data)
+        while let newline = pending.firstIndex(of: 0x0A) {
+            let line = String(decoding: pending[pending.startIndex..<newline], as: UTF8.self)
+            pending.removeSubrange(pending.startIndex...newline)
+            guard !listeners.isEmpty, let start = line.range(of: "[scout") else { continue }
+            let entry = Line(at: now, message: String(line[start.lowerBound...]))
+            for id in listeners.keys { listeners[id]?.append(entry) }
+        }
+    }
 }

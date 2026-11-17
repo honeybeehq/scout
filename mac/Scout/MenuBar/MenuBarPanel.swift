@@ -221,18 +221,6 @@ struct MenuBarPanelContent: View {
             if let walkthrough = state.lastWalkthrough {
                 LastWalkthroughRow(walkthrough: walkthrough, isScouting: state.isScouting, actions: actions)
             }
-            if state.hasDebugData, !state.isScouting {
-                Button(action: actions.revealDebugData) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "ladybug")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text("Reveal debug data")
-                    }
-                }
-                .buttonStyle(QuietButtonStyle())
-                .padding(.horizontal, -Self.quietInset)
-                .help("Open the last recording's debug folder in Finder")
-            }
             if state.lastSessionSaveFailed {
                 HStack(spacing: 6) {
                     StatusDot(tone: .negative, size: 5)
@@ -254,6 +242,18 @@ struct MenuBarPanelContent: View {
                         RecentTaskRow(task: task)
                     }
                 }
+            }
+            if state.hasDebugData, !state.isScouting {
+                Button(action: actions.revealDebugData) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "ladybug")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Reveal debug data")
+                    }
+                }
+                .buttonStyle(QuietButtonStyle())
+                .padding(.horizontal, -Self.quietInset)
+                .help("Open the last recording's debug folder in Finder")
             }
         }
     }
