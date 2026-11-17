@@ -8,15 +8,18 @@
 #   f  Apple DictationTranscriber + contextual strings + explicit locale, progressive, paced
 #   g  Apple DictationTranscriber + contextual strings, whole-recording second pass
 #   f0 / g0  the same without contextual strings (baselines)
-# Whisper needs SCOUT_EVAL_WHISPER_PINS pointing at the verified pins folder (never committed).
+#   p  Parakeet TDT 0.6B v2 via FluidAudio, whole recording, network denied (eval only)
+# Whisper needs SCOUT_EVAL_WHISPER_PINS and Parakeet SCOUT_EVAL_PARAKEET_PINS pointing at the verified pins folders (never committed).
 set -euo pipefail
 here="${0:A:h}"
 variant="$1"; audio="$2"; out="$3"; context="${4:-}"; locale="${5:-en-US}"
 pins="${SCOUT_EVAL_WHISPER_PINS:-}"
 models="$pins/whisperkit-coreml@0f63a780"
 tokenizer="$pins/whisper-large-v3-turbo@41f01f3f"
+ppins="${SCOUT_EVAL_PARAKEET_PINS:-}"
 apple="$here/.build/release/scout-transcribe-eval"
 whisper="$here/whisper/.build/release/scout-whisper-eval"
+parakeet="$here/parakeet/.build/release/scout-parakeet-eval"
 no_network=(sandbox-exec -p '(version 1)(allow default)(deny network*)')
 case "$variant" in
   a) cmd=("$apple" --audio "$audio" --out "$out" --preset progressive --locale current --paced) ;;
@@ -28,10 +31,12 @@ case "$variant" in
   g) cmd=("$apple" --audio "$audio" --out "$out" --module dictation --preset whole --locale "$locale"); [[ -n "$context" ]] && cmd+=(--context "$context") ;;
   f0) cmd=("$apple" --audio "$audio" --out "$out" --module dictation --preset progressive --locale "$locale" --paced) ;;
   g0) cmd=("$apple" --audio "$audio" --out "$out" --module dictation --preset whole --locale "$locale") ;;
-  *) echo "variant must be a, b, c, d, e, f, g, f0 or g0"; exit 2 ;;
+  p) cmd=("${no_network[@]}" "$parakeet" --audio "$audio" --out "$out" --model-folder "$ppins/parakeet-tdt-0.6b-v2-coreml@ee09c569") ;;
+  *) echo "variant must be a, b, c, d, e, f, g, f0, g0 or p"; exit 2 ;;
 esac
 if [[ "$variant" == [de] && -z "$pins" ]]; then echo "set SCOUT_EVAL_WHISPER_PINS"; exit 2; fi
-[[ -n "${SCOUT_EVAL_INSTALL_ASSETS:-}" && "$variant" != [de] ]] && cmd+=(--install-assets)
+if [[ "$variant" == p && -z "$ppins" ]]; then echo "set SCOUT_EVAL_PARAKEET_PINS"; exit 2; fi
+[[ -n "${SCOUT_EVAL_INSTALL_ASSETS:-}" && "$variant" != [dep] ]] && cmd+=(--install-assets)
 samples="$out.mem"
 : > "$samples"
 ( while true; do ps -axo rss,comm | awk '/localspeechrecognition/ && !/awk/ {s+=$1} END {print s+0}' >> "$samples"; sleep 0.25; done ) &
@@ -39,7 +44,7 @@ sampler=$!
 trap 'kill $sampler 2>/dev/null' EXIT
 sleep 0.5
 baseline=$(head -1 "$samples")
-if [[ "$variant" == [de] ]]; then
+if [[ "$variant" == [dep] ]]; then
   if ! "${cmd[@]}" 2> "$out.err"; then
     cat "$out.err" >&2
     if grep -q "sandbox_apply" "$out.err" && [[ "${SCOUT_EVAL_ALLOW_UNSANDBOXED:-0}" == 1 ]]; then
@@ -52,7 +57,7 @@ d["metrics"]["networkDenied"] = False
 with open(sys.argv[1], "w") as f: json.dump(d, f, indent=2, sort_keys=True)
 PY
     elif grep -q "sandbox_apply" "$out.err"; then
-      echo "  sandbox-exec refused to run the whisper process here; variant $variant FAILED (rerun with --allow-unsandboxed only after Needle approves)" >&2
+      echo "  sandbox-exec refused to run the model process here; variant $variant FAILED (rerun with --allow-unsandboxed only after Needle approves)" >&2
       rm -f "$out.err"; exit 4
     else
       rm -f "$out.err"; exit 1

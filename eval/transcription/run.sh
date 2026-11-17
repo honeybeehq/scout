@@ -3,7 +3,7 @@
 # data-dir holds audio/*.wav, refs/<name>.txt (tagged references) and optional context/<name>.txt or context.txt.
 set -euo pipefail
 here="${0:A:h}"
-data="$1"; out="$2"; variants="${3:-a,b,c,f,g,f0,g0}"
+data="$1"; out="$2"; variants="${3:-a,b,c,f,g,f0,g0,d,e,p}"
 mkdir -p "$out"
 for wav in "$data"/audio/*.wav; do
   name="${wav:t:r}"
