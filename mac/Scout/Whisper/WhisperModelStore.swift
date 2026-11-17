@@ -48,10 +48,13 @@ final class WhisperModelStore {
     let partialFolder: URL
     private(set) var state: State = .notInstalled {
         didSet {
-            guard state != oldValue else { return }
+            guard logsStateChanges, state != oldValue else { return }
             switch (oldValue, state) {
-            case (.downloading, .downloading), (.verifying, .verifying):
-                if oldValue.logStep != state.logStep { NSLog("[scout-whisper] %@ (%lld of %lld bytes)", state.summary, partialBytes, Self.downloadBytes) }
+            case (.downloading, .downloading(let progress)), (.verifying, .verifying(let progress)):
+                guard oldValue.logStep != state.logStep else { return }
+                NSLog("[scout-whisper] %@ (%lld of %lld bytes)", state.summary, Int64(progress * Double(Self.downloadBytes)), Self.downloadBytes)
+            case (_, .downloading(let progress)), (_, .verifying(let progress)):
+                NSLog("[scout-whisper] %@ (%lld of %lld bytes)", state.summary, Int64(progress * Double(Self.downloadBytes)), Self.downloadBytes)
             default:
                 NSLog("[scout-whisper] %@", state.summary)
             }
@@ -63,6 +66,7 @@ final class WhisperModelStore {
     private(set) var engine: WhisperEngine?
     private(set) var isLoaded = false
     @ObservationIgnored private var job: Task<Void, Never>?
+    @ObservationIgnored private var logsStateChanges = false
 
     nonisolated static func installFolder(under support: URL) -> URL {
         support.appendingPathComponent("Models/whisper/\(WhisperPins.installName)", isDirectory: true)
@@ -76,6 +80,7 @@ final class WhisperModelStore {
         partialBytes = WhisperModelFiles.diskUsage(of: partialFolder)
         state = installedEngine() == nil ? .notInstalled : .installed
         NSLog("[scout-whisper] %@ at %@", state.summary, folder.path)
+        logsStateChanges = true
     }
 
     var isInstalled: Bool {
@@ -163,18 +168,30 @@ final class WhisperModelStore {
     }
 
     private func downloadFiles() async throws {
-        state = .downloading(progress: Double(WhisperModelFiles.diskUsage(of: partialFolder)) / Double(Self.downloadBytes))
+        partialBytes = WhisperModelFiles.diskUsage(of: partialFolder)
+        state = .downloading(progress: Self.fraction(of: partialBytes))
         let downloader = WhisperDownloader(destination: partialFolder) { [weak self] bytes in
-            Task { @MainActor in self?.report(.downloading(progress: Double(bytes) / Double(Self.downloadBytes)), bytes: bytes) }
+            Task { @MainActor in
+                guard let self, self.state.isBusy else { return }
+                self.partialBytes = bytes
+                self.state = .downloading(progress: Self.fraction(of: bytes))
+            }
         }
         try await Task.detached(priority: .utility) { try await downloader.run() }.value
+    }
+
+    private static func fraction(of bytes: Int64) -> Double {
+        min(1, Double(bytes) / Double(downloadBytes))
     }
 
     private func verifyFiles() async throws {
         state = .verifying(progress: 0)
         let partial = partialFolder
         let reporter: @Sendable (Int64) -> Void = { [weak self] bytes in
-            Task { @MainActor in self?.report(.verifying(progress: Double(bytes) / Double(Self.downloadBytes)), bytes: bytes) }
+            Task { @MainActor in
+                guard let self, self.state.isBusy else { return }
+                self.state = .verifying(progress: Self.fraction(of: bytes))
+            }
         }
         try await Task.detached(priority: .utility) {
             var hashed: Int64 = 0
@@ -225,9 +242,4 @@ final class WhisperModelStore {
         refresh()
     }
 
-    private func report(_ progress: State, bytes: Int64) {
-        guard state.isBusy else { return }
-        state = progress
-        partialBytes = bytes
-    }
 }

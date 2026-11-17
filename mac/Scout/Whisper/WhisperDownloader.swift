@@ -23,7 +23,7 @@ nonisolated struct WhisperDownloader: Sendable {
     func run() async throws {
         let session = URLSession(configuration: .ephemeral, delegate: SecureRedirects(), delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
-        var done: Int64 = 0
+        let progress = Progress(onDisk: WhisperModelFiles.diskUsage(of: destination), report: onProgress)
         for file in WhisperPins.files {
             try Task.checkCancellation()
             let target = destination.appendingPathComponent(file.path)
@@ -31,18 +31,37 @@ nonisolated struct WhisperDownloader: Sendable {
             var existing = WhisperModelFiles.size(of: target) ?? 0
             if existing > file.bytes {
                 try FileManager.default.removeItem(at: target)
+                progress.discarded(existing)
                 existing = 0
             }
             if existing < file.bytes {
                 NSLog("[scout-whisper] fetching %@ from byte %lld of %lld", file.path, existing, file.bytes)
-                try await fetch(file, into: target, resumingFrom: existing, session: session, reported: done)
+                try await fetch(file, into: target, resumingFrom: existing, session: session, progress: progress)
             }
-            done += file.bytes
-            onProgress(done)
+        }
+        progress.report(progress.onDisk)
+    }
+
+    private final class Progress: @unchecked Sendable {
+        private(set) var onDisk: Int64
+        let report: @Sendable (Int64) -> Void
+
+        init(onDisk: Int64, report: @escaping @Sendable (Int64) -> Void) {
+            self.onDisk = onDisk
+            self.report = report
+        }
+
+        func received(_ bytes: Int) {
+            onDisk += Int64(bytes)
+            report(onDisk)
+        }
+
+        func discarded(_ bytes: Int64) {
+            onDisk = max(0, onDisk - bytes)
         }
     }
 
-    private func fetch(_ file: WhisperPins.File, into target: URL, resumingFrom existing: Int64, session: URLSession, reported: Int64) async throws {
+    private func fetch(_ file: WhisperPins.File, into target: URL, resumingFrom existing: Int64, session: URLSession, progress: Progress) async throws {
         var request = URLRequest(url: file.url)
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         if existing > 0 { request.setValue("bytes=\(existing)-", forHTTPHeaderField: "Range") }
@@ -53,10 +72,12 @@ nonisolated struct WhisperDownloader: Sendable {
         case 206 where existing > 0:
             break
         case 200:
+            progress.discarded(existing)
             offset = 0
         case 416:
             try? FileManager.default.removeItem(at: target)
-            return try await fetch(file, into: target, resumingFrom: 0, session: session, reported: reported)
+            progress.discarded(existing)
+            return try await fetch(file, into: target, resumingFrom: 0, session: session, progress: progress)
         default:
             throw DownloadError.badResponse(file.path, http.statusCode)
         }
@@ -71,14 +92,15 @@ nonisolated struct WhisperDownloader: Sendable {
             if buffer.count >= Self.chunkBytes {
                 try handle.write(contentsOf: buffer)
                 offset += Int64(buffer.count)
+                progress.received(buffer.count)
                 buffer.removeAll(keepingCapacity: true)
-                onProgress(reported + offset)
                 try Task.checkCancellation()
             }
         }
         if !buffer.isEmpty {
             try handle.write(contentsOf: buffer)
             offset += Int64(buffer.count)
+            progress.received(buffer.count)
         }
         try handle.synchronize()
         guard offset == file.bytes else { throw DownloadError.shortFile(file.path, offset, file.bytes) }
