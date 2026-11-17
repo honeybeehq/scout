@@ -129,9 +129,11 @@ final class WhisperModelStore {
     }
 
     func remove() {
-        job?.cancel()
+        let running = job
+        running?.cancel()
         job = nil
         Task {
+            await running?.value
             await engine?.unload()
             engine = nil
             isLoaded = false
@@ -148,11 +150,13 @@ final class WhisperModelStore {
                 try await downloadFiles()
                 try await verifyFiles()
                 try moveIntoPlace()
-            } catch is CancellationError {
-                state = .notInstalled
-                refresh()
-                return
             } catch {
+                if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                    NSLog("[scout-whisper] download cancelled with %lld bytes kept for resume", WhisperModelFiles.diskUsage(of: partialFolder))
+                    state = .notInstalled
+                    refresh()
+                    return
+                }
                 NSLog("[scout-whisper] install failed: %@", error.localizedDescription)
                 state = .failed(error.localizedDescription)
                 refresh()
@@ -177,7 +181,16 @@ final class WhisperModelStore {
                 self.state = .downloading(progress: Self.fraction(of: bytes))
             }
         }
-        try await Task.detached(priority: .utility) { try await downloader.run() }.value
+        try await Self.detachedCancellable { try await downloader.run() }
+    }
+
+    private static func detachedCancellable(_ body: @escaping @Sendable () async throws -> Void) async throws {
+        let work = Task.detached(priority: .utility) { try await body() }
+        try await withTaskCancellationHandler {
+            try await work.value
+        } onCancel: {
+            work.cancel()
+        }
     }
 
     private static func fraction(of bytes: Int64) -> Double {
@@ -193,7 +206,7 @@ final class WhisperModelStore {
                 self.state = .verifying(progress: Self.fraction(of: bytes))
             }
         }
-        try await Task.detached(priority: .utility) {
+        try await Self.detachedCancellable {
             var hashed: Int64 = 0
             var lastReport: Int64 = 0
             for file in WhisperPins.files {
@@ -211,7 +224,7 @@ final class WhisperModelStore {
                     throw mismatch
                 }
             }
-        }.value
+        }
     }
 
     private func moveIntoPlace() throws {
