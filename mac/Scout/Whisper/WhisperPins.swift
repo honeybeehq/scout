@@ -91,6 +91,7 @@ nonisolated enum WhisperModelFiles {
         }
         let digest = try sha256(of: url, progress: progress)
         guard digest == file.sha256 else {
+            NSLog("[scout-whisper] rejected %@: sha256 %@, expected %@", file.path, digest, file.sha256)
             throw Mismatch(path: file.path, detail: "failed its SHA-256 check")
         }
     }

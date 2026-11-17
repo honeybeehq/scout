@@ -115,7 +115,7 @@ enum TranscriptionEngineChoice: String, CaseIterable, Identifiable {
     var explanation: String {
         switch self {
         case .apple: "Transcribes live on this Mac with Apple's speech recognizer."
-        case .whisper: "Transcribes the whole recording again on this Mac with Whisper once you stop, for better names and terms. Needs a one-time download of about 650 MB."
+        case .whisper: "Transcribes the whole recording again on this Mac with Whisper once you stop. Needs a one-time download of about 650 MB."
         }
     }
 
