@@ -75,6 +75,8 @@ Concurrency: the app target builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainAct
 
 Every file Scout writes lives under one data root (`ScoutDataRoot`, ScoutCore). The release app (`com.trmdy.scout`) uses `~/Library/Application Support/Scout`. Any other bundle id, such as a test copy built as `com.trmdy.scout.dev.<task>`, uses `~/Library/Application Support/Scout-<bundle id>`, and binaries without a bundle use `Scout-unbundled`. `--data-root=<absolute path>` or `SCOUT_DATA_ROOT` overrides both. Sessions, walkthroughs and `bridge.json` all follow the root, and a non-release build's Linear key goes to the Keychain service `<bundle id>.linear`. Launch logs one line: `[scout-data] root … pruning on|off`.
 
+Delivery follows the same split. Builds other than the release app run in dry-run mode: task cards write `message.txt` instead of sending, walkthrough delivery records a dry-run outcome instead of calling Apiary or hive, and finished walkthroughs don't replace the clipboard. `--live-delivery` opts back in, and `--dry-run-delivery` forces dry run in any build. Launch logs `[scout-data] delivery dry-run|live (<reason>)`.
+
 Pruning runs only in the release app launched without `--` flags and without an override. It moves old items to the Trash instead of deleting them, logging each one as `[scout-prune] trashed <path> age <days> size <bytes>`. Stale walkthrough `.partial` folders follow the same rule.
 
 ```

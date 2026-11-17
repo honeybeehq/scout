@@ -88,6 +88,7 @@ final class AppModel {
         self.hotkey = hotkey
         shortcutRegistered = Self.rendersOnly ? false : hotkey.register(shortcut)
         dispatcher.dryRun = SimulationMode.isDryRun
+        NSLog("[scout-data] delivery %@ (%@)", dispatcher.dryRun ? "dry-run" : "live", SimulationMode.deliveryReason)
         dispatcher.onCardChanged = { [weak self] card in self?.cardChanged(card) }
         if !Self.rendersOnly { bridge.start() }
         watchTranscriptionEngine()
@@ -418,7 +419,7 @@ final class AppModel {
         let ended = ContinuousClock.now
         do {
             let outcome = try await walkthrough.finish(at: session.ledger.end, sources: walkthroughSources(of: session, recorder: walkthrough))
-            WalkthroughPasteboard.put(outcome.directory)
+            if SimulationMode.writesPasteboard { WalkthroughPasteboard.put(outcome.directory) }
             var timings = outcome.timings.mapValues { $0 + (ended - pressedAt).seconds }
             timings["sessionEnded"] = (ended - pressedAt).seconds
             let finished = FinishedWalkthrough(directory: outcome.directory, walkthrough: outcome.walkthrough, timings: timings)
@@ -551,7 +552,7 @@ final class AppModel {
         pickerTimings["deliverStartEpochMs"] = (Date().timeIntervalSince1970 * 1000).rounded()
         Task {
             do {
-                let outcome = try await delivery.deliver(bundle: finished.directory, walkthrough: finished.walkthrough.id, to: target, mode: mode, viaApiary: viaApiary)
+                let outcome = try await delivery.deliver(bundle: finished.directory, walkthrough: finished.walkthrough.id, to: target, mode: mode, viaApiary: viaApiary, dryRun: SimulationMode.isDryRun)
                 lastDelivery = outcome
                 pickerTimings["deliverRoundTrip"] = ApiaryBridge.milliseconds(.now - started)
                 if let chosenAt = chosen?.at { pickerTimings["chooseToDelivered"] = ApiaryBridge.milliseconds(.now - chosenAt) }
@@ -588,6 +589,8 @@ final class AppModel {
         switch outcome.route {
         case .apiary:
             return "In the review: \(outcome.title)"
+        case .dryRun:
+            return outcome.confirmation
         case .hive, .clipboard:
             let reason = switch outcome.fallbackReason {
             case "absent": "Apiary isn't running"
