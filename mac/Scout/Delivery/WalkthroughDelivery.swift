@@ -27,6 +27,7 @@ struct DeliveryOutcome: Sendable {
         case apiary
         case hive
         case clipboard
+        case dryRun
     }
 
     var route: Route
@@ -43,6 +44,7 @@ struct DeliveryOutcome: Sendable {
         case .apiary: mode == .paste ? "Pasted into \(title)" : "Sent to \(title)"
         case .hive: deduped ? "Already sent to \(title)" : "Sent to \(title)"
         case .clipboard: "On the clipboard. Apiary isn't showing a chat"
+        case .dryRun: "Dry run: not sent to \(title)"
         }
     }
 }
@@ -61,12 +63,16 @@ struct WalkthroughDelivery {
         "scout:\(walkthrough):\(target.kind):\(target.id):\(mode.rawValue)"
     }
 
-    func deliver(bundle directory: URL, walkthrough: String, to target: ApiaryTarget, mode: DeliveryMode, viaApiary: Bool) async throws -> DeliveryOutcome {
+    func deliver(bundle directory: URL, walkthrough: String, to target: ApiaryTarget, mode: DeliveryMode, viaApiary: Bool, dryRun: Bool) async throws -> DeliveryOutcome {
         let deliveryID = Self.deliveryID(walkthrough: walkthrough, target: target, mode: mode)
         let messageID = ScoutUUID.v5(deliveryID)
         let started = ContinuousClock.now
         func outcome(_ route: DeliveryOutcome.Route, title: String, deduped: Bool = false, reason: String? = nil) -> DeliveryOutcome {
             DeliveryOutcome(route: route, mode: mode, title: title, deliveryID: deliveryID, messageID: messageID, deduped: deduped, fallbackReason: reason, roundTripMs: ApiaryBridge.milliseconds(ContinuousClock.now - started))
+        }
+        if dryRun {
+            NSLog("[scout-delivery] dry run: not delivering %@ to %@ %@", walkthrough, target.kind, target.id)
+            return outcome(.dryRun, title: target.title, reason: "dry run")
         }
         var reason = "apiary absent"
         if !viaApiary, mode == .paste {

@@ -558,8 +558,26 @@ enum SimulationMode {
         NSApp.terminate(nil)
     }
 
-    static var isDryRun: Bool {
+    static var asksDryRun: Bool {
         ProcessInfo.processInfo.arguments.contains("--dry-run-delivery")
+    }
+
+    static var asksLiveDelivery: Bool {
+        ProcessInfo.processInfo.arguments.contains("--live-delivery")
+    }
+
+    static var isDryRun: Bool {
+        asksDryRun || !(ScoutDataRoot.current.isRelease || asksLiveDelivery)
+    }
+
+    static var writesPasteboard: Bool {
+        ScoutDataRoot.current.isRelease || asksLiveDelivery
+    }
+
+    static var deliveryReason: String {
+        if asksDryRun { return "--dry-run-delivery" }
+        if ScoutDataRoot.current.isRelease { return "release" }
+        return asksLiveDelivery ? "non-release, --live-delivery" : "non-release"
     }
 
     static func run(model: AppModel, audio: URL) async {
