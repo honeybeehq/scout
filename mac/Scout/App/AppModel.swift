@@ -87,6 +87,9 @@ final class AppModel {
         if !Self.rendersOnly { bridge.start() }
         watchTranscriptionEngine()
         if SimulationMode.whisperDownloads { whisperModels.download() }
+        if let steps = SimulationMode.whisperDrill {
+            Task { await SimulationMode.runWhisperDrill(store: whisperModels, steps: steps) }
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             hud.prepare(model: self)

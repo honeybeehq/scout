@@ -66,6 +66,56 @@ enum SimulationMode {
         ProcessInfo.processInfo.arguments.contains("--simulate-whisper-failure")
     }
 
+    static var whisperDrill: [String]? {
+        argument("whisper-drill")?.split(separator: ",").map(String.init)
+    }
+
+    static func runWhisperDrill(store: WhisperModelStore, steps: [String]) async {
+        func wait(upTo seconds: Double = 600, until condition: () -> Bool) async {
+            let deadline = Date().addingTimeInterval(seconds)
+            while !condition(), Date() < deadline {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+        }
+        func downloaded(atLeast fraction: Double) -> Bool {
+            if case .downloading(let progress) = store.state { return progress >= fraction }
+            return false
+        }
+        for step in steps {
+            let parts = step.split(separator: "@")
+            let value = parts.count > 1 ? Double(parts[1]) ?? 0 : 0
+            switch parts.first.map(String.init) {
+            case "cancel":
+                await wait { downloaded(atLeast: value) }
+                NSLog("[scout-whisper] drill: cancel at %@", store.state.summary)
+                store.cancel()
+                await wait(upTo: 60) { !store.state.isBusy }
+            case "verify-cancel":
+                await wait { if case .verifying = store.state { return true } else { return false } }
+                NSLog("[scout-whisper] drill: cancel at %@", store.state.summary)
+                store.cancel()
+                await wait(upTo: 60) { !store.state.isBusy }
+            case "resume":
+                try? await Task.sleep(for: .seconds(value))
+                NSLog("[scout-whisper] drill: resume from %@", store.state.summary)
+                store.download()
+            case "remove":
+                await wait { downloaded(atLeast: value) }
+                NSLog("[scout-whisper] drill: remove at %@", store.state.summary)
+                store.remove()
+                await wait(upTo: 120) { store.state == .notInstalled && !FileManager.default.fileExists(atPath: store.folder.path) && !FileManager.default.fileExists(atPath: store.partialFolder.path) }
+            case "wait-ready":
+                await wait { store.state == .ready }
+            default:
+                NSLog("[scout-whisper] drill: unknown step %@", step)
+            }
+            store.refresh()
+            NSLog("[scout-whisper] drill %@ done: state %@, partial %lld bytes (%@), installed %lld bytes (%@)", step, store.state.summary, store.partialBytes, FileManager.default.fileExists(atPath: store.partialFolder.path) ? "exists" : "absent", store.installedBytes, FileManager.default.fileExists(atPath: store.folder.path) ? "exists" : "absent")
+        }
+        try? await Task.sleep(for: .seconds(2))
+        NSApp.terminate(nil)
+    }
+
     static var whisperWaitsReady: Bool {
         ProcessInfo.processInfo.arguments.contains("--whisper-wait-ready")
     }
