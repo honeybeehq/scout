@@ -64,11 +64,11 @@ enum EngineFlowSimulation: String {
         step("Download")
         model.installWhisper()
         guard await wait(model, until: "20% downloaded", { ($0.progress ?? 0) >= 0.2 }) else { return }
-        await pause(model)
+        guard await pause(model) else { return }
         step("Resume")
         model.installWhisper()
         guard await wait(model, until: "45% downloaded", { ($0.progress ?? 0) >= 0.45 }) else { return }
-        await pause(model)
+        guard await pause(model) else { return }
         tamper(model.whisperModels)
         try? await Task.sleep(for: .seconds(2))
         step("Resume")
@@ -94,11 +94,12 @@ enum EngineFlowSimulation: String {
         try? await Task.sleep(for: hold)
     }
 
-    private static func pause(_ model: AppModel) async {
+    private static func pause(_ model: AppModel) async -> Bool {
         step("Cancel")
         model.whisperModels.cancel()
-        _ = await wait(model, until: "paused", { $0.isPaused })
+        guard await wait(model, until: "paused", { $0.isPaused }, within: .seconds(30)) else { return false }
         try? await Task.sleep(for: hold)
+        return true
     }
 
     private static func tamper(_ store: WhisperModelStore) {
@@ -126,8 +127,8 @@ enum EngineFlowSimulation: String {
         return false
     }
 
-    private static func wait(_ model: AppModel, until goal: String, _ reached: (WhisperModelSnapshot) -> Bool, failureEnds: Bool = true) async -> Bool {
-        let deadline = ContinuousClock.now + longest
+    private static func wait(_ model: AppModel, until goal: String, _ reached: (WhisperModelSnapshot) -> Bool, failureEnds: Bool = true, within limit: Duration = longest) async -> Bool {
+        let deadline = ContinuousClock.now + limit
         while ContinuousClock.now < deadline {
             let snapshot = model.whisperModels.snapshot
             if reached(snapshot) {
