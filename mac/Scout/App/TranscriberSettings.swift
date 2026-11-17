@@ -4,27 +4,22 @@ struct VoiceSettings: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        @Bindable var model = model
         @Bindable var preferences = model.preferences
-        let store = model.whisperModels
         ScoutScroll {
             TranscriberSettingsContent(
                 engine: $preferences.transcriptionEngine,
-                whisper: store.snapshot,
+                whisper: model.whisperModels.snapshot,
                 actions: WhisperModelActions(
-                    download: {
-                        preferences.transcriptionEngine = .whisper
-                        store.download()
-                    },
-                    cancel: store.cancel,
-                    remove: {
-                        if preferences.transcriptionEngine == .whisper { preferences.transcriptionEngine = .apple }
-                        store.remove()
-                    }
-                )
+                    download: model.installWhisper,
+                    cancel: model.whisperModels.cancel,
+                    remove: model.removeWhisper
+                ),
+                confirmingRemove: $model.confirmingWhisperRemoval
             )
             .padding(20)
         }
-        .onAppear(perform: store.refresh)
+        .onAppear(perform: model.whisperModels.refresh)
     }
 }
 
@@ -32,7 +27,7 @@ struct TranscriberSettingsContent: View {
     @Binding var engine: TranscriptionEngineChoice
     var whisper: WhisperModelSnapshot
     var actions: WhisperModelActions
-    var confirmingRemove = false
+    @Binding var confirmingRemove: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -52,7 +47,7 @@ struct TranscriberSettingsContent: View {
                     .transition(.opacity)
                 }
             }
-            WhisperModelSection(whisper: whisper, actions: actions, confirmingRemove: confirmingRemove)
+            WhisperModelSection(whisper: whisper, actions: actions, confirmingRemove: $confirmingRemove)
         }
         .animation(Motion.smooth, value: whisper)
         .animation(Motion.smooth, value: engine)
@@ -62,13 +57,7 @@ struct TranscriberSettingsContent: View {
 private struct WhisperModelSection: View {
     var whisper: WhisperModelSnapshot
     var actions: WhisperModelActions
-    @State private var confirmingRemove: Bool
-
-    init(whisper: WhisperModelSnapshot, actions: WhisperModelActions, confirmingRemove: Bool) {
-        self.whisper = whisper
-        self.actions = actions
-        _confirmingRemove = State(initialValue: confirmingRemove)
-    }
+    @Binding var confirmingRemove: Bool
 
     var body: some View {
         SettingsSection(title: "Whisper model") {
@@ -91,7 +80,7 @@ private struct WhisperModelSection: View {
             SettingNote(text: note)
         }
         .onChange(of: whisper.state) { _, state in
-            if state != .ready { confirmingRemove = false }
+            if !whisper.isInstalled || state.isBusy { confirmingRemove = false }
         }
         .task(id: confirmingRemove) {
             guard confirmingRemove else { return }
@@ -102,7 +91,7 @@ private struct WhisperModelSection: View {
 
     private var note: String {
         switch whisper.state {
-        case .preparing: "Scout prepares the model for this Mac's Neural Engine. \(PreparingLine.expectation) You can close Settings."
+        case .preparing: "Scout loads the model onto this Mac's Neural Engine. \(PreparingLine.expectation) You can close Settings."
         default: "Downloaded once, checked before use, and kept on this Mac. Your audio never leaves it."
         }
     }
@@ -125,7 +114,7 @@ private struct WhisperModelSection: View {
         case .downloading: Text(whisper.downloadingLine)
         case .verifying: Text(whisper.verifyingLine)
         case .preparing: Text("Preparing model…")
-        case .ready: Text(whisper.installedLine)
+        case .installed, .ready: Text(whisper.installedLine)
         case .failed(let reason): Text("\(Text("Scout couldn't set up Whisper.").foregroundStyle(Palette.negative)) \(reason)")
         }
     }
@@ -156,7 +145,7 @@ private struct WhisperModelSection: View {
                     .buttonStyle(SecondaryButtonStyle())
             case .preparing:
                 WaitingDots()
-            case .ready where confirmingRemove:
+            case .installed where confirmingRemove, .ready where confirmingRemove:
                 Text("Remove the model?")
                     .font(.system(size: 11.5, weight: .bold))
                     .foregroundStyle(Palette.negative)
@@ -167,7 +156,7 @@ private struct WhisperModelSection: View {
                     actions.remove()
                 }
                 .buttonStyle(DangerButtonStyle())
-            case .ready:
+            case .installed, .ready:
                 Button("Remove") { confirmingRemove = true }
                     .buttonStyle(SecondaryButtonStyle())
             case .failed:

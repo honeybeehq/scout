@@ -45,6 +45,7 @@ final class AppModel {
     private(set) var shortcut: KeyShortcut
     private(set) var shortcutRegistered = false
     private(set) var isScouting = false
+    var confirmingWhisperRemoval = false
     var confirmingDiscard = false {
         didSet {
             guard confirmingDiscard != oldValue else { return }
@@ -132,6 +133,9 @@ final class AppModel {
         }
         if let output = ExpandKeyCheck.outputDirectory {
             Task { await ExpandKeyCheck.run(model: self, output: output) }
+        }
+        if let flow = EngineFlowSimulation.requested {
+            Task { await EngineFlowSimulation.run(flow, model: self) }
         }
         if let fixture = SimulationMode.walkthroughFixture {
             Task { await SimulationMode.runWalkthrough(model: self, fixtureURL: fixture) }

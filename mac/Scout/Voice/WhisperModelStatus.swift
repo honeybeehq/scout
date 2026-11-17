@@ -12,13 +12,16 @@ struct WhisperModelSnapshot: Equatable {
     }
 
     var isInstalled: Bool {
-        state == .ready || state == .preparing
+        switch state {
+        case .installed, .preparing, .ready: true
+        case .notInstalled, .downloading, .verifying, .failed: false
+        }
     }
 
     var progress: Double? {
         switch state {
         case .downloading(let progress), .verifying(let progress): min(1, max(0, progress))
-        case .notInstalled, .preparing, .ready, .failed: nil
+        case .notInstalled, .installed, .preparing, .ready, .failed: nil
         }
     }
 
@@ -116,5 +119,5 @@ struct PreparingLine: View {
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 
-    static let expectation = "About 2 minutes the first time."
+    static let expectation = "The first time takes 2 to 4 minutes."
 }

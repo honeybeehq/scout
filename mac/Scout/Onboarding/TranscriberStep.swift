@@ -4,28 +4,18 @@ struct TranscriberStep: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let store = model.whisperModels
         TranscriberStepContent(
             engine: model.preferences.transcriptionEngine,
-            whisper: store.snapshot,
-            useApple: useApple,
-            useWhisper: { model.preferences.transcriptionEngine = .whisper },
-            actions: WhisperModelActions(
-                download: {
-                    model.preferences.transcriptionEngine = .whisper
-                    store.download()
-                },
-                cancel: store.cancel
-            ),
+            whisper: model.whisperModels.snapshot,
+            useApple: {
+                model.useAppleTranscriber()
+                model.onboarding.next()
+            },
+            useWhisper: model.useWhisperTranscriber,
+            actions: WhisperModelActions(download: model.installWhisper, cancel: model.whisperModels.cancel),
             onContinue: model.onboarding.next
         )
-        .onAppear(perform: store.refresh)
-    }
-
-    private func useApple() {
-        model.preferences.transcriptionEngine = .apple
-        model.whisperModels.cancel()
-        model.onboarding.next()
+        .onAppear(perform: model.whisperModels.refresh)
     }
 }
 
@@ -165,11 +155,11 @@ private struct WhisperCardAction: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             }
-        case .ready:
+        case .installed, .ready:
             if engine == .whisper {
                 HStack(spacing: 8) {
                     Checkmark(size: 20)
-                    Text("Ready")
+                    Text(whisper.state == .ready ? "Ready" : "Installed")
                         .font(Typography.headline)
                         .foregroundStyle(Palette.text)
                 }

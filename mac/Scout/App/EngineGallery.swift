@@ -19,7 +19,8 @@ enum EngineGallery {
             ("5-ready", .whisper, .init(state: .ready, installedBytes: installed)),
             ("6-paused", .whisper, .init(state: .notInstalled, partialBytes: 211 * megabyte)),
             ("7-failed", .whisper, .init(state: .failed("The network connection was lost."), partialBytes: 120 * megabyte)),
-            ("8-apple-with-model", .apple, .init(state: .ready, installedBytes: installed)),
+            ("8-apple-with-model", .apple, .init(state: .installed, installedBytes: installed)),
+            ("9-installed-not-loaded", .whisper, .init(state: .installed, installedBytes: installed)),
         ]
     }
 
@@ -33,7 +34,8 @@ enum EngineGallery {
             ("6-preparing", .whisper, .init(state: .preparing, installedBytes: installed, preparingSince: .now.addingTimeInterval(-42)), false),
             ("7-ready", .whisper, .init(state: .ready, installedBytes: installed), false),
             ("8-remove-confirm", .whisper, .init(state: .ready, installedBytes: installed), true),
-            ("9-failed", .whisper, .init(state: .failed("SHA-256 mismatch for AudioEncoder.mlmodelc/weights/weight.bin. The file was removed; try again to download it."), partialBytes: 226 * megabyte), false),
+            ("9-failed", .whisper, .init(state: .failed("AudioEncoder.mlmodelc/weights/weight.bin failed its SHA-256 check"), partialBytes: 226 * megabyte), false),
+            ("10-installed-not-loaded", .apple, .init(state: .installed, installedBytes: installed), false),
         ]
     }
 
@@ -89,7 +91,7 @@ enum EngineGallery {
         var confirmingRemove: Bool
 
         var body: some View {
-            TranscriberSettingsContent(engine: .constant(engine), whisper: whisper, actions: WhisperModelActions(), confirmingRemove: confirmingRemove)
+            TranscriberSettingsContent(engine: .constant(engine), whisper: whisper, actions: WhisperModelActions(), confirmingRemove: .constant(confirmingRemove))
                 .padding(20)
                 .frame(width: SettingsView.size.width, alignment: .top)
                 .background(Palette.canvas)

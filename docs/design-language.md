@@ -104,6 +104,6 @@ Short, direct, second person. Say what happens, not what the feature is called: 
 
 `--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding, five long recent tasks with a walkthrough, and recording) in light and dark at all four sizes, then quits. It needs no session and no permissions.
 
-`--engine-gallery=<dir>` renders the onboarding Transcriber step (full window) and the Settings → Voice pane in every Whisper model state (offer, downloading, checking, preparing, ready, paused, failed, remove confirmation) in light and dark at Default and Extra large, then quits. It skips the hotkey, the bridge and pruning, and never downloads.
+`--engine-gallery=<dir>` renders the onboarding Transcriber step (full window) and the Settings → Voice pane in every Whisper model state (offer, downloading, checking, preparing, installed, ready, paused, failed, remove confirmation) in light and dark at Default and Extra large, then quits. It skips the hotkey, the bridge and pruning, and never downloads.
 
 `--review-gallery=<dir>` renders the review window from fixture sessions (1, 3 and 8 tasks with every delivery state and long titles, a five-minute session, leftover speech only, and no session) in light and dark at all four sizes, at the default and the minimum window size, then hosts the 3-task fixture in a live window and saves frames after split, join, delete, undo and include, with `live-log.txt`. It skips the global hotkey, the bridge and session pruning, so it can run beside an everyday Scout.
