@@ -347,6 +347,16 @@ if [[ "$dry_run" == false ]]; then
   fi
   codesign -dv --verbose=4 "$app" 2>&1 | grep -E "^(Authority|TeamIdentifier|Runtime|Timestamp|Identifier)" | tee "$out/codesign.txt"
 fi
+sparkle_framework="$app/Contents/Frameworks/Sparkle.framework"
+if [[ "$dry_run" == true ]]; then
+  echo "    require TeamIdentifier=$team_id on the re-signed Sparkle.framework:"
+  run codesign -dv --verbose=2 "$sparkle_framework"
+else
+  sparkle_team="$(codesign -dv --verbose=2 "$sparkle_framework" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+  [[ "$sparkle_team" == "$team_id" ]] \
+    || { echo "Embedded Sparkle.framework has TeamIdentifier '${sparkle_team:-none}', expected $team_id" >&2; exit 1; }
+  echo "Sparkle.framework TeamIdentifier=$sparkle_team" | tee -a "$out/codesign.txt"
+fi
 
 step "Notarize the app"
 run ditto -c -k --sequesterRsrc --keepParent "$app" "$app_zip"

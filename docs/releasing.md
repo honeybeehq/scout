@@ -21,7 +21,7 @@ Run these from the repo root in a Studio Cell.
    script/verify-sparkle.sh --record
    ```
 
-   It prints the Sparkle version, the git revision, the binary checksum declared in Sparkle's `Package.swift`, the SHA-256 of the extracted artifact, and the framework's signing authority and Team ID, then writes the first four values into `mac/Sparkle.expected`. Send that output and the diff to Tormod. He compares the version, revision and checksum with Sparkle's release page, and only after he approves do you commit `mac/Sparkle.expected`. Then run it again without `--record`; it has to end with `Sparkle <version> verified.`
+   It prints the Sparkle version, the git revision, the binary checksum declared in Sparkle's `Package.swift`, the SHA-256 of the extracted artifact, and the framework's signature state and CDHash, and writes all of them into `mac/Sparkle.expected`. It records first and reports problems after, so a first run always gives values to review. Sparkle's package artifact is ad-hoc signed, so it has no Team ID; release.sh checks that the embedded copy carries Scout's Team ID after Developer ID re-signing. Send that output and the diff to Tormod. He compares the version, revision and checksum with Sparkle's release page, and only after he approves do you commit `mac/Sparkle.expected`. Then run it again without `--record`; it has to end with `Sparkle <version> verified.`
 
 3. Generate the EdDSA key once, with the `generate_keys` from the verified artifact:
 

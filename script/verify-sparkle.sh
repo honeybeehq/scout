@@ -18,10 +18,11 @@ Run on the Mac Studio after:
 Checks that Package.resolved pins only Sparkle, at the exact version in mac/project.yml
 and the revision in mac/Sparkle.expected; that the checked-out Package.swift declares the
 expected binary checksum; that the SHA-256 of the resolved Sparkle artifact tree matches;
-and that Sparkle.framework is validly signed by the expected Team ID.
+and that Sparkle.framework passes codesign --verify with the expected signature state
+(Sparkle's SPM artifact is ad-hoc signed, so there is no Team ID) and CDHash.
 
---record writes what it sees into mac/Sparkle.expected instead of comparing. A human
-reviews that diff and commits it. Until then every check fails.
+--record gathers every value first and writes it into mac/Sparkle.expected, then reports
+any problem it found. A human reviews that diff and commits it. Until then every check fails.
 
 Default DIR: $derived
 USAGE
@@ -60,6 +61,9 @@ pinned_version="$(sed -n 's/^ *exactVersion: *\([0-9][0-9.]*\) *$/\1/p' "$projec
 [[ -f "$resolved" ]] || fail "no Package.resolved at $resolved; run xcodebuild -resolvePackageDependencies first"
 [[ -f "$expected_file" ]] || fail "missing $expected_file"
 
+problems=()
+problem() { problems+=("$*"); }
+
 pins=0
 sparkle_index=""
 while plutil -extract "pins.$pins.identity" raw -o - "$resolved" >/dev/null 2>&1; do
@@ -68,20 +72,19 @@ while plutil -extract "pins.$pins.identity" raw -o - "$resolved" >/dev/null 2>&1
   pins=$((pins + 1))
 done
 [[ -n "$sparkle_index" ]] || fail "Package.resolved has no sparkle pin"
-[[ "$pins" == 1 ]] || fail "Package.resolved pins $pins remote packages; Sparkle is the only allowed one"
+[[ "$pins" == 1 ]] || problem "Package.resolved pins $pins remote packages; Sparkle is the only allowed one"
 
 location="$(plutil -extract "pins.$sparkle_index.location" raw -o - "$resolved")"
 resolved_version="$(plutil -extract "pins.$sparkle_index.state.version" raw -o - "$resolved" 2>/dev/null || true)"
 resolved_revision="$(plutil -extract "pins.$sparkle_index.state.revision" raw -o - "$resolved")"
-[[ "${location%.git}" == "https://github.com/sparkle-project/Sparkle" ]] || fail "unexpected Sparkle location: $location"
-[[ "$resolved_version" == "$pinned_version" ]] || fail "Package.resolved has Sparkle ${resolved_version:-without a version}, project.yml pins $pinned_version"
+[[ "${location%.git}" == "https://github.com/sparkle-project/Sparkle" ]] || problem "unexpected Sparkle location: $location"
+[[ "$resolved_version" == "$pinned_version" ]] || problem "Package.resolved has Sparkle ${resolved_version:-without a version}, project.yml pins $pinned_version"
 
 checkout="$derived/SourcePackages/checkouts/Sparkle"
-[[ -d "$checkout" ]] || fail "no Sparkle checkout at $checkout"
-checkout_revision="$(git -C "$checkout" rev-parse HEAD)"
-[[ "$checkout_revision" == "$resolved_revision" ]] || fail "checkout is at $checkout_revision, Package.resolved says $resolved_revision"
-binary_checksums="$(grep -i 'checksum' "$checkout/Package.swift" | grep -Eo '[0-9a-f]{64}' | sort -u || true)"
-[[ "$(printf '%s\n' "$binary_checksums" | grep -c .)" == 1 ]] || fail "expected one binaryTarget checksum in $checkout/Package.swift, found: ${binary_checksums:-none}"
+checkout_revision="$(git -C "$checkout" rev-parse HEAD 2>/dev/null || echo "no checkout at $checkout")"
+[[ "$checkout_revision" == "$resolved_revision" ]] || problem "checkout is at $checkout_revision, Package.resolved says $resolved_revision"
+binary_checksum="$(grep -i 'checksum' "$checkout/Package.swift" 2>/dev/null | grep -Eo '[0-9a-f]{64}' | sort -u || true)"
+[[ "$(printf '%s\n' "$binary_checksum" | grep -c .)" == 1 ]] || problem "expected one binaryTarget checksum in $checkout/Package.swift, found: ${binary_checksum:-none}"
 
 xcframeworks="$(find "$derived/SourcePackages/artifacts" -type d -name Sparkle.xcframework -prune -print 2>/dev/null || true)"
 [[ "$(printf '%s\n' "$xcframeworks" | grep -c .)" == 1 ]] || fail "expected one Sparkle.xcframework under $derived/SourcePackages/artifacts, found: ${xcframeworks:-none}"
@@ -90,27 +93,46 @@ artifact_sha256="$(tree_sha256 "$artifact_dir")"
 
 framework="$(find "$xcframeworks" -maxdepth 2 -path '*macos*' -type d -name Sparkle.framework -print | head -n 1)"
 [[ -n "$framework" ]] || fail "no macOS Sparkle.framework inside $xcframeworks"
-codesign --verify --strict --deep "$framework" || fail "codesign --verify failed for $framework"
-signature="$(codesign -dv --verbose=2 "$framework" 2>&1)"
-team_id="$(printf '%s\n' "$signature" | sed -n 's/^TeamIdentifier=//p')"
-[[ -n "$team_id" && "$team_id" != "not set" ]] || fail "Sparkle.framework has no Team ID"
+signature="$(codesign -dv --verbose=4 "$framework" 2>&1 || true)"
+if printf '%s\n' "$signature" | grep -q '^Signature=adhoc'; then
+  signature_state="adhoc"
+else
+  signature_state="$(printf '%s\n' "$signature" | sed -n 's/^Authority=//p' | head -n 1)"
+fi
+cdhash="$(printf '%s\n' "$signature" | sed -n 's/^CDHash=//p' | head -n 1)"
+[[ -n "$signature_state" ]] || problem "Sparkle.framework has no readable signature"
+[[ -n "$cdhash" ]] || problem "Sparkle.framework has no CDHash"
+codesign_verify="$(codesign --verify --strict --deep "$framework" 2>&1)" || problem "codesign --verify failed for $framework: $codesign_verify"
 
 cat <<REPORT
 Sparkle          $pinned_version from $location
 revision         $resolved_revision
-binary checksum  $binary_checksums
+binary checksum  ${binary_checksum:-none}
 artifact         $artifact_dir
 artifact sha256  $artifact_sha256
 framework        $framework
-$(printf '%s\n' "$signature" | grep -E '^(Identifier|Authority|TeamIdentifier|Timestamp)=' | sed 's/^/codesign         /')
+signature        ${signature_state:-none}
+cdhash           ${cdhash:-none}
+$(printf '%s\n' "$signature" | grep -E '^(Identifier|Signature|Authority|TeamIdentifier|Timestamp)=' | sed 's/^/codesign         /')
 REPORT
 
+report_problems() {
+  local item
+  for item in "${problems[@]}"; do
+    echo "PROBLEM  $item" >&2
+  done
+}
+
 if [[ "$record" == true ]]; then
-  printf 'revision=%s\nbinary_checksum=%s\nartifact_sha256=%s\nteam_id=%s\n' \
-    "$resolved_revision" "$binary_checksums" "$artifact_sha256" "$team_id" > "$expected_file"
+  printf 'revision=%s\nbinary_checksum=%s\nartifact_sha256=%s\nsignature=%s\ncdhash=%s\n' \
+    "$resolved_revision" "$binary_checksum" "$artifact_sha256" "$signature_state" "$cdhash" > "$expected_file"
   echo
-  echo "Recorded into $expected_file. Compare these values with Sparkle's $pinned_version release notes, then have a human approve and commit the diff:"
-  git -C "$root" diff -- "$expected_file" || true
+  echo "Recorded into $expected_file. Compare these values with Sparkle's $pinned_version release, then have a human approve and commit the diff:"
+  git -C "$root" --no-pager diff -- "$expected_file" || true
+  if [[ "${#problems[@]}" -gt 0 ]]; then
+    report_problems
+    fail "recorded, but the problems above must be resolved before Sparkle $pinned_version can verify"
+  fi
   exit 0
 fi
 
@@ -129,8 +151,13 @@ check() {
   fi
 }
 check revision "$resolved_revision"
-check binary_checksum "$binary_checksums"
+check binary_checksum "$binary_checksum"
 check artifact_sha256 "$artifact_sha256"
-check team_id "$team_id"
+check signature "$signature_state"
+check cdhash "$cdhash"
+if [[ "${#problems[@]}" -gt 0 ]]; then
+  report_problems
+  status=1
+fi
 [[ "$status" == 0 ]] || fail "Sparkle $pinned_version is not verified"
 echo "Sparkle $pinned_version verified."
