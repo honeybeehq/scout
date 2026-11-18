@@ -108,6 +108,74 @@ nonisolated struct HiveClient: Sendable {
         _ = try await call(verb: "stop", params: ["beeId": beeID])
     }
 
+    struct OptimiseStatus: Sendable {
+        let state: String?
+        let logPath: String?
+        let pending: Bool
+        let undelivered: Bool
+        let failure: String?
+    }
+
+    func optimiseStatus(_ beeID: String) async throws -> OptimiseStatus {
+        let result = try await call(verb: "view", params: ["beeId": beeID])
+        guard let bee = result["bee"] as? [String: Any], bee["id"] as? String == beeID else { throw HiveError.requestFailed("hive returned a different optimiser session.") }
+        let runtime = result["runtime"] as? [String: Any]
+        let view = result["view"] as? [String: Any]
+        let commandResult = try await call(verb: "commands", params: ["beeId": beeID])
+        let commands = commandResult["commands"] as? [[String: Any]] ?? []
+        let pending = commands.contains { ["queued", "running"].contains($0["status"] as? String ?? "") }
+        let failed = commands.first { ["spawn", "send_wake"].contains($0["verb"] as? String ?? "") && ($0["status"] as? String == "failed" || ($0["failureCause"] != nil && !($0["failureCause"] is NSNull))) }
+        let flags = view?["flags"] as? [String] ?? []
+        let crashed = runtime?["state"] as? String == "stopped" && runtime?["exitCause"] as? String == "crashed"
+        let failedBoot = !flags.isEmpty || failed != nil || crashed
+        var failure: String?
+        if failedBoot {
+            let audit = try await call(verb: "audit.tail", params: ["beeId": beeID, "limit": 100])
+            let rows = audit["rows"] as? [[String: Any]] ?? []
+            let detail = rows.reversed().compactMap { row -> String? in
+                guard ["command.requeued", "flag.set", "runtime.transition"].contains(row["kind"] as? String ?? ""), let payload = row["payload"] as? [String: Any] else { return nil }
+                return payload["detail"] as? String ?? payload["exitDetail"] as? String
+            }.first
+            failure = "Claude could not start: " + (detail ?? failed?["failureCause"].map { String(describing: $0) } ?? (flags.isEmpty ? "the harness exited before completing its reply" : flags.joined(separator: ", ")))
+        }
+        let mailResult = try await call(verb: "mailbox", params: ["beeId": beeID])
+        let messages = mailResult["messages"] as? [[String: Any]] ?? []
+        return OptimiseStatus(state: runtime?["state"] as? String, logPath: bee["sessionLogPath"] as? String, pending: pending, undelivered: messages.contains { $0["deliveredAt"] == nil || $0["deliveredAt"] is NSNull }, failure: failure)
+    }
+
+    func finalOptimiseReply(_ status: OptimiseStatus) throws -> String? {
+        guard status.state == "idle" || status.state == "stopped", let path = status.logPath else { return nil }
+        let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+        defer { try? handle.close() }
+        let length = try handle.seekToEnd()
+        try handle.seek(toOffset: length > 4_194_304 ? length - 4_194_304 : 0)
+        let data = try handle.readToEnd() ?? Data()
+        var reply: String?
+        for line in data.split(separator: 10) {
+            guard let row = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any], row["isSidechain"] as? Bool != true, row["parent_tool_use_id"] == nil || row["parent_tool_use_id"] is NSNull else { continue }
+            if row["type"] as? String == "assistant", let message = row["message"] as? [String: Any], message["role"] as? String == "assistant", let content = message["content"] as? [[String: Any]] {
+                reply = content.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined(separator: "\n")
+            }
+            if row["type"] as? String == "result", row["is_error"] as? Bool != true, let result = row["result"] as? String { reply = result }
+        }
+        return reply
+    }
+
+    func stopOptimise(_ beeID: String) async throws {
+        try? await stop(beeID)
+        let deadline = Date().addingTimeInterval(20)
+        while Date() < deadline {
+            let status = try await optimiseStatus(beeID)
+            if !status.pending && (!status.undelivered || status.failure != nil) {
+                try await stop(beeID)
+                let confirmed = try await optimiseStatus(beeID)
+                if confirmed.state == "stopped", !confirmed.pending, !confirmed.undelivered || confirmed.failure != nil { return }
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        throw HiveError.requestFailed("Claude has not confirmed cancellation. Check its optimiser session in hive.")
+    }
+
     private static func session(from view: [String: Any]) -> HiveSession? {
         guard let bee = view["bee"] as? [String: Any],
               let id = bee["id"] as? String,
