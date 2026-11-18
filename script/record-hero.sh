@@ -31,7 +31,7 @@ if [ -e "$work" ]; then
 fi
 
 line1="${HERO_LINE1:-Make this button the primary color, and make it full width.}"
-line2="${HERO_LINE2:-This headline is far too long. Shorten it to: Plan dinner together.}"
+line2="${HERO_LINE2:-This headline is far too long. Make it say: Plan dinner together.}"
 lead=1.8
 gap=2.8
 port="${HERO_PORT:-8411}"

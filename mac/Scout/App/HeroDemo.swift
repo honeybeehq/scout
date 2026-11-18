@@ -78,6 +78,7 @@ enum HeroDemo {
         }
         model.preferences.autoSend = false
         model.preferences.reviewOpening = .always
+        NSApp.appearance = model.preferences.colorMode.appearance
         try? await Task.sleep(for: .seconds(1.5))
 
         guard let safari = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Safari").first else {
