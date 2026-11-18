@@ -2,7 +2,7 @@
 
 | File | What it is |
 | --- | --- |
-| `hero.mp4` | H.264 High, 1920×1080, 30 fps, AAC mono, faststart. About 27 s. |
+| `hero.mp4` | H.264 High, 1920×1080, 30 fps, AAC mono, faststart. About 26 s. |
 | `hero.webm` | VP9 (two-pass, constant quality), Opus mono. The same edit. |
 | `hero-poster.webp`, `hero-poster.jpg` | 1920×1080 frame at 3.0 s: the recording bar, and the aim outline with the chip `Link "Choose Household"` just before the pin. |
 
@@ -56,7 +56,8 @@ The agent's change, as recorded in the run (`site.diff`):
 - Recorded from commit `f14e515` (branch `hero-video`), Debug build, ad-hoc signed, on 2026-11-18.
 - Recording: `script/record-hero.sh`, which runs Scout with `--hero-demo` (`mac/Scout/App/HeroDemo.swift`). Scout records the screen itself with `screencapture -v -C` in two fixed-length parts.
 - Edit and encode: `script/render-hero.py` with ffmpeg 7.1 (libx264, libvpx-vp9, libass, libwebp), on Linux. Captions use Liberation Sans.
-- The menu bar shows the clock, the macOS screen-recording indicator and a Screen Sharing indicator, because the rig was being watched over VNC.
+- A Screen Sharing client was connected to the rig for the whole recording window (polled for an hour), so its menu bar icon is covered in the edit: `--mask 1584:0:46:28:1490` copies a 46×28 patch of empty menu bar from x=1490 over the icon. Nothing else is masked. The menu bar still shows the clock and the macOS screen-recording indicator.
+- The video starts 0.35 s after recording began, so the recording bar is already on screen in the first frame.
 
 ## Re-record
 
@@ -65,4 +66,4 @@ On a Mac with Xcode, Screen Recording and Accessibility granted to the shell you
 1. Build Scout with a non-release bundle id, for example `xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=com.trmdy.scout.dev.hero build`.
 2. `script/record-hero.sh <path to Scout.app>`. It copies the fixture to `/tmp/scout-hero/site`, serves it, opens Safari, runs the demo, and restores the clipboard and the bundle's defaults at the end. Safari is quit only if the script started it.
 3. When `/tmp/scout-hero/out/waiting-for-patch` appears, give `/tmp/scout-hero/out/tasks.txt` to a coding agent along with a copy of the site, put the files it changed in `/tmp/scout-hero/out/patch/files/`, and `touch /tmp/scout-hero/out/patch/ready`. Scout waits up to 45 minutes. (`--patch <dir>` stages a directory automatically, for rehearsals.)
-4. Copy `/tmp/scout-hero/out` to a machine with ffmpeg and run `script/render-hero.py <out dir>`. It writes the four files here. `--draft` writes a quick preview only; `--font` and `--fontsdir` choose the caption font.
+4. Copy `/tmp/scout-hero/out` to a machine with ffmpeg and run `script/render-hero.py <out dir>` (add `--mask x:y:w:h:source_x` only if something on screen needs covering). It writes the four files here. `--draft` writes a quick preview only; `--font` and `--fontsdir` choose the caption font.

@@ -71,6 +71,7 @@ def main():
     parser.add_argument("--fontsdir", default="/usr/share/fonts/truetype/liberation")
     parser.add_argument("--crf", default="26")
     parser.add_argument("--webm-crf", default="38")
+    parser.add_argument("--mask", help="x:y:w:h:source_x in output pixels: cover x,y,w,h with the same-sized patch taken from source_x, e.g. to hide a menu bar status icon")
     parser.add_argument("--draft", action="store_true", help="only write hero-draft.mp4")
     args = parser.parse_args()
 
@@ -102,7 +103,8 @@ def main():
     def b(name, delta=0.0):
         return t[name] + offset_b + delta
 
-    s1 = (a("session.start", -0.7), a("session.finish", 0.5), 1.0)
+    into = 0.35
+    s1 = (a("session.start", into), a("session.finish", 0.5), 1.0)
     s2 = (a("review.shown", -0.1), a("copy.done", 1.8), 1.3)
     s3 = (b("safari.front", -1.2), b("patch.applied", 3.6), 1.0)
     segments = [(part_a,) + s1, (part_a,) + s2, (part_b,) + s3]
@@ -113,7 +115,7 @@ def main():
         starts.append(starts[-1] + length - fade)
     total = starts[-1] + lengths[-1]
 
-    session0 = starts[0] + 0.7
+    session0 = starts[0] - into
     speech1 = session0 + lead
     speech2 = session0 + lead + first + gap
     review0 = starts[1] + 0.1 / s2[2]
@@ -144,13 +146,17 @@ def main():
     for index in range(1, len(segments)):
         filters.append(f"[{chain}][v{index}]xfade=transition=fade:duration={fade}:offset={starts[index]:.3f}[x{index}]")
         chain = f"x{index}"
+    if args.mask:
+        x, y, w, h, source = args.mask.split(":")
+        filters.append(f"[{chain}]split[base][source];[source]crop={w}:{h}:{source}:{y}[patch];[base][patch]overlay={x}:{y}[masked]")
+        chain = "masked"
     filters.append(f"[{chain}]subtitles={ass}:fontsdir={args.fontsdir}[vout]")
     narration = os.path.join(args.run, "narration.aiff")
     audio_index = len(segments)
     inputs += ["-i", narration]
-    delay = int(session0 * 1000)
-    filters.append(f"[{audio_index}:a]atrim=0:{s1[1] - s1[0] - 0.7:.3f},afade=t=out:st={max(0, s1[1] - s1[0] - 1.2):.3f}:d=0.5,"
-                   f"adelay={delay}|{delay},apad,atrim=0:{total:.3f},aformat=channel_layouts=mono:sample_rates=48000[aout]")
+    spoken = s1[1] - s1[0]
+    filters.append(f"[{audio_index}:a]atrim=start={into:.3f}:end={into + spoken:.3f},asetpts=PTS-STARTPTS,afade=t=out:st={max(0, spoken - 0.5):.3f}:d=0.5,"
+                   f"apad,atrim=0:{total:.3f},aformat=channel_layouts=mono:sample_rates=48000[aout]")
     graph = ";".join(filters)
     os.makedirs(args.out, exist_ok=True)
 
