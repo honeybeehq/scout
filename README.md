@@ -54,7 +54,11 @@ Requirements: macOS 26, Xcode 26, XcodeGen (`brew install xcodegen`).
 ./script/build_and_run.sh --build-only
 ```
 
-`build_and_run.sh` quits any running Scout, replaces `~/Applications/Scout.app` and signs it with the Apple Development identity of the team in `mac/project.yml`, so macOS permission grants survive rebuilds. Set `SCOUT_STAGED_APP` to stage somewhere else; to build under your own team, change `DEVELOPMENT_TEAM` there.
+Before building, set `DEVELOPMENT_TEAM` in your local `mac/project.yml` to your own Apple Developer Team ID and make sure your Apple Development signing identity is available in Xcode. The checked-in team belongs to the maintainers; contributors need their own signing setup. Keep this local signing change out of your contribution.
+
+`build_and_run.sh` quits any running Scout, replaces `~/Applications/Scout.app` and signs it with that development identity, so macOS permission grants survive rebuilds. Set `SCOUT_STAGED_APP` to stage somewhere else.
+
+Maintainer releases use separate Developer ID signing and notarization through `script/release.sh`. Contributor builds do not need the maintainer release certificate or notarization credentials. See [Contributor checks](docs/contributing.md) for isolated test data.
 
 Snapshots of every onboarding step (for visual checks, no screen-recording permission needed):
 
@@ -86,7 +90,7 @@ open -g -n ~/Applications/Scout.app --args --simulate-session=/tmp/narration.aif
 ~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-panel
 
 # read-only live destination search, picker images and search report; no hotkeys, delivery or clipboard changes
-~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-picker --picker-query=needle
+~/Applications/Scout.app/Contents/MacOS/Scout --panel-gallery=/tmp/scout-picker --picker-query=checkout
 
 # the review window from fixture sessions (1, 3 and 8 tasks, every delivery state, a 5-minute session, leftover speech only, no session), light and dark, all four sizes, at the default and the minimum window size, plus live-window frames after split, join, delete and undo
 ~/Applications/Scout.app/Contents/MacOS/Scout --review-gallery=/tmp/scout-review
@@ -140,3 +144,7 @@ swift run scout-segment --check Fixtures/sessions
 - [SDK protocol](docs/sdk-protocol.md): the bridge SDKs talk to (draft)
 - [Roadmap](docs/roadmap.md)
 - [Glossary](CONTEXT.md)
+
+## License
+
+Scout is available under the [MIT license](LICENSE).

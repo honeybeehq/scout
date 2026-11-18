@@ -577,7 +577,7 @@ nonisolated private final class DemoRenderer: @unchecked Sendable {
     }
 
     private func drawBanner(into context: CGContext, caption: String?) {
-        let note = "Rendered from Scout's own windows on mini03-moria (Scout has no Screen Recording grant here). Test windows are throwaway."
+        let note = "Rendered from Scout's own windows without Screen Recording permission. Test windows are temporary."
         let small = NSAttributedString(string: note, attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white.withAlphaComponent(0.7)])
         draw(small, at: CGPoint(x: 24, y: 18), in: context)
         guard let caption else { return }

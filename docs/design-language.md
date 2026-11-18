@@ -6,7 +6,7 @@ Code: `mac/Scout/Design/` (`Palette`, `Typography`, `Components`, `UIScale`, `Mo
 
 ## Icon and mark
 
-The app icon is a telescope seen end-on: you look into the barrel, and its lens glows ember-coral inside the family's dark glass slab. It is a sibling of Apiary (an amber hexagon) and Honeybee (stacked glass plates): same slab, bevel, bottom band and inner lighting, with only the inner form and hue changed.
+The app icon is a telescope seen end-on: you look into the barrel, and its lens glows ember-coral inside a dark glass slab. It shares an icon style with Apiary, an agent workspace app, and Honeybee, an agent-session tool. Apiary uses an amber hexagon and Honeybee uses stacked glass plates. All three use a dark rounded square, a beveled edge, a bottom band and light from within; Scout uses a coral lens.
 
 - Rendered with the family's WebGL2 shader, `script/logo-signal/` (concept `C==16`, end-on variant `TV 3`; parameters in `final-takes.json`). See its README to re-render. Grid: an 824×824 body on a 1024 canvas, continuous-corner squircle, shadow inside the margin.
 - The telescope reads as light, not as a drawing: the barrel rim is a soft glowing ring that is brightest on the side the lens leans toward, a fainter inner ring sits between rim and lens, and the lens is the one hot point. The rings and the lens sit slightly off centre, so the barrel seems to run back into the glass.
@@ -42,7 +42,7 @@ Every token is dynamic: it resolves per appearance. The Appearance setting (Syst
 | `negative` / `negativeFill` | `#C81E44` / `#C8102E` | `#FF4F6E` / `#C8102E` | Discard, failures |
 | `fill` / `fillRaised` / `fillStrong` | ink at 4 / 7 / 12 % | white at 5 / 9 / 15 % | Overlays, hover, pressed |
 
-Contrast (WCAG 2.x): every text pair passes AA (4.5:1); disabled text is exempt. Body text on canvas or surface is 17–20:1, `textTertiary` is at least 5.5:1, `onAccent` on `accent` is 5.3 (light) and 6.4 (dark), `accentText` on surface is 5.6 and 7.2, `onCaution` on `cautionFill` is 9.1 and 10.9, white on `negativeFill` is 5.9. The full table is in the Project file `tokens-signal.md`.
+Contrast (WCAG 2.x): every text pair passes AA (4.5:1); disabled text is exempt. Body text on canvas or surface is 17–20:1, `textTertiary` is at least 5.5:1, `onAccent` on `accent` is 5.3 (light) and 6.4 (dark), `accentText` on surface is 5.6 and 7.2, `onCaution` on `cautionFill` is 9.1 and 10.9, white on `negativeFill` is 5.9. The token values above and `mac/Scout/Design/Palette.swift` define the color pairs.
 
 Rules:
 

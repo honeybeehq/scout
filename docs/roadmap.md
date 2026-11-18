@@ -1,6 +1,6 @@
 # Scout: roadmap
 
-Each milestone ends with something the user can run and judge.
+Each milestone ends with something the user can run and judge. Items marked done or ✅ describe implemented work; other items are planned or still open.
 
 ## M0: Foundation ✅
 

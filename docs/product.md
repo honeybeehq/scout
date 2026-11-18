@@ -19,12 +19,14 @@ Both want the same thing: stay inside the app they are judging, and have the fix
 4. **Send.** Each snippet goes to the right agent session. By default that is the session already working in the app's repo; if there is none, Scout starts one. Sending can happen while you are still talking.
 5. **Fix.** The agent gets a task that says what you said, shows what you saw, and names the element and source file you pointed at.
 
+Apple transcription supplies live words. After you stop, Scout transcribes the recording again with Apple or, when selected and installed, Whisper large-v3-turbo through WhisperKit. Both engines run on your Mac. Whisper needs a one-time model download; Apple remains the fallback until it is installed.
+
 The target is under 10 seconds from finishing a sentence to the task arriving in an agent session, and ideally 2–3 seconds.
 
 ## Principles
 
-1. **Voice is the task.** What the user says is the primary signal. Video and screenshots support it. (Syn's most repeated complaint: the transcript was missing or treated as secondary.)
-2. **Stream, don't batch.** Transcription, splitting, clip cutting, and context capture all run while the user talks. Stopping should never start a long processing step.
+1. **Voice is the task.** What the user says is the primary signal. Video and screenshots support it.
+2. **Stream, don't batch.** Transcription, splitting, clip cutting, and context capture all run while the user talks. Keep the final transcription pass after stopping as short as possible.
 3. **Know the app.** Scout resolves what is on screen to a real element (accessibility tree, SDK, DOM, component) and, when possible, to a source file and repo. "This button" should arrive as `Button "Pay now" · Checkout.tsx:88`.
 4. **Zero-ceremony capture.** No capture-mode picker. No region selection before recording. One shortcut, then talk.
 5. **Local first.** Transcription and splitting run on the Mac. Nothing leaves it until a task is sent, and the user can see exactly what is sent.
@@ -52,14 +54,14 @@ The target is under 10 seconds from finishing a sentence to the task arriving in
 
 ## Relationship to Syn
 
-Scout replaces Syn. It keeps what worked: narrated screen capture, element flagging, the web element SDK idea, agent handoff. It changes the rest:
+Syn is Scout's predecessor, a narrated screen-capture tool for agent feedback. Scout replaces it. It keeps what worked: narrated screen capture, element flagging, the web element SDK idea, agent handoff. It changes the rest:
 
 | Syn | Scout |
 |---|---|
 | Record, then process a packet | Stream and split live into snippets |
 | One packet per recording | One task per snippet, many per session |
 | Seven capture modes and a picker | One shortcut; Scout follows what you look at |
-| Bundled whisper.cpp, offline passes | On-device `SpeechAnalyzer`, streaming, no bundled models |
+| Bundled whisper.cpp, offline passes | Apple live transcription; optional WhisperKit large-v3-turbo second pass, on device after a model download |
 | Double-Shift chord, needs an event tap | Carbon hotkey, needs no permission |
 | Unauthenticated WebSocket on :47845 | Authenticated local bridge with app identity |
 | Clipboard and folder handoff | Direct delivery to hive sessions and Apiary panes |

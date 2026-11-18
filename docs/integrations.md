@@ -1,8 +1,18 @@
 # Scout: integrations
 
-Scout delivers tasks to coding agents. hive is the delivery channel. Apiary panes are hive sessions (bees tagged `apiary:workspace=<id>`), so one hive client reaches both.
+Scout delivers recordings and tasks to coding agents. You can use the clipboard with any agent or chat; no other app is required.
 
-## hive
+## Clipboard
+
+Without hive, Scout copies `task.md` to the clipboard as text, adds the snippet folder as a file URL, and keeps the folder on disk. Sending several tasks at once (*Copy all* in the review) puts them on the pasteboard together, separated by `---`, with one folder URL per task.
+
+A walkthrough recording leaves its bundle path on the clipboard so you can paste it into a compatible app. The recording stays on disk.
+
+## Optional hive and Apiary integration
+
+hive manages coding-agent sessions. Apiary is a desktop workspace for those sessions. Apiary panes are hive sessions (tagged `apiary:workspace=<id>`), so one hive client reaches both. The following sections describe their developer protocols. A Champion is Apiary’s named agent for a workspace.
+
+### hive
 
 Scout talks to the hive daemon directly over its socket, not through the CLI. The CLI is not on a GUI app's `PATH` (it lives in a mise shim), and each run costs a Node start-up.
 
@@ -33,7 +43,7 @@ Implementation: `mac/Scout/Integrations/HiveClient.swift`, a `nonisolated` `Netw
 
 **Idempotency.** Every delivery uses `idempotencyKey = "scout:<session-id>:<snippet-id>"`, so retries after a crash or timeout never deliver twice.
 
-## Routing
+### Routing
 
 `DeliveryRoute` (chosen in onboarding, changeable in Settings):
 
@@ -41,13 +51,11 @@ Implementation: `mac/Scout/Integrations/HiveClient.swift`, a `nonisolated` `Netw
 2. **New session.** Always `spawn`.
 3. **Ask me.** The card's destination chip opens a picker; nothing is sent until the user chooses.
 
-Without hive: copy `task.md` to the pasteboard (text plus the snippet folder as a file URL) and keep the snippet folder. Sending several tasks at once (*Copy all* in the review) puts them on the pasteboard together, separated by `---`, with one folder URL per task.
-
 When a `send` or `spawn` fails (hive stopped, the session is gone, a timeout), Scout copies the task to the pasteboard the same way and marks it "Not sent, copied instead" with hive's reason. The task stays unsent, so Retry or Send still delivers it later.
 
 A chosen destination is kept with the task in `review.json`, together with the resolved project and the runtime notes from the page, so a held task reopens with the same destination and the same outgoing message. A destination Scout picked itself is picked again if that session is no longer active; one you picked always stays.
 
-## Project resolution
+### Project resolution
 
 To send to the right repo, Scout maps what is on screen to a source tree. It tries these in order and stops at the first answer:
 
@@ -59,13 +67,13 @@ The resolved `ProjectReference` is stored on the task and shown in the review, s
 
 Not implemented yet: native apps (iOS Simulator and macOS debug builds through DerivedData), an optional local project index (names and repo paths, matched against window titles and URL hosts) and user overrides in Settings. Tasks from those sources have no project until the SDK reports one; with "Match project" they wait for a destination.
 
-## Apiary
+### Apiary
 
 **Detect.** `~/.hive/gateways/apiary.json` exists and its `pid` is alive → running. Otherwise the bundle id `com.trmd.apiary` resolves → installed.
 
 **Today.** Delivery to Apiary panes works through hive (above). Apiary's attachment convention makes clips and images show up in the conversation.
 
-**Bridge client (walkthroughs).** A hotkey recording talks to Apiary's Scout bridge (contract: the Project's contracts.md §2 with revisions 4–7). `ApiaryBridge` (`mac/Scout/Integrations/ApiaryBridge.swift`) reads the discovery file, connects to its Unix socket, sends `hello` with the token and Scout's pid, and keeps one NDJSON connection that closes 30 s after the last request. A missing or dead Apiary costs one file read and a 1 s quiet period; nothing else changes.
+**Bridge client (walkthroughs).** A hotkey recording talks to Apiary's Scout bridge (see the [Apiary bridge protocol](apiary-bridge.md)). `ApiaryBridge` (`mac/Scout/Integrations/ApiaryBridge.swift`) reads the discovery file, connects to its Unix socket, sends `hello` with the token and Scout's pid, and keeps one NDJSON connection that closes 30 s after the last request. A missing or dead Apiary costs one file read and a 1 s quiet period; nothing else changes.
 
 - **Discovery:** `--apiary-bridge=<file>`, else `SCOUT_APIARY_BRIDGE`, else `$APIARY_HOME_DIR/scout-bridge.json`, else `~/.apiary/scout-bridge.json`. A dev Apiary writes `<userData>/scout/scout-bridge.json`.
 - **Pointing:** each pin and each dwell (the pointer still for 0.6 s, sampled every 100 ms off the main thread) calls `pointAt` from a detached task, never on the capture or main thread. Scout asks only when the topmost on-screen window at the point belongs to Apiary's pid (`CGWindowList`, no permission needed). A dwell inside the bounds of the last answer, or one with the same innermost identity, is skipped. Budget 30 ms; a pin retries once with 100 ms. The answer's `stack` is stored verbatim on the pointer (`source: "apiary"`), and finishing waits for answers still in flight.
@@ -83,12 +91,12 @@ Not implemented yet: native apps (iOS Simulator and macOS debug builds through D
 - **Recording host.** Apiary already has a record button that speaks Syn's WebSocket protocol (`hello`, `startRecording{mode, token, windowId, rect}`, `stopRecording`, `packetReady{path, token}`). Scout will offer the same flow under a new versioned endpoint and ask Apiary to add a `scout` host next to `synHost`, keeping Syn's port (47845) free so both can run during the transition.
 - **Quick compose.** `apiary://compose?text=…` (≤ 32 KB, text only) is a zero-integration fallback for "Ask me" routing.
 
-## Pollinate and nectar
+### Pollinate and nectar
 
 - **nectar** is a project-resolution source (above). Scout can also attach the nectar preview URL to a task so the agent can check its fix against the same environment.
 - **Pollinate** (`pol`) can batch or debounce delivery, for example "collect all snippets from this session and send one summary task when I stop". Not planned before M7.
 
-## Optimise tasks through Claude
+### Optimise tasks through Claude
 
 Optimise is an explicit review-window action. `OptimiseReview.start()` prepares the full transcript, ledger, current task ranges and at most 60 key-frame JPEG thumbnails, each at most 320 pixels on its longest side. Walkthrough context includes pointer metadata, drawings and explicit break events. The fixed prompt treats recording content as data, requests proposals only, forbids reading/uploading video or audio, and asks for an atomic `optimise.v1.json` write in the session or bundle folder. The transcript stays inline; the ledger, review and walkthrough JSON are referenced by attached-file paths instead of repeated inside the prompt. The local `HiveClient.spawn` starts a Claude session there; Scout has no model API key or HTTP model client.
 
@@ -96,4 +104,4 @@ The transcript, ledger and selected stills go to Claude through the user's hive 
 
 Artifacts in a session or bundle: `optimise-ledger.json`, `optimise-transcript.txt`, `optimise-thumbs/`, `optimise.v1.json`, and append-only `corrections.jsonl`. Walkthrough acceptance additionally writes `asks.agent.json`; the original AskExtractor asks remain intact. No optimisation runs automatically and no task is delivered just because a proposal is accepted.
 
-Optimise artifacts follow `ScoutDataRoot`: for `com.trmdy.scout.test`, the default root is `~/Library/Application Support/Scout-com.trmdy.scout.test/`, with sessions under `Sessions/` and walkthroughs under `walkthroughs/`. An absolute `--data-root=` or `SCOUT_DATA_ROOT` overrides it. The rig should keep its existing test bundle ID and use test recordings from that root, never the release Scout root.
+Optimise artifacts follow `ScoutDataRoot`: for `com.trmdy.scout.test`, the default root is `~/Library/Application Support/Scout-com.trmdy.scout.test/`, with sessions under `Sessions/` and walkthroughs under `walkthroughs/`. An absolute `--data-root=` or `SCOUT_DATA_ROOT` overrides it. For a test run, choose a separate bundle ID and pass an absolute `--data-root=` pointing to a fresh temporary directory. Keep recordings and generated output there, away from the release data. See [Contributor checks](contributing.md).
