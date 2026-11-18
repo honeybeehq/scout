@@ -10,6 +10,9 @@ struct OptimisePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let cleanup = optimise.cleanupError {
+                CleanupNotice(message: cleanup)
+            }
             switch optimise.state {
             case .idle:
                 idle
@@ -50,12 +53,20 @@ struct OptimisePanel: View {
 
     private var waiting: Bool { review.isFinishing || review.isPreparing }
 
-    private var canStart: Bool { !waiting && review.unsentCount > 0 }
+    private var canStart: Bool { !waiting && !optimise.isStopping && review.unsentCount > 0 }
 
     private var note: String {
+        if optimise.isStopping { return "Stopping Claude…" }
         if waiting { return "Available once the video and task titles are ready." }
         if review.unsentCount == 0 { return "Every task is sent, so there is nothing left to optimise." }
         return "Sends the transcript and frames to Claude, never the video."
+    }
+
+    private var otherError: String? {
+        guard let error = optimise.error else { return nil }
+        let cleanup = optimise.cleanupError
+        let rest = error.split(separator: "\n").map(String.init).filter { $0 != cleanup }.joined(separator: "\n")
+        return rest.isEmpty ? nil : rest
     }
 
     private var running: some View {
@@ -95,7 +106,7 @@ struct OptimisePanel: View {
                     .monospacedDigit()
                 Spacer(minLength: 0)
             }
-            if let error = optimise.error {
+            if let error = otherError {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     StatusDot(tone: .negative, size: 5)
                     Text(error).fixedSize(horizontal: false, vertical: true)
@@ -163,7 +174,7 @@ struct OptimisePanel: View {
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(Palette.text)
             }
-            Text(message.localizedCaseInsensitiveContains("unchanged") ? message : "\(message) Your tasks are as you left them.")
+            Text(message.localizedCaseInsensitiveContains("unchanged") ? message : "\(message.hasSuffix(".") ? message : message + ".") Your tasks are as you left them.")
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -176,6 +187,11 @@ struct OptimisePanel: View {
             }
             .buttonStyle(SecondaryButtonStyle())
             .disabled(!canStart)
+            if optimise.isStopping || waiting {
+                Text(note)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+            }
         }
     }
 
@@ -228,6 +244,32 @@ struct OptimisePanel: View {
             if stale > 0 { parts.append("\(stale) no longer fit") }
             return parts.joined(separator: " · ")
         }
+    }
+}
+
+private struct CleanupNotice: View {
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            StatusDot(tone: .negative, size: 6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Claude didn't confirm it stopped")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.text)
+                Text(message)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(message)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.negativeWash, in: .rect(cornerRadius: Radius.control, style: .continuous))
     }
 }
 

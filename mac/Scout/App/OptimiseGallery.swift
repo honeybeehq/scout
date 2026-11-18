@@ -46,6 +46,22 @@ enum OptimiseGallery {
                 review.optimise.acceptAll()
                 review.optimise.reject("p6")
             },
+            Shot(name: "5-boot-failure", fixture: "eight", select: "task-5") { review, _ in
+                await run(review, socket: argument("--optimise-boot-socket="), until: { if case .failed = $0 { true } else { false } })
+            },
+            Shot(name: "7-stopping-after-cancel", fixture: "eight", select: "task-5") { review, _ in
+                await run(review, socket: argument("--optimise-hang-socket="), until: { $0 == .running })
+                review.optimise.cancel()
+            },
+            Shot(name: "8-cleanup-error-after-accept-undo", fixture: "eight", select: "task-3") { review, _ in
+                await run(review, socket: argument("--optimise-cleanup-socket="), until: { $0 == .ready })
+                for _ in 0..<300 where review.optimise.cleanupError == nil {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                review.optimise.accept("p2")
+                review.optimise.accept("p3")
+                review.undo()
+            },
             Shot(name: "5-failure", fixture: "eight", select: "task-5") { review, _ in
                 await run(review, socket: "/tmp/scout-optimise-gallery-no-hive.sock", until: { if case .failed = $0 { true } else { false } })
             },
@@ -74,6 +90,7 @@ enum OptimiseGallery {
                 }
                 if scheme == .light {
                     log.append("\(shot.name): state=\(review.optimise.state) undo=\(review.undoDepth) tasks=" + review.tasks.map { "\($0.snippet.id)[\(String(format: "%.1f-%.1f", $0.snippet.range.start, $0.snippet.range.end))] \($0.title)" }.joined(separator: " | "))
+                    log.append("   stopping=\(review.optimise.isStopping) cleanupError=\(review.optimise.cleanupError ?? "none")")
                     log.append("   proposals: " + review.optimise.proposals.map { "\($0.id)=\(review.optimise.status(for: $0))" + (review.optimise.validationMessage(for: $0).map { "(\($0))" } ?? "") }.joined(separator: " ") + (review.optimise.error.map { " error=\($0)" } ?? ""))
                 }
                 if review.optimise.state == .running { review.optimise.cancel() }

@@ -83,6 +83,8 @@ final class OptimiseReview {
 
     func waitForCleanup() async { await cleanupTask?.value }
 
+    var isStopping: Bool { cleanupTask != nil }
+
     func start() {
         guard run == nil, cleanupTask == nil, let review, !review.isFinishing, !review.isPreparing else { return }
         state = .preparing
