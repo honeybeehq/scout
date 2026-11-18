@@ -62,14 +62,15 @@ The default download base is `https://github.com/honeybeehq/scout/releases/downl
 
 The script resolves and verifies dependency pins, checks the keychain public key, builds, signs, notarizes and staples, signs the update archive, and writes the appcast. Output is in `build/release/X.Y.Z/`, including notarization and verification logs. Without `--publish`, no artifacts leave the signing host except Apple notarization submissions. Appcast retrieval only reads GitHub.
 
-Push the bump commit and have it reviewed and landed through the project’s normal change process. Check out the landed commit with a clean working tree. Then rebuild and publish from that exact source:
+Push the bump commit and have it reviewed and landed through the project’s normal change process. Check out the landed commit with a clean working tree. Build without publishing and complete the separate test-Mac gate. Then publish those exact verified artifacts:
 
 ```sh
-script/release.sh --version X.Y.Z --no-bump --publish --notes release-notes.md --dry-run
-script/release.sh --version X.Y.Z --no-bump --publish --notes release-notes.md
+script/release.sh --version X.Y.Z --no-bump
+script/release.sh --version X.Y.Z --publish --notes release-notes.md --dry-run
+script/release.sh --version X.Y.Z --publish --notes release-notes.md
 ```
 
-`--notes FILE` supplies release notes; omitting it generates installation and update instructions. Publishing requires GitHub CLI write access, PUBLIC repository visibility, an unused `vX.Y.Z` tag, a clean unchanged HEAD reachable from an origin branch after `git fetch origin --prune`, and all verification steps passing in the same run. It creates the release and tag at the checkout's commit and uploads `Scout-X.Y.Z.dmg`, `Scout-X.Y.Z.zip`, `appcast.xml`, and `SHA256SUMS`. The script never changes repository visibility. `--no-bump` uses the committed build number and refuses version or build overrides that differ from the committed values. The source SHA is recorded in release notes and `verify.txt`. A missing remote commit prints push instructions and stops; the script never pushes automatically. Keep custom notes outside the checkout or commit them before starting. Runtime installation and update checks belong on the separate test Mac.
+`--notes FILE` supplies release notes; omitting it generates installation and update instructions. Publishing requires GitHub CLI write access, PUBLIC repository visibility, an unused `vX.Y.Z` tag, a clean unchanged HEAD reachable from an origin branch after `git fetch origin --prune`, and all publication checks passing in the same run. `--publish` (also available as `--publish-only`) implies `--no-bump` and never rebuilds, re-signs, re-notarizes, regenerates the appcast, or replaces the output directory. It requires existing `verify.txt` to record HEAD, confirms app version/build, recomputes the DMG/zip/appcast checksums and compares them with the existing `SHA256SUMS`, then rechecks code signatures, Gatekeeper and stapled tickets on the existing app and DMG. A missing or changed artifact stops publication. It creates the release and tag at the checkout's commit and uploads `Scout-X.Y.Z.dmg`, `Scout-X.Y.Z.zip`, `appcast.xml`, and `SHA256SUMS`. The script never changes repository visibility. `--no-bump` uses the committed build number and refuses version or build overrides that differ from the committed values. The source SHA is recorded in release notes and `verify.txt`. A missing remote commit prints push instructions and stops; the script never pushes automatically. If landing changes the commit SHA, build and verify again from the landed commit before publishing. Keep custom notes outside the checkout or commit them before starting. Runtime installation and update checks belong on the separate test Mac.
 
 ## Changing the Sparkle version
 

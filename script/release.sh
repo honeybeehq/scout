@@ -33,7 +33,9 @@ Builds Release, signs with Developer ID and the hardened runtime, notarizes and
 staples the app, packages and notarizes a DMG, writes the update archive, signs it
 with Sparkle's EdDSA key and writes appcast.xml. Sparkle is verified against
 mac/Sparkle.expected (script/verify-sparkle.sh) before anything is built.
-Output goes to build/release/<version>/. Nothing is installed or opened. Publishing requires --publish.
+Output goes to build/release/<version>/. Nothing is installed or opened.
+--publish (alias --publish-only) verifies and uploads the existing output without
+building, bumping, signing or notarizing again. It implies --no-bump.
 
 Environment:
   SCOUT_SIGN_IDENTITY        default: $identity
@@ -52,7 +54,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --version) version="${2:-}"; shift 2 ;;
     --build) build_number="${2:-}"; shift 2 ;;
-    --publish) publish=true; shift ;;
+    --publish|--publish-only) publish=true; shift ;;
     --notes) notes="${2:?--notes needs a file}"; shift 2 ;;
     --previous-appcast) previous_appcast="${2:?--previous-appcast needs a file}"; shift 2 ;;
     --no-bump) bump=false; shift ;;
@@ -61,6 +63,10 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+if [[ "$publish" == true ]]; then
+  bump=false
+fi
 
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "--version X.Y.Z is required" >&2; exit 2; }
 
@@ -276,6 +282,7 @@ cat <<EOF
     dry run          $dry_run
 EOF
 
+if [[ "$publish" == false ]]; then
 step "Preflight: tools, signing identity and notary profile"
 run command -v xcodegen
 run xcodebuild -version
@@ -484,6 +491,46 @@ else
   (cd "$out" && shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" appcast.xml > SHA256SUMS)
 fi
 
+else
+  source_sha="$(git -C "$root" rev-parse HEAD)"
+  step "Verify existing release source and files"
+  for file in "$out/verify.txt" "$out/SHA256SUMS" "$dmg" "$update_zip" "$out/appcast.xml" "$app/Contents/Info.plist"; do
+    run test -f "$file" || { echo "Required verified release file is missing: $file" >&2; exit 1; }
+  done
+  if [[ "$dry_run" == true ]]; then
+    echo "    require exactly Source commit: $source_sha in $out/verify.txt"
+    echo "    require existing app version $version and build $build_number"
+  else
+    recorded_source="$(sed -n 's/^Source commit: //p' "$out/verify.txt")"
+    [[ "$recorded_source" == "$source_sha" ]] \
+      || { echo "Existing release source does not match HEAD; rebuild and verify from this commit first" >&2; exit 1; }
+    [[ "$(plutil -extract CFBundleShortVersionString raw -o - "$app/Contents/Info.plist")" == "$version" \
+      && "$(plutil -extract CFBundleVersion raw -o - "$app/Contents/Info.plist")" == "$build_number" ]] \
+      || { echo "Existing app version/build does not match the committed release" >&2; exit 1; }
+  fi
+
+  step "Recompute and compare release checksums"
+  if [[ "$dry_run" == true ]]; then
+    echo "    (in $out)"
+    run shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" appcast.xml
+    echo "    compare this output byte-for-byte with SHA256SUMS; stop on any mismatch"
+  else
+    existing_sums="$(cat "$out/SHA256SUMS")"
+    actual_sums="$(cd "$out" && shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" appcast.xml)"
+    [[ "$actual_sums" == "$existing_sums" ]] \
+      || { echo "Release checksums changed; refusing to publish" >&2; exit 1; }
+  fi
+
+  step "Recheck existing signatures, Gatekeeper and stapled tickets"
+  run codesign --verify --strict --deep --verbose=2 "$app"
+  run codesign --verify --strict --verbose=2 "$dmg"
+  run spctl -a -vv -t exec "$app"
+  run spctl -a -vv -t open --context context:primary-signature "$dmg"
+  run xcrun stapler validate "$app"
+  run xcrun stapler validate "$dmg"
+  run xmllint --noout "$out/appcast.xml"
+fi
+
 step "Release notes"
 release_notes="$out/release-notes.md"
 if [[ -n "$notes" ]]; then
@@ -507,14 +554,14 @@ if [[ "$publish" == true ]]; then
     run git -C "$root" status --porcelain --untracked-files=all
     run git -C "$root" branch -r --contains "$source_sha" --list 'origin/*'
     echo "    require clean HEAD=$source_sha and a containing origin branch"
-    echo "    if missing: git -C $(printf '%q' "$root") push origin HEAD; land the bump, then rebuild with --version $version --no-bump --publish"
+    echo "    if missing: git -C $(printf '%q' "$root") push origin HEAD; land the bump, then build and verify from the landed commit before --version $version --publish"
   else
     [[ "$(git -C "$root" rev-parse HEAD)" == "$source_sha" && -z "$(git -C "$root" status --porcelain --untracked-files=all)" ]] \
       || { echo "Publishing requires unchanged, clean HEAD at $source_sha" >&2; exit 1; }
     if [[ -z "$(git -C "$root" branch -r --contains HEAD --list 'origin/*')" ]]; then
       echo "Push this commit first: $source_sha" >&2
       printf '  git -C %q push origin HEAD\n' "$root" >&2
-      echo "Land the bump commit, check out the landed commit, then run:" >&2
+      echo "Land the bump commit, build and verify from the landed commit, then run:" >&2
       printf '  script/release.sh --version %q --build %q --no-bump --publish\n' "$version" "$build_number" >&2
       exit 1
     fi
