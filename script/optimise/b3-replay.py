@@ -12,8 +12,11 @@ output = pathlib.Path(sys.argv[2]).resolve()
 root = pathlib.Path(__file__).resolve().parents[2]
 output.mkdir(parents=True, exist_ok=True)
 fixture = root / "Fixtures/optimise/playtest.optimise.v1.json"
-cases = ["success", "benign", "race", "late-race", "boot-failure", "boot-crash", "stop-failure", "invalid", "prose", "fenced"]
+cases = ["success", "benign", "race", "late-race", "boot-failure", "boot-crash", "stop-failure", "invalid", "prose", "fenced", "stopped-mail", "mail-flicker", "cleanup-timeout"]
+selected = set(sys.argv[3:])
 for mode in cases:
+    if selected and mode not in selected:
+        continue
     folder = output / mode
     folder.mkdir(exist_ok=True)
     socket_path = str(pathlib.Path(tempfile.gettempdir()) / ("scout-b3-" + os.urandom(5).hex() + ".sock"))
@@ -52,8 +55,8 @@ for mode in cases:
         assert "args" not in request["params"]
         assert "optimise-ledger.json" in state["inputs"] and "review.json" in state["inputs"]
         assert not any(p.endswith((".mp4", ".aiff", ".wav", ".m4a")) for p in state["inputs"])
-        assert workspace.exists() == (mode == "stop-failure")
-        if mode in ["success", "stop-failure", "benign", "fenced"]:
+        assert workspace.exists() == (mode in ["stop-failure", "cleanup-timeout"])
+        if mode in ["success", "stop-failure", "benign", "fenced", "stopped-mail", "mail-flicker", "cleanup-timeout"]:
             session = pathlib.Path(report["sessionCopy"])
             document = json.loads((session / "optimise.v1.json").read_text())
             assert document["v"] == 1
@@ -72,7 +75,17 @@ for mode in cases:
             assert "Claude replied without a valid result" in report["error"]
         if mode == "prose":
             assert "Permission to create the file was declined" in report["error"]
-        (folder / "workspace-check.json").write_text(json.dumps({"removed": not workspace.exists(), "retainedForUnconfirmedStop": mode == "stop-failure", "oldWorkspaceSwept": not stale.exists(), "freshWorkspaceKept": True}, indent=2))
+        stops = [event for event in state["events"] if event.startswith("stop:")]
+        assert len(stops) <= (2 if mode in ["race", "late-race"] else 1)
+        if mode in ["stop-failure", "cleanup-timeout"]:
+            assert report["cleanupError"] and "cleanup failed" in result.stderr
+        else:
+            assert not report["cleanupError"]
+        if mode == "cleanup-timeout":
+            assert "undelivered=" in report["cleanupError"]
+            assert result.stderr.count("stop confirmation timed out") == 1
+        (folder / "stop-check.json").write_text(json.dumps({"stopCount": len(stops), "finalState": state["runtime"], "generation": state["generation"], "cleanupError": report["cleanupError"]}, indent=2))
+        (folder / "workspace-check.json").write_text(json.dumps({"removed": not workspace.exists(), "retainedForUnconfirmedStop": mode in ["stop-failure", "cleanup-timeout"], "oldWorkspaceSwept": not stale.exists(), "freshWorkspaceKept": True}, indent=2))
         print(mode + ": PASS", flush=True)
     finally:
         server.terminate()

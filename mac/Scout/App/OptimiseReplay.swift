@@ -115,7 +115,7 @@ enum OptimiseReplay {
                     default: matched = false
                     }
                     guard same && matched else { throw CocoaError(.validationMissingMandatoryProperty) }
-                    let report: [String: Any] = ["expected": expected, "reviewUntouched": same, "elapsed": Date().timeIntervalSince(started), "state": String(describing: review.optimise.state), "error": review.optimise.error ?? ""]
+                    let report: [String: Any] = ["expected": expected, "reviewUntouched": same, "elapsed": Date().timeIntervalSince(started), "state": String(describing: review.optimise.state), "error": review.optimise.error ?? "", "cleanupError": review.optimise.cleanupError ?? ""]
                     let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
                     try data.write(to: output.appendingPathComponent("report.json"))
                     print(String(decoding: data, as: UTF8.self))
@@ -169,7 +169,7 @@ enum OptimiseReplay {
             review.optimise.acceptAll()
             if let pending = review.optimise.proposals.first(where: { review.optimise.status(for: $0) == .pending || review.optimise.status(for: $0) == .stale }) { review.optimise.reject(pending.id) }
             review.save()
-            let report: [String: Any] = ["source": argument("--optimise-session=") ?? "synthetic segmenter replay", "before": before, "after": after, "accepted": accepted, "validation": invalid, "undoRestored": true, "singleUndoStep": true, "crossingsSkippedByAcceptAll": true, "individualCrossingAccepted": individualCrossingAccepted, "deliveredQuestions": questions, "manualEditsStale": manualEditsStale, "preparingBlocked": true, "finalTranscriptEngine": FinalTranscript.read(from: review.directory)?.engine ?? "walkthrough", "persisted": true, "sessionCopy": review.directory.path, "error": review.optimise.error ?? ""]
+            let report: [String: Any] = ["source": argument("--optimise-session=") ?? "synthetic segmenter replay", "before": before, "after": after, "accepted": accepted, "validation": invalid, "undoRestored": true, "singleUndoStep": true, "crossingsSkippedByAcceptAll": true, "individualCrossingAccepted": individualCrossingAccepted, "deliveredQuestions": questions, "manualEditsStale": manualEditsStale, "preparingBlocked": true, "finalTranscriptEngine": FinalTranscript.read(from: review.directory)?.engine ?? "walkthrough", "persisted": true, "sessionCopy": review.directory.path, "error": review.optimise.error ?? "", "cleanupError": review.optimise.cleanupError ?? ""]
             let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: output.appendingPathComponent("report.json"), options: .atomic)
             print(String(decoding: data, as: UTF8.self))

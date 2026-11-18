@@ -110,6 +110,7 @@ nonisolated struct HiveClient: Sendable {
 
     struct OptimiseStatus: Sendable {
         let state: String?
+        let generation: Int?
         let logPath: String?
         let pending: Bool
         let undelivered: Bool
@@ -142,7 +143,7 @@ nonisolated struct HiveClient: Sendable {
         }
         let mailResult = try await call(verb: "mailbox", params: ["beeId": beeID])
         let messages = mailResult["messages"] as? [[String: Any]] ?? []
-        return OptimiseStatus(state: runtime?["state"] as? String, logPath: bee["sessionLogPath"] as? String, pending: pending, undelivered: messages.contains { $0["deliveredAt"] == nil || $0["deliveredAt"] is NSNull }, failure: failure)
+        return OptimiseStatus(state: runtime?["state"] as? String, generation: runtime?["generation"] as? Int, logPath: bee["sessionLogPath"] as? String, pending: pending, undelivered: messages.contains { $0["deliveredAt"] == nil || $0["deliveredAt"] is NSNull }, failure: failure)
     }
 
     func finalOptimiseReply(_ status: OptimiseStatus) throws -> String? {
@@ -164,18 +165,28 @@ nonisolated struct HiveClient: Sendable {
     }
 
     func stopOptimise(_ beeID: String) async throws {
-        try? await stop(beeID)
         let deadline = Date().addingTimeInterval(20)
+        var sent = false
+        var stoppedGeneration: Int?
+        var previousState: String?
+        var last: OptimiseStatus?
         while Date() < deadline {
             let status = try await optimiseStatus(beeID)
-            if !status.pending && (!status.undelivered || status.failure != nil) {
+            last = status
+            if status.state == "stopped", !status.pending { return }
+            let newer = (status.generation ?? 0) > (stoppedGeneration ?? 0)
+            let woke = previousState == "stopped" && status.state != "stopped"
+            if !sent || newer || woke {
                 try await stop(beeID)
-                let confirmed = try await optimiseStatus(beeID)
-                if confirmed.state == "stopped", !confirmed.pending, !confirmed.undelivered || confirmed.failure != nil { return }
+                sent = true
+                stoppedGeneration = status.generation
             }
+            previousState = status.state
             try await Task.sleep(for: .milliseconds(500))
         }
-        throw HiveError.requestFailed("Claude has not confirmed cancellation. Check its optimiser session in hive.")
+        let fields = "state=\(last?.state ?? "none") generation=\(last?.generation.map(String.init) ?? "none") pending=\(last?.pending.description ?? "none") undelivered=\(last?.undelivered.description ?? "none") lastStopGeneration=\(stoppedGeneration.map(String.init) ?? "none")"
+        NSLog("[scout-optimise] stop confirmation timed out bee=%@ %@", beeID, fields)
+        throw HiveError.requestFailed("Claude has not confirmed cancellation. Check its optimiser session in hive. " + fields)
     }
 
     private static func session(from view: [String: Any]) -> HiveSession? {

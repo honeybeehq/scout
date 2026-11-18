@@ -19,6 +19,7 @@ final class OptimiseReview {
     private(set) var state: State = .idle
     private(set) var proposals: [OptimiseProposal] = []
     private(set) var error: String?
+    private(set) var cleanupError: String?
     private(set) var acceptedIDs: Set<String> = []
     private(set) var rejectedIDs: Set<String> = []
     private weak var review: SessionReview?
@@ -69,9 +70,9 @@ final class OptimiseReview {
             if let cancelledBee {
                 do {
                     try await HiveClient().stopOptimise(cancelledBee)
-                    Self.removeWorkspace(cancelledWorkspace)
+                    try Self.removeWorkspace(cancelledWorkspace)
                 }
-                catch { if self?.generation == token { self?.error = error.localizedDescription } }
+                catch { self?.recordCleanupFailure(error, token: token) }
             }
             await cancelled?.value
         }
@@ -90,6 +91,7 @@ final class OptimiseReview {
         let token = UUID()
         generation = token
         error = nil
+        cleanupError = nil
         run = Task { [weak self, weak review] in
             guard let self, let review else { return }
             let watchdog = Task { [weak self] in
@@ -177,9 +179,9 @@ final class OptimiseReview {
                     if let spawned {
                         let cleanup = Task {
                             try await HiveClient().stopOptimise(spawned)
-                            Self.removeWorkspace(staged)
+                            try Self.removeWorkspace(staged)
                         }
-                        do { try await cleanup.value } catch { self.error = error.localizedDescription }
+                        do { try await cleanup.value } catch { self.recordCleanupFailure(error, token: self.generation) }
                     }
                     return
                 }
@@ -200,7 +202,6 @@ final class OptimiseReview {
                         try Task.checkCancellation()
                         guard self.generation == token else { return }
                         try encoder.encode(document).write(to: output, options: .atomic)
-                        try? await HiveClient().stop(spawned)
                         try Task.checkCancellation()
                         guard self.generation == token else { return }
                         self.beeID = nil
@@ -213,8 +214,8 @@ final class OptimiseReview {
                             defer { if self?.generation == token { self?.cleanupTask = nil } }
                             do {
                                 try await HiveClient().stopOptimise(spawned)
-                                Self.removeWorkspace(staged)
-                            } catch { if self?.generation == token { self?.error = error.localizedDescription } }
+                                try Self.removeWorkspace(staged)
+                            } catch { self?.recordCleanupFailure(error, token: token) }
                         }
                         return
                     }
@@ -223,7 +224,9 @@ final class OptimiseReview {
                 throw HiveClient.HiveError.timedOut
             } catch {
                 guard self.generation == token else {
-                    if ownedBee == nil { Self.removeWorkspace(staged) }
+                    if ownedBee == nil {
+                        do { try Self.removeWorkspace(staged) } catch { self.recordCleanupFailure(error, token: self.generation) }
+                    }
                     return
                 }
                 self.phase = nil
@@ -234,11 +237,13 @@ final class OptimiseReview {
                         defer { if self?.generation == token { self?.cleanupTask = nil } }
                         do {
                             try await HiveClient().stopOptimise(beeID)
-                            Self.removeWorkspace(staged)
+                            try Self.removeWorkspace(staged)
                         }
-                        catch { if self?.generation == token { self?.error = (self?.error ?? "") + "\n" + error.localizedDescription } }
+                        catch { self?.recordCleanupFailure(error, token: token) }
                     }
-                } else { Self.removeWorkspace(staged) }
+                } else {
+                    do { try Self.removeWorkspace(staged) } catch { self.recordCleanupFailure(error, token: token) }
+                }
             }
         }
     }
@@ -255,7 +260,7 @@ final class OptimiseReview {
             refreshBaseline(for: proposal.tasks)
             try log(proposal, accepted: true, before: before)
             try review.saveAgentAsks()
-            error = nil
+            error = cleanupError
         } catch { self.error = error.localizedDescription }
     }
 
@@ -264,7 +269,7 @@ final class OptimiseReview {
         do {
             try log(proposal, accepted: false)
             rejectedIDs.insert(id)
-            error = nil
+            error = cleanupError
         } catch { self.error = error.localizedDescription }
     }
 
@@ -285,6 +290,14 @@ final class OptimiseReview {
         acceptedIDs = []
         rejectedIDs = []
         state = .ready
+    }
+
+    private func recordCleanupFailure(_ failure: Error, token: UUID) {
+        let message = failure.localizedDescription
+        NSLog("[scout-optimise] cleanup failed: %@", message)
+        guard generation == token else { return }
+        cleanupError = message
+        error = error.map { $0 == message ? $0 : $0 + "\n" + message } ?? message
     }
 
     private static func workspaceRoot() throws -> URL {
@@ -310,12 +323,14 @@ final class OptimiseReview {
         guard let root = try? workspaceRoot(), let folders = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey]) else { return }
         for folder in folders {
             guard UUID(uuidString: folder.lastPathComponent) != nil, let values = try? folder.resourceValues(forKeys: [.contentModificationDateKey, .isDirectoryKey]), values.isDirectory == true, let date = values.contentModificationDate, Date().timeIntervalSince(date) > 86_400 else { continue }
-            removeWorkspace(folder)
+            do { try removeWorkspace(folder) } catch { NSLog("[scout-optimise] workspace sweep failed: %@", error.localizedDescription) }
         }
     }
 
-    private static func removeWorkspace(_ directory: URL?) {
-        if let directory { try? FileManager.default.removeItem(at: directory) }
+    private static func removeWorkspace(_ directory: URL?) throws {
+        guard let directory else { return }
+        do { try FileManager.default.removeItem(at: directory) }
+        catch let failure as CocoaError where failure.code == .fileNoSuchFile || failure.code == .fileReadNoSuchFile { return }
     }
 
     private static func jsonReply(_ reply: String) -> String {
