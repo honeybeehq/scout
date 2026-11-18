@@ -12,29 +12,35 @@ sparkle_sign_update="${SCOUT_SPARKLE_SIGN_UPDATE:-}"
 sparkle_key_command="${SCOUT_SPARKLE_KEY_COMMAND:-}"
 sparkle_key_account="${SCOUT_SPARKLE_KEY_ACCOUNT:-ed25519}"
 release_base_url="${SCOUT_RELEASE_BASE_URL:-}"
+if [[ -z "$release_base_url" ]]; then
+  release_base_url='https://github.com/honeybeehq/scout/releases/download/v{version}'
+fi
 previous_appcast="${SCOUT_PREVIOUS_APPCAST:-}"
 minimum_system_version="26.0"
 version=""
 build_number=""
 dry_run=false
 bump=true
+publish=false
+notes=""
 
 usage() {
   cat <<EOF
 Usage: script/release.sh --version X.Y.Z [--build N] [--no-bump] [--dry-run]
+       [--previous-appcast FILE] [--notes FILE] [--publish]
 
 Builds Release, signs with Developer ID and the hardened runtime, notarizes and
 staples the app, packages and notarizes a DMG, writes the update archive, signs it
 with Sparkle's EdDSA key and writes appcast.xml. Sparkle is verified against
 mac/Sparkle.expected (script/verify-sparkle.sh) before anything is built.
-Output goes to build/release/<version>/. Nothing is installed, opened or published.
+Output goes to build/release/<version>/. Nothing is installed or opened. Publishing requires --publish.
 
 Environment:
   SCOUT_SIGN_IDENTITY        default: $identity
   SCOUT_NOTARY_PROFILE       default: $notary_profile
   SCOUT_KEYCHAIN             default: $keychain
   SCOUT_RELEASE_BASE_URL     https URL the update zip is downloaded from; {version} is replaced
-  SCOUT_SPARKLE_KEY_COMMAND  command that prints the EdDSA private key (e.g. a Hem read);
+  SCOUT_SPARKLE_KEY_COMMAND  command that prints the EdDSA private key (e.g. a secret-manager read);
                              empty uses the login keychain, as Sparkle does by default
   SCOUT_SPARKLE_KEY_ACCOUNT  keychain account of the EdDSA key, default: $sparkle_key_account
   SCOUT_SPARKLE_SIGN_UPDATE  default: sign_update from the verified Sparkle artifact
@@ -46,6 +52,9 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --version) version="${2:-}"; shift 2 ;;
     --build) build_number="${2:-}"; shift 2 ;;
+    --publish) publish=true; shift ;;
+    --notes) notes="${2:?--notes needs a file}"; shift 2 ;;
+    --previous-appcast) previous_appcast="${2:?--previous-appcast needs a file}"; shift 2 ;;
     --no-bump) bump=false; shift ;;
     --dry-run) dry_run=true; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -266,7 +275,7 @@ if [[ "$dry_run" == true ]]; then
   echo "    require SCOUT_RELEASE_BASE_URL (https), now: '${release_base_url}'"
 else
   [[ "$feed_url" == https://* ]] || { echo "Set SCOUT_FEED_URL in mac/project.yml to the https appcast URL" >&2; exit 1; }
-  [[ -n "$public_key" ]] || { echo "Set SCOUT_SPARKLE_PUBLIC_KEY in mac/project.yml (generate_keys -p on the Studio)" >&2; exit 1; }
+  [[ -n "$public_key" ]] || { echo "Set SCOUT_SPARKLE_PUBLIC_KEY in mac/project.yml (generate_keys -p on the signing host)" >&2; exit 1; }
   [[ "$release_base_url" == https://* ]] || { echo "SCOUT_RELEASE_BASE_URL must be an https URL" >&2; exit 1; }
 fi
 if [[ -z "$sparkle_key_command" ]]; then
@@ -300,7 +309,7 @@ run "$root/script/verify-sparkle.sh" --derived "$derived"
 
 step "Check the EdDSA key matches the public key in mac/project.yml"
 if [[ -n "$sparkle_key_command" ]]; then
-  echo "    skipped: the key comes from SCOUT_SPARKLE_KEY_COMMAND; sign_update and Sparkle's own check on the mini cover it"
+  echo "    skipped: the key comes from SCOUT_SPARKLE_KEY_COMMAND; sign_update and Sparkle's runtime verification cover it"
 elif [[ "$dry_run" == true ]]; then
   run "$(sparkle_tool generate_keys)" --account "$sparkle_key_account" -p
 else
@@ -374,6 +383,26 @@ run ditto -c -k --sequesterRsrc --keepParent "$app" "$update_zip"
 step "Sign the update archive with Sparkle's EdDSA key"
 sparkle_sign_archive
 
+step "Seed appcast history"
+if [[ -n "$previous_appcast" ]]; then
+  run xmllint --noout "$previous_appcast"
+else
+  previous_appcast="$out/previous-appcast/appcast.xml"
+  run mkdir -p "$out/previous-appcast"
+  if [[ "$dry_run" == true ]]; then
+    run gh release download --repo honeybeehq/scout --pattern appcast.xml --dir "$out/previous-appcast"
+    echo "    If download fails, require an empty published-release list; otherwise stop."
+    run gh release list --repo honeybeehq/scout --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq length
+  elif ! gh release download --repo honeybeehq/scout --pattern appcast.xml --dir "$out/previous-appcast"; then
+    release_count="$(gh release list --repo honeybeehq/scout --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq length)"
+    [[ "$release_count" == 0 ]] || { echo "Could not retrieve the published appcast; use --previous-appcast FILE" >&2; exit 1; }
+    previous_appcast=""
+  fi
+  if [[ -n "$previous_appcast" ]]; then
+    run xmllint --noout "$previous_appcast"
+  fi
+fi
+
 step "Write appcast.xml"
 write_appcast
 
@@ -398,8 +427,8 @@ if [[ "$dry_run" == true ]]; then
   run xcrun stapler validate "$dmg"
 else
   {
-    spctl -a -vv -t open --context context:primary-signature "$dmg" 2>&1
-    spctl -a -vv -t exec "$app" 2>&1
+    spctl -a -vv -t open --context context:primary-signature "$dmg" 2>&1 || exit 1
+    spctl -a -vv -t exec "$app" 2>&1 || exit 1
     xcrun stapler validate "$dmg" 2>&1
   } | tee "$out/verify.txt"
 fi
@@ -412,8 +441,40 @@ else
   (cd "$out" && shasum -a 256 "Scout-$version.dmg" "Scout-$version.zip" appcast.xml > SHA256SUMS)
 fi
 
+step "Release notes"
+if [[ -n "$notes" ]]; then
+  run test -f "$notes"
+else
+  notes="$out/release-notes.md"
+  if [[ "$dry_run" == true ]]; then
+    echo "    write $notes: Scout $version for macOS $minimum_system_version or later; installation and update instructions"
+  else
+    printf 'Scout %s for macOS %s or later.\n\nDownload the DMG and drag Scout into Applications. Existing installations can use Check for Updates… or daily automatic checks.\n' "$version" "$minimum_system_version" > "$notes"
+  fi
+fi
+
+step "Publish (opt-in)"
+if [[ "$publish" == true ]]; then
+  if [[ "$dry_run" == true ]]; then
+    run gh repo view honeybeehq/scout --json visibility --jq .visibility
+    echo "    require PUBLIC and all verification steps to pass in this run"
+    run gh api "repos/honeybeehq/scout/git/matching-refs/tags/v$version" --jq "[.[] | select(.ref == \"refs/tags/v$version\")] | length"
+    echo "    require zero matching tags"
+  else
+    [[ "$(gh repo view honeybeehq/scout --json visibility --jq .visibility)" == PUBLIC ]] \
+      || { echo "Publishing requires a PUBLIC repository" >&2; exit 1; }
+    tag_count="$(gh api "repos/honeybeehq/scout/git/matching-refs/tags/v$version" --jq "[.[] | select(.ref == \"refs/tags/v$version\")] | length")"
+    [[ "$tag_count" == 0 ]] || { echo "Tag v$version already exists" >&2; exit 1; }
+  fi
+  run gh release create "v$version" --repo honeybeehq/scout --target "$(git -C "$root" rev-parse HEAD)" \
+    --title "Scout $version" --notes-file "$notes" \
+    "$dmg" "$update_zip" "$out/appcast.xml" "$out/SHA256SUMS"
+else
+  echo "    skipped (use --publish to upload verified assets)"
+fi
+
 step "Done"
 echo "    $dmg"
 echo "    $update_zip"
 echo "    $out/appcast.xml"
-echo "    Nothing was installed, opened or published. Commit the mac/project.yml version bump separately."
+echo "    Nothing was installed or opened. Publish requested: $publish. Commit the mac/project.yml version bump separately."

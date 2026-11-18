@@ -61,8 +61,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.trmdy.scout
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
-        SCOUT_FEED_URL: ""
-        SCOUT_SPARKLE_PUBLIC_KEY: ""
+        SCOUT_FEED_URL: "https://github.com/honeybeehq/scout/releases/latest/download/appcast.xml"
+        SCOUT_SPARKLE_PUBLIC_KEY: "AFkqB2WCeacpXMyiqIRiXE7wE6rYs0hPXwKFttPucXQ="
         SWIFT_VERSION: "6.0"
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: YES

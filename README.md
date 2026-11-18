@@ -8,7 +8,7 @@ Scout is a native macOS app (Swift 6, SwiftUI, macOS 26). A Linux version comes 
 
 Scout needs macOS 26 or later.
 
-1. Download the latest Scout DMG from `<DOWNLOAD_URL>` (placeholder: the download location isn't decided yet).
+1. Download the latest Scout DMG from [GitHub Releases](https://github.com/honeybeehq/scout/releases/latest).
 2. Open the DMG and drag **Scout** into **Applications**.
 3. Open Scout from Applications. It lives in the menu bar and opens a setup window the first time.
 
@@ -24,7 +24,7 @@ When you scout in a browser, macOS may also ask whether Scout can control that b
 
 Nothing leaves your Mac until you send it.
 
-**Updates arrive automatically.** Scout checks for new versions in the background and offers to install them. You can also check yourself from the menu bar panel or Settings.
+**Updates arrive automatically.** Daily automatic checks are on by default. Scout offers to install new versions, and you can choose **Check for Updates…** in the menu bar panel or Settings.
 
 **hive and Apiary are optional.** Without them, each recording ends on the clipboard, ready to paste. In the review window, *Copy all* copies every task at once.
 
