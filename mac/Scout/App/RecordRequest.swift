@@ -29,6 +29,12 @@ final class ScoutAppDelegate: NSObject, NSApplicationDelegate {
 
     private static var pending: [RecordRequest] = []
 
+    static var onWillFinishLaunching: (() -> Void)?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        Self.onWillFinishLaunching?()
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
             guard let request = RecordRequest.parse(url) else {

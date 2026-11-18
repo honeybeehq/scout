@@ -111,6 +111,7 @@ final class AppModel {
         picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
         picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
         ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
+        ScoutAppDelegate.onWillFinishLaunching = { [preferences] in preferences.applyAppearance() }
         if !Self.rendersOnly {
             Task.detached(priority: .background) {
                 let resolution = ScoutDataRoot.current

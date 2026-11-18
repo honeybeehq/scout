@@ -160,8 +160,12 @@ final class Preferences {
     var colorMode: ColorMode {
         didSet {
             defaults.set(colorMode.rawValue, forKey: "appearance.colorMode")
-            NSApp?.appearance = colorMode.appearance
+            applyAppearance()
         }
+    }
+
+    func applyAppearance() {
+        NSApp?.appearance = colorMode.appearance
     }
 
     var transcriptionEngine: TranscriptionEngineChoice {
@@ -191,6 +195,6 @@ final class Preferences {
         uiSize = UISize.requested ?? UISize(rawValue: defaults.string(forKey: "appearance.uiSize") ?? "") ?? .standard
         colorMode = ColorMode.requested ?? ColorMode(rawValue: defaults.string(forKey: "appearance.colorMode") ?? "") ?? .system
         transcriptionEngine = TranscriptionEngineChoice.requested ?? TranscriptionEngineChoice(rawValue: defaults.string(forKey: "voice.engine") ?? "") ?? .apple
-        NSApp?.appearance = colorMode.appearance
+        applyAppearance()
     }
 }
