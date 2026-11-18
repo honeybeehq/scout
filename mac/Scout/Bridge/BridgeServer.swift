@@ -100,9 +100,12 @@ final class BridgeServer {
     func requestGameState(taskID: String? = nil, projectRoot: String? = nil, clientID: String? = nil) async {
         guard sessionActive else { return }
         let candidates = clients.filter { client in
-            client.hello?.capabilities?.contains("game") == true && (projectRoot == nil || client.hello?.project?.root == projectRoot) && (clientID == nil || client.id == clientID)
+            client.hello?.capabilities?.contains("game") == true && (projectRoot == nil || client.hello?.project?.root == projectRoot)
         }
-        guard let client = candidates.filter({ $0.lastHoverAt != nil }).max(by: { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }) else { return }
+        let explicit = clientID.flatMap { id in candidates.first { $0.id == id } }
+        let fallback = candidates.filter { projectRoot != nil || (clientID == nil && $0.lastHoverAt != nil) }
+            .max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
+        guard let client = explicit ?? fallback else { return }
         let id = UUID().uuidString
         await withCheckedContinuation { continuation in
             gameRequests[id] = GameRequest(clientID: client.id, taskID: taskID, continuation: continuation)

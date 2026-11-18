@@ -15,7 +15,7 @@ export interface Bridge {
 }
 
 const MIN_DELAY_MS = 1000
-const MAX_DELAY_MS = 10000
+const MAX_DELAY_MS = 1500
 const MAX_BUFFERED = 4_000_000
 
 function decode(data: unknown): Incoming | null {
@@ -45,13 +45,13 @@ export function connectBridge(options: BridgeOptions): Bridge {
       return
     }
     index = 0
-    timer = setTimeout(open, delay)
+    timer = setTimeout(open, delay * (0.8 + Math.random() * 0.4))
     delay = Math.min(delay * 2, MAX_DELAY_MS)
   }
 
   function open() {
     timer = undefined
-    if (stopped) return
+    if (stopped || socket) return
     const port = ports[index]!
     let ws: WebSocket
     try {
@@ -88,6 +88,18 @@ export function connectBridge(options: BridgeOptions): Bridge {
     }
   }
 
+  const wake = () => {
+    if (stopped || ready || socket) return
+    clearTimeout(timer)
+    timer = undefined
+    index = 0
+    delay = MIN_DELAY_MS
+    open()
+  }
+  const onVisibility = () => { if (document.visibilityState === "visible") wake() }
+  window.addEventListener("focus", wake)
+  document.addEventListener("visibilitychange", onVisibility)
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", open, { once: true })
   else open()
 
@@ -104,6 +116,8 @@ export function connectBridge(options: BridgeOptions): Bridge {
       stopped = true
       clearTimeout(timer)
       document.removeEventListener("DOMContentLoaded", open)
+      window.removeEventListener("focus", wake)
+      document.removeEventListener("visibilitychange", onVisibility)
       const current = socket
       socket = null
       if (ready) {
