@@ -75,6 +75,7 @@ final class AppModel {
         self.integrations = integrations
         linear = SnapshotMode.makeLinearAccount()
         dispatcher = Dispatcher(integrations: integrations, bridge: bridge, preferences: preferences)
+        OptimiseReview.sweepWorkspaces()
         if let data = UserDefaults.standard.data(forKey: Self.shortcutKey),
            let saved = try? JSONDecoder().decode(KeyShortcut.self, from: data) {
             shortcut = saved

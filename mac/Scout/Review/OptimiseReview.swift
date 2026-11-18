@@ -24,6 +24,7 @@ final class OptimiseReview {
     private weak var review: SessionReview?
     private var run: Task<Void, Never>?
     private var cleanupTask: Task<Void, Never>?
+    private var activeWorkspace: URL?
 
     init(review: SessionReview) { self.review = review }
 
@@ -58,6 +59,7 @@ final class OptimiseReview {
     func cancel() {
         let cancelled = run
         let cancelledBee = beeID
+        let cancelledWorkspace = activeWorkspace
         generation = UUID()
         let token = generation
         run?.cancel()
@@ -65,7 +67,10 @@ final class OptimiseReview {
         cleanupTask = Task { [weak self] in
             defer { if self?.generation == token { self?.cleanupTask = nil } }
             if let cancelledBee {
-                do { try await HiveClient().stopOptimise(cancelledBee) }
+                do {
+                    try await HiveClient().stopOptimise(cancelledBee)
+                    Self.removeWorkspace(cancelledWorkspace)
+                }
                 catch { if self?.generation == token { self?.error = error.localizedDescription } }
             }
             await cancelled?.value
@@ -99,11 +104,15 @@ final class OptimiseReview {
                 watchdog.cancel()
                 if self.generation == token { self.run = nil }
             }
+            var staged: URL?
+            var ownedBee: String?
             do {
                 let deadline = Date().addingTimeInterval(180)
                 let directory = review.directory
                 let output = directory.appendingPathComponent("optimise.v1.json")
                 let workspace = try Self.workspace()
+                staged = workspace
+                self.activeWorkspace = workspace
                 let savedLedger = directory.appendingPathComponent("optimise-ledger.json")
                 if FileManager.default.fileExists(atPath: output.path) {
                     try FileManager.default.moveItem(at: output, to: directory.appendingPathComponent("optimise.previous-\(UUID().uuidString).json"))
@@ -163,9 +172,13 @@ final class OptimiseReview {
                 let prompt = Self.prompt + bundleContext + "\nInput folder: \(workspace.path)\n[Attached file: \(ledgerURL.path)]\n[Attached file: \(workspace.appendingPathComponent("review.json").path)]\nFull transcript:\n\(transcript)\n" + images.joined(separator: "\n")
                 self.state = .running
                 let spawned = try await HiveClient().spawn(name: "scout-optimise-" + UUID().uuidString.prefix(8), agent: "claude", cwd: workspace.path, title: "Optimise Scout tasks", prompt: prompt)
+                ownedBee = spawned
                 guard self.generation == token else {
                     if let spawned {
-                        let cleanup = Task { try await HiveClient().stopOptimise(spawned) }
+                        let cleanup = Task {
+                            try await HiveClient().stopOptimise(spawned)
+                            Self.removeWorkspace(staged)
+                        }
                         do { try await cleanup.value } catch { self.error = error.localizedDescription }
                     }
                     return
@@ -181,7 +194,9 @@ final class OptimiseReview {
                     if (status.state == nil || status.state == "booting"), Date() >= bootDeadline { throw HiveClient.HiveError.requestFailed("Claude did not finish starting within 20 seconds. Your review is unchanged.") }
                     if let reply = try HiveClient().finalOptimiseReply(status) {
                         let text = Self.jsonReply(reply)
-                        let document = try OptimiseDocument.decode(Data(text.utf8))
+                        let document: OptimiseDocument
+                        do { document = try OptimiseDocument.decode(Data(text.utf8)) }
+                        catch { throw HiveClient.HiveError.requestFailed("Claude replied without a valid result: " + String(reply.prefix(200))) }
                         try Task.checkCancellation()
                         guard self.generation == token else { return }
                         try encoder.encode(document).write(to: output, options: .atomic)
@@ -194,23 +209,36 @@ final class OptimiseReview {
                         self.rejectedIDs = []
                         self.phase = nil
                         self.state = .ready
+                        self.cleanupTask = Task { [weak self] in
+                            defer { if self?.generation == token { self?.cleanupTask = nil } }
+                            do {
+                                try await HiveClient().stopOptimise(spawned)
+                                Self.removeWorkspace(staged)
+                            } catch { if self?.generation == token { self?.error = error.localizedDescription } }
+                        }
                         return
                     }
                     try await Task.sleep(for: .milliseconds(500))
                 }
                 throw HiveClient.HiveError.timedOut
             } catch {
-                guard self.generation == token else { return }
+                guard self.generation == token else {
+                    if ownedBee == nil { Self.removeWorkspace(staged) }
+                    return
+                }
                 self.phase = nil
                 self.error = error.localizedDescription
                 self.state = .failed(error.localizedDescription)
                 if let beeID = self.beeID {
                     self.cleanupTask = Task { [weak self] in
                         defer { if self?.generation == token { self?.cleanupTask = nil } }
-                        do { try await HiveClient().stopOptimise(beeID) }
+                        do {
+                            try await HiveClient().stopOptimise(beeID)
+                            Self.removeWorkspace(staged)
+                        }
                         catch { if self?.generation == token { self?.error = (self?.error ?? "") + "\n" + error.localizedDescription } }
                     }
-                }
+                } else { Self.removeWorkspace(staged) }
             }
         }
     }
@@ -259,14 +287,35 @@ final class OptimiseReview {
         state = .ready
     }
 
+    private static func workspaceRoot() throws -> URL {
+        let root = ScoutDataRoot.url.appendingPathComponent("OptimiseRuns", isDirectory: true)
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let resolved = root.resolvingSymlinksInPath().path
+        for folder in ["Desktop", "Documents", "Downloads", "Library/Mobile Documents", "Library/CloudStorage"] {
+            let protected = home.appendingPathComponent(folder).resolvingSymlinksInPath().path
+            if resolved == protected || resolved.hasPrefix(protected + "/") { throw HiveClient.HiveError.requestFailed("The optimiser data root must not be in a protected Desktop, Documents, Downloads or cloud folder.") }
+        }
+        return root
+    }
+
     private static func workspace() throws -> URL {
-        let support = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
-        let root = support.appendingPathComponent("Scout-Optimise-Runs", isDirectory: true)
+        let root = try workspaceRoot()
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        guard root.resolvingSymlinksInPath().path.hasPrefix(FileManager.default.homeDirectoryForCurrentUser.resolvingSymlinksInPath().appendingPathComponent("Library/Application Support").path + "/") else { throw HiveClient.HiveError.requestFailed("The optimiser workspace must remain in Application Support.") }
         let directory = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         return directory
+    }
+
+    static func sweepWorkspaces() {
+        guard let root = try? workspaceRoot(), let folders = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey]) else { return }
+        for folder in folders {
+            guard UUID(uuidString: folder.lastPathComponent) != nil, let values = try? folder.resourceValues(forKeys: [.contentModificationDateKey, .isDirectoryKey]), values.isDirectory == true, let date = values.contentModificationDate, Date().timeIntervalSince(date) > 86_400 else { continue }
+            removeWorkspace(folder)
+        }
+    }
+
+    private static func removeWorkspace(_ directory: URL?) {
+        if let directory { try? FileManager.default.removeItem(at: directory) }
     }
 
     private static func jsonReply(_ reply: String) -> String {

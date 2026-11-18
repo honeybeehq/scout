@@ -37,6 +37,8 @@ for case, mode in cases:
         server.terminate()
         server.wait(timeout=5)
         report = json.loads((folder / "report.json").read_text())
+        request = json.loads((folder / "spawn.json").read_text())
+        assert not pathlib.Path(request["params"]["cwd"]).exists()
         if case in ["success", "cancel", "timeout", "dense"]:
             stop = json.loads((folder / "spawn.json.stop.json").read_text())
             assert stop["params"]["beeId"] == "fixture-agent"
@@ -44,7 +46,7 @@ for case, mode in cases:
             assert 179 <= report["elapsed"] <= 190
         if case == "dense":
             request = json.loads((folder / "spawn.json").read_text())
-            ledger = pathlib.Path(request["params"]["cwd"]) / "optimise-ledger.json"
+            ledger = pathlib.Path(report["sessionCopy"]) / "optimise-ledger.json"
             measurement = {"promptBytes": len(request["params"]["prompt"].encode()), "ledgerBytes": ledger.stat().st_size, "focuses": 7200, "durationSeconds": 1800}
             (folder / "prompt-size.json").write_text(json.dumps(measurement, indent=2))
         print(case + ": PASS", flush=True)

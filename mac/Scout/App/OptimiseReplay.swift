@@ -121,6 +121,7 @@ enum OptimiseReplay {
                     print(String(decoding: data, as: UTF8.self))
                     exit(0)
                 }
+                await review.optimise.waitForCleanup()
                 guard review.optimise.state == .ready else { throw NSError(domain: "Replay", code: 3, userInfo: [NSLocalizedDescriptionKey: review.optimise.error ?? "Agent run did not finish"]) }
             } else {
                 try review.optimise.loadProposals(from: URL(fileURLWithPath: fixture))
