@@ -353,6 +353,21 @@ kbd {
 .card p { margin-top: 10px; font-size: 15px; line-height: 1.55; color: var(--text-2); text-wrap: pretty; }
 .card p kbd, .card dd kbd, .checks kbd { font-size: .74em; }
 
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-decoration: none;
+}
+.more::after { content: "→"; transition: transform .18s ease; }
+.more:hover { color: var(--text); }
+.more:hover::after { transform: translateX(2px); }
+.card-copy .more, .closer-copy .more { display: flex; width: max-content; }
+
 .shot img { width: 100%; height: auto; }
 .shot-bleed {
   margin: 24px calc(-1 * clamp(22px, 2.6vw, 30px)) calc(-1 * clamp(22px, 2.6vw, 30px)) 0;

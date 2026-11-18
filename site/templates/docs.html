@@ -11,11 +11,11 @@
 <body>
 <a class="skip" href="#content">Skip to content</a>
 <header class="topbar">
-  <a class="brand" href="{{root}}"><img src="{{assets}}scout-icon-64.png" alt="" width="28" height="28"><span>Scout</span></a>
+  <a class="brand" href="{{root}}"><img src="{{assets}}scout-icon-64.png" srcset="{{assets}}scout-icon-64.png 1x, {{assets}}scout-icon-128.png 2x" alt="" width="28" height="28"><span>Scout</span></a>
   <nav class="toplinks" aria-label="Site">
-    <a href="{{docs}}">Docs</a>
-    <a href="https://github.com/honeybeehq/scout/releases/latest" rel="noopener">Download</a>
+    <a href="{{docs}}" aria-current="true">Docs</a>
     <a href="{{repo}}" rel="noopener">GitHub</a>
+    <a class="download" href="https://github.com/honeybeehq/scout/releases/latest" rel="noopener">Download</a>
   </nav>
 </header>
 <div class="layout">
@@ -35,5 +35,14 @@
     <p class="source"><a href="{{source}}" rel="noopener">Edit this page on GitHub</a></p>
   </main>
 </div>
+<footer class="sitefoot">
+  <span class="sitefoot-brand"><img src="{{assets}}scout-icon-64.png" alt="" width="20" height="20"> Scout</span>
+  <nav aria-label="Footer">
+    <a href="{{root}}">Home</a>
+    <a href="{{repo}}" rel="noopener">GitHub</a>
+    <a href="{{repo}}/blob/main/LICENSE" rel="noopener">MIT license</a>
+    <a href="{{repo}}/releases" rel="noopener">Releases</a>
+  </nav>
+</footer>
 </body>
 </html>

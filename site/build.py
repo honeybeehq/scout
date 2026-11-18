@@ -438,9 +438,7 @@ def main():
     except BuildError as e:
         print(f"build failed: {e}", file=sys.stderr)
         return 1
-    files = [p.out_file for p in order]
-    if not (SITE / "index.html").is_file():
-        files.append(DIST / "index.html")
+    files = [p.out_file for p in order] + [DIST / "index.html"]
     checked, broken = check_links(files)
     for line in errors + broken:
         print(f"broken: {line}", file=sys.stderr)

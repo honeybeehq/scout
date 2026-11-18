@@ -74,17 +74,37 @@ a:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-
   justify-content: space-between;
   gap: 16px;
   height: 56px;
-  padding: 0 20px;
-  background: var(--surface);
+  padding: 0 max(clamp(20px, 4vw, 40px), calc((100% - 1200px) / 2));
+  background: var(--canvas);
   border-bottom: 1px solid var(--hairline);
 }
 
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
-.brand img { display: block; border-radius: 7px; }
+.brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.brand img { display: block; }
 
-.toplinks { display: flex; gap: 4px; }
+.toplinks { display: flex; align-items: center; gap: 6px; }
 .toplinks a { padding: 6px 10px; border-radius: var(--radius-control); text-decoration: none; font-size: 14px; font-weight: 500; color: var(--text-secondary); }
 .toplinks a:hover { background: var(--fill-raised); color: var(--text); }
+.toplinks a[aria-current] { color: var(--text); }
+.toplinks .download { margin-left: 2px; padding: 7px 12px; background: var(--ink); color: var(--on-ink); font-size: 13px; font-weight: 600; }
+.toplinks .download:hover { background: var(--ink); color: var(--on-ink); opacity: .88; }
+
+.sitefoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 28px max(clamp(20px, 4vw, 40px), calc((100% - 1200px) / 2)) 40px;
+  border-top: 1px solid var(--hairline);
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+.sitefoot-brand { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-weight: 600; }
+.sitefoot-brand img { display: block; }
+.sitefoot nav { display: flex; flex-wrap: wrap; gap: 22px; }
+.sitefoot a { text-decoration: none; }
+.sitefoot a:hover { color: var(--text); }
 
 .layout {
   display: grid;
@@ -224,7 +244,6 @@ kbd {
 }
 
 @media (max-width: 480px) {
-  .topbar { padding: 0 12px; }
   .toplinks a { padding: 6px 8px; }
   .pager { grid-template-columns: 1fr; }
   .pager .next { grid-column: 1; }
