@@ -10,7 +10,6 @@
 <meta name="theme-color" content="#F6F6F4" media="(prefers-color-scheme: light)">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/scout-icon-64.png">
 <link rel="apple-touch-icon" href="assets/scout-icon-256.png">
-<link rel="preload" as="image" type="image/webp" href="assets/img/review-tasks-dark@1x.webp" imagesrcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="assets/landing.css">
 </head>
 <body>
@@ -46,49 +45,63 @@
   </div>
 
   <div class="wrap">
-    <figure class="desk" aria-label="Scout on a Mac desktop: the recording bar at the top of the screen, the review window, and the menu bar panel">
-      <div class="stage">
-        <div class="menubar" aria-hidden="true">
-          <span class="mb-app">Safari</span>
-          <span>File</span><span>Edit</span><span>View</span><span>History</span>
-          <span class="mb-right">
-            <span class="glyph"></span>
-            <span class="mb-time">Tue 18:26</span>
-          </span>
-        </div>
-
-        <div class="win win-review">
-          <a class="win-link" href="assets/img/review-tasks-dark@2x.webp" aria-label="Open the review window screenshot at full size">
-            <picture>
-              <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-tasks-light@1x.webp 1x, assets/img/review-tasks-light@2x.webp 2x">
-              <img src="assets/img/review-tasks-dark@1x.webp" srcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" width="1260" height="820" alt="The review window: three tasks from a 34-second session in Safari, the session video, the selected task's transcript and pointed-at elements, and a timeline" fetchpriority="high">
-            </picture>
-          </a>
-          <span class="pin" aria-hidden="true">2</span>
-          <p class="swipe-hint" aria-hidden="true">Swipe to see the whole window</p>
-        </div>
-
-        <div class="win win-panel">
-          <picture>
-            <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/menu-bar-panel-light@1x.webp 1x, assets/img/menu-bar-panel-light@2x.webp 2x">
-            <img src="assets/img/menu-bar-panel-dark@1x.webp" srcset="assets/img/menu-bar-panel-dark@1x.webp 1x, assets/img/menu-bar-panel-dark@2x.webp 2x" width="336" height="617" loading="lazy" alt="The menu bar panel: Start scouting, Record as tasks, recent tasks with their state, and hive and Apiary status">
-          </picture>
-          <span class="pin" aria-hidden="true">3</span>
-        </div>
-
-        <div class="win win-bar">
-          <div class="bar-clip">
-            <picture>
-              <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/recording-bar-light@1x.webp 1x, assets/img/recording-bar-light@2x.webp 2x">
-              <img src="assets/img/recording-bar-dark@1x.webp" srcset="assets/img/recording-bar-dark@1x.webp 1x, assets/img/recording-bar-dark@2x.webp 2x" width="994" height="44" alt="The recording bar: timer, voice level, live transcript, what is being captured, Discard and Finish">
-            </picture>
-          </div>
-          <span class="pin" aria-hidden="true">1</span>
-        </div>
+    <figure class="film" aria-label="A real Scout session on a Mac: pointing at two things on a pricing page while talking, the review window with two tasks, Copy all, and the page after a coding agent made both changes">
+      <div class="film-frame">
+        <video id="hero-video" class="film-video" width="1920" height="1080" muted loop playsinline preload="metadata" poster="assets/hero/hero-poster.webp">
+          <source src="assets/hero/hero.webm" type="video/webm">
+          <source src="assets/hero/hero.mp4" type="video/mp4">
+        </video>
+        <script>
+          (function () {
+            var v = document.getElementById("hero-video");
+            var still = matchMedia("(prefers-reduced-motion: reduce)");
+            var wide = matchMedia("(min-width: 560px)");
+            function sync() {
+              v.controls = still.matches;
+              if (!still.matches && wide.matches) {
+                var p = v.play();
+                if (p && p.catch) p.catch(function () {});
+              } else {
+                v.pause();
+              }
+            }
+            sync();
+            still.addEventListener("change", sync);
+            wide.addEventListener("change", sync);
+          })();
+        </script>
       </div>
+      <figcaption>
+        <ol class="legend">
+          <li><span class="num">1</span><div><b>Point and talk.</b> Scout records the screen and your voice. Point at the button, then the headline, and say what should change.</div></li>
+          <li><span class="num">2</span><div><b>Review, then Copy all.</b> When you stop, each ask is its own task, with what you said and what you pointed at. <i>Copy all</i> puts both on the clipboard.</div></li>
+          <li><span class="num">3</span><div><b>The agent's change.</b> A coding agent got that text and made both changes. The page reloads with them.</div></li>
+        </ol>
+      </figcaption>
     </figure>
 
-    <div class="hero-foot">
+    <div class="stack" aria-label="Scout's recording bar, review window and menu bar panel">
+      <div class="win win-bar">
+        <div class="bar-clip">
+          <picture>
+            <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/recording-bar-light@1x.webp 1x, assets/img/recording-bar-light@2x.webp 2x">
+            <img src="assets/img/recording-bar-dark@1x.webp" srcset="assets/img/recording-bar-dark@1x.webp 1x, assets/img/recording-bar-dark@2x.webp 2x" width="994" height="44" loading="lazy" alt="The recording bar: timer, voice level, live transcript, what is being captured, Discard and Finish">
+          </picture>
+        </div>
+        <span class="pin" aria-hidden="true">1</span>
+      </div>
+
+      <div class="win win-review">
+        <a class="win-link" href="assets/img/review-tasks-dark@2x.webp" aria-label="Open the review window screenshot at full size">
+          <picture>
+            <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-tasks-light@1x.webp 1x, assets/img/review-tasks-light@2x.webp 2x">
+            <img src="assets/img/review-tasks-dark@1x.webp" srcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" width="1260" height="820" loading="lazy" alt="The review window: three tasks from a 34-second session in Safari, the session video, the selected task's transcript and pointed-at elements, and a timeline">
+          </picture>
+        </a>
+        <span class="pin" aria-hidden="true">2</span>
+        <p class="swipe-hint" aria-hidden="true">Swipe to see the whole window</p>
+      </div>
+
       <div class="panel-card">
         <picture>
           <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/menu-bar-panel-light@1x.webp 1x, assets/img/menu-bar-panel-light@2x.webp 2x">
