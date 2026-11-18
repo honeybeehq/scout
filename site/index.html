@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scout: talk and point, your coding agents get the task</title>
+<meta name="description" content="Scout is a Mac app. Use your app, say what's wrong and point at it. Scout turns that into tasks for coding agents, transcribed on your Mac.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0A0A0C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F6F4" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/scout-icon-64.png">
+<link rel="apple-touch-icon" href="assets/scout-icon-256.png">
+<link rel="preload" as="image" type="image/webp" href="assets/img/review-tasks-dark@1x.webp" imagesrcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="assets/landing.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-row">
+    <a class="brand" href="./" aria-label="Scout home">
+      <img src="assets/scout-icon-64.png" srcset="assets/scout-icon-64.png 1x, assets/scout-icon-128.png 2x" width="28" height="28" alt="">
+      <span>Scout</span>
+    </a>
+    <nav class="top-nav" aria-label="Main">
+      <a href="https://github.com/honeybeehq/scout/tree/main/docs">Docs</a>
+      <a href="https://github.com/honeybeehq/scout">GitHub</a>
+      <a class="btn btn-ink btn-sm" href="https://github.com/honeybeehq/scout/releases/latest">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="wrap hero-copy">
+    <img class="hero-icon" src="assets/scout-icon-128.png" srcset="assets/scout-icon-128.png 1x, assets/scout-icon-256.png 2x" width="88" height="88" alt="The Scout app icon: a telescope seen end-on, its lens glowing coral">
+    <h1>Say what's wrong.<br>Point at it.</h1>
+    <p class="lede">Use your app and talk. Scout turns what you say and what you point at into ready-to-run tasks for your coding agents, transcribed on your Mac.</p>
+    <div class="cta">
+      <a class="btn btn-primary btn-lg" href="https://github.com/honeybeehq/scout/releases/latest">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v9m0 0L4.5 7M8 10.5 11.5 7M2.5 13.5h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download for Mac
+      </a>
+      <p class="cta-meta">macOS 26 or later · Open source, MIT</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <figure class="desk" aria-label="Scout on a Mac desktop: the recording bar at the top of the screen, the review window, and the menu bar panel">
+      <div class="stage">
+        <div class="menubar" aria-hidden="true">
+          <span class="mb-app">Safari</span>
+          <span>File</span><span>Edit</span><span>View</span><span class="mb-hide">History</span>
+          <span class="mb-right">
+            <span class="glyph"></span>
+            <span class="mb-time">Tue 18:26</span>
+          </span>
+        </div>
+
+        <picture class="win win-review">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-tasks-light@1x.webp 1x, assets/img/review-tasks-light@2x.webp 2x">
+          <img src="assets/img/review-tasks-dark@1x.webp" srcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" width="1260" height="820" alt="The review window: three tasks from a 34-second session in Safari, the session video, the selected task's transcript and pointed-at elements, and a timeline" fetchpriority="high">
+        </picture>
+
+        <picture class="win win-panel">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/menu-bar-panel-light@1x.webp 1x, assets/img/menu-bar-panel-light@2x.webp 2x">
+          <img src="assets/img/menu-bar-panel-dark@1x.webp" srcset="assets/img/menu-bar-panel-dark@1x.webp 1x, assets/img/menu-bar-panel-dark@2x.webp 2x" width="336" height="617" alt="The menu bar panel: Start scouting, Record as tasks, recent tasks with their state, and hive and Apiary status">
+        </picture>
+
+        <picture class="win win-bar">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/recording-bar-light@1x.webp 1x, assets/img/recording-bar-light@2x.webp 2x">
+          <img src="assets/img/recording-bar-dark@1x.webp" srcset="assets/img/recording-bar-dark@1x.webp 1x, assets/img/recording-bar-dark@2x.webp 2x" width="994" height="44" alt="The recording bar: timer, voice level, live transcript, what is being captured, Discard and Finish">
+        </picture>
+
+        <span class="pin pin-1" aria-hidden="true">1</span>
+        <span class="pin pin-2" aria-hidden="true">2</span>
+        <span class="pin pin-3" aria-hidden="true">3</span>
+      </div>
+    </figure>
+
+    <ol class="legend">
+      <li><span class="num">1</span><div><b>Recording bar.</b> Press <kbd>⌃⌥S</kbd> in any app. The bar hangs from the top of the screen and shows the words it hears as you talk.</div></li>
+      <li><span class="num">2</span><div><b>Review window.</b> After you stop, every task is laid out on a timeline. Trim, split, join, edit, then send.</div></li>
+      <li><span class="num">3</span><div><b>Menu bar panel.</b> Start scouting, see recent tasks and where they went, reopen earlier sessions.</div></li>
+    </ol>
+  </div>
+</section>
+
+<section class="features" aria-labelledby="features-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="features-title">From a sentence to a task.</h2>
+      <p>Each task says what you said, shows what you saw and names the element you pointed at. With the web SDK, it names the source file too.</p>
+    </div>
+
+    <div class="bento">
+
+      <article class="card c-review">
+        <div class="card-copy">
+          <h3>Review, then send</h3>
+          <p>Each task is an outlined region on a filmstrip of the session. Drag an edge to trim; edges snap to your pauses. Speech that isn't in a task yet stays visible, so nothing you said gets lost.</p>
+          <ul class="keys">
+            <li><kbd>⌘B</kbd> Split</li>
+            <li><kbd>⌘J</kbd> Join next</li>
+            <li><kbd>⌘Z</kbd> Undo</li>
+            <li><kbd>⌘↩</kbd> Send task</li>
+          </ul>
+        </div>
+        <picture class="shot shot-bleed">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-tasks-light@1x.webp 1x, assets/img/review-tasks-light@2x.webp 2x">
+          <img src="assets/img/review-tasks-dark@1x.webp" srcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" width="1260" height="820" loading="lazy" decoding="async" alt="Review window with three tasks: one sent, one ready, one that needs a destination, plus a line of speech not in a task yet">
+        </picture>
+      </article>
+
+      <article class="card c-modes">
+        <h3>Two ways to record</h3>
+        <dl class="modes">
+          <div>
+            <dt><kbd>⌃⌥S</kbd> Walkthrough</dt>
+            <dd>One bundle with the transcript and word timings, key frames, what you pointed at and drew, and a short list of asks. Its path goes on the clipboard, ready for <kbd>⌘V</kbd> into Apiary. <kbd>⌃⌥B</kbd> starts a new ask.</dd>
+          </div>
+          <div>
+            <dt>Record as tasks</dt>
+            <dd>Pick it in the menu bar. Scout cuts the stream into tasks while you talk, on pauses, cue words like "next" and changes of app or target. Or set <i>New task</i> to <kbd>⌃⌥B</kbd> and cut only when you say so.</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="card c-long">
+        <picture class="shot shot-top">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-walkthrough-light@1x.webp 1x, assets/img/review-walkthrough-light@2x.webp 2x">
+          <img src="assets/img/review-walkthrough-dark@1x.webp" srcset="assets/img/review-walkthrough-dark@1x.webp 1x, assets/img/review-walkthrough-dark@2x.webp 2x" width="1260" height="820" loading="lazy" decoding="async" alt="Review of a five-minute session across Safari and Simulator, split into six tasks">
+        </picture>
+        <div class="card-copy">
+          <h3>Five minutes, six tasks</h3>
+          <p>One session can hold many pieces of feedback, across apps. Scout follows the pane or window under your pointer, so the clip is about what you were looking at.</p>
+        </div>
+      </article>
+
+      <article class="card c-point">
+        <h3>Point, don't describe</h3>
+        <p>Hover and Scout notes what you rest on. Hold <kbd>⌥</kbd> and click to pin an element. Hold <kbd>⌥</kbd> and drag to draw.</p>
+        <div class="element" aria-label="Example of a pinned element">
+          <span class="el-pin">1</span>
+          <span class="el-name">Button "Pay now"</span>
+          <span class="el-src">Checkout.tsx:88</span>
+        </div>
+        <ul class="keylist">
+          <li><span>Start or finish</span><kbd>⌃⌥S</kbd></li>
+          <li><span>Pin an element</span><kbd>⌥ click</kbd></li>
+          <li><span>New task or ask</span><kbd>⌃⌥B</kbd></li>
+          <li><span>Widen the capture</span><kbd>⌃⌥E</kbd></li>
+          <li><span>Discard everything</span><kbd>⌃⌥X</kbd></li>
+        </ul>
+        <div class="shot-bar">
+          <picture>
+            <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/recording-bar-light@1x.webp 1x, assets/img/recording-bar-light@2x.webp 2x">
+            <img src="assets/img/recording-bar-dark@1x.webp" srcset="assets/img/recording-bar-dark@1x.webp 1x, assets/img/recording-bar-dark@2x.webp 2x" width="994" height="44" loading="lazy" decoding="async" alt="The recording bar while following the screen, with Discard and Finish">
+          </picture>
+          <p class="shot-cap">The bar shows what it is capturing. It follows your pointer; <kbd>⌃⌥E</kbd> widens it.</p>
+        </div>
+      </article>
+
+      <article class="card c-voice">
+        <div class="card-copy">
+          <h3>Pick your transcriber</h3>
+          <p>The built-in Apple transcriber is ready at once and writes your words live. Whisper large-v3-turbo writes the whole transcript again after you stop, after a one-time download of about 650 MB. Both run on your Mac.</p>
+        </div>
+        <picture class="shot shot-bleed">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/transcriber-choice-light@1x.webp 1x, assets/img/transcriber-choice-light@2x.webp 2x">
+          <img src="assets/img/transcriber-choice-dark@1x.webp" srcset="assets/img/transcriber-choice-dark@1x.webp 1x, assets/img/transcriber-choice-dark@2x.webp 2x" width="940" height="640" loading="lazy" decoding="async" alt="Setup step: choose the built-in Apple transcriber or download Whisper large-v3-turbo, both on device">
+        </picture>
+      </article>
+
+      <article class="card c-send">
+        <h3>Send it anywhere</h3>
+        <p>Every task works as plain text, so any agent or chat can take it.</p>
+        <ul class="dests">
+          <li>
+            <span class="dest-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><rect x="5" y="3.5" width="10" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7.5" y="2" width="5" height="3" rx="1" fill="currentColor"/></svg></span>
+            <div><b>Clipboard</b><span>Paste into any agent. <i>Copy all</i> copies every task at once.</span></div>
+            <span class="tag">Always</span>
+          </li>
+          <li>
+            <span class="dest-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M4 6.5h12M4 10h12M4 13.5h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+            <div><b>hive</b><span>Goes to the session already working in the app's repo, or a new one.</span></div>
+            <span class="tag">Optional</span>
+          </li>
+          <li>
+            <span class="dest-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M10 2.8 16.2 6.4v7.2L10 17.2 3.8 13.6V6.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+            <div><b>Apiary</b><span>Tasks and attachments render the same as in hive.</span></div>
+            <span class="tag">Optional</span>
+          </li>
+        </ul>
+        <pre class="task-md" aria-label="Example task body"><code><span class="md-h">## Pay now button is too small</span>
+<span class="md-q">&gt; The pay now button is way too small…</span>
+<span class="md-k">**Pointed at:**</span> Button "Pay now" · Checkout.tsx:88
+[Attached video: …/clip.mp4]</code></pre>
+      </article>
+
+      <article class="card c-privacy">
+        <h3>Stays on your Mac</h3>
+        <ul class="checks">
+          <li><b>Transcribed on your Mac.</b> Speech never goes to a server to be written down.</li>
+          <li><b>Nothing leaves until you send it.</b> You see each task, and can edit it or leave things out, first.</li>
+          <li><b>Discard means gone.</b> <kbd>⌃⌥X</kbd> twice deletes the recording and its files. Nothing is sent or copied.</li>
+          <li><b>No account needed.</b> hive and Apiary are optional. Without them, tasks go to the clipboard.</li>
+        </ul>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section class="closer">
+  <div class="wrap closer-row">
+    <img src="assets/scout-icon-128.png" srcset="assets/scout-icon-128.png 1x, assets/scout-icon-256.png 2x" width="72" height="72" alt="" loading="lazy">
+    <div class="closer-copy">
+      <h2>Try it on your next build.</h2>
+      <p>Setup checks each permission live and brings you back when it's granted. You can skip any of them and grant it later.</p>
+    </div>
+    <div class="cta cta-end">
+      <a class="btn btn-primary btn-lg" href="https://github.com/honeybeehq/scout/releases/latest">Download for Mac</a>
+      <p class="cta-meta">macOS 26 or later</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-row">
+    <span class="foot-brand"><img src="assets/scout-icon-64.png" width="20" height="20" alt="" loading="lazy"> Scout</span>
+    <nav aria-label="Footer">
+      <a href="https://github.com/honeybeehq/scout/tree/main/docs">Docs</a>
+      <a href="https://github.com/honeybeehq/scout">GitHub</a>
+      <a href="https://github.com/honeybeehq/scout/blob/main/LICENSE">MIT license</a>
+      <a href="https://github.com/honeybeehq/scout/releases">Releases</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
