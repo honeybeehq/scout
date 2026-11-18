@@ -87,6 +87,7 @@ enum HeroDemo {
         }
         let pid = safari.processIdentifier
         if !(await placeWindow(pid: pid, frame: plan.safariFrame)) { problems.append("could not place the Safari window") }
+        note("safari.banner", await dismissBanner(pid: pid))
         try? await Task.sleep(for: .seconds(1.2))
         let button = await findFrame(pid: pid, text: plan.button, roles: ["AXLink", "AXButton"], prefix: false)
         let headline = await findFrame(pid: pid, text: plan.headline, roles: ["AXHeading", "AXStaticText"], prefix: true)
@@ -102,7 +103,8 @@ enum HeroDemo {
         let headlinePoint = CGPoint(x: headline.minX + min(240, headline.width * 0.3), y: headline.minY + min(30, headline.height * 0.2))
         let pointer = HeroPointer(start: CGPoint(x: plan.safariFrame.minX + plan.safariFrame.width * 0.62, y: plan.safariFrame.maxY - 90))
 
-        let partA = HeroRecording(url: output.appendingPathComponent("part-a.mov"), log: output.appendingPathComponent("part-a.log"))
+        let spoken = plan.lead + plan.first + plan.gap + plan.second + 1.4
+        let partA = HeroRecording(url: output.appendingPathComponent("part-a.mov"), seconds: Int((2.0 + spoken + 16).rounded(.up)), log: output.appendingPathComponent("part-a.log"))
         note("partA.launched", partA.problem)
         try? await Task.sleep(for: .seconds(2.0))
 
@@ -135,7 +137,7 @@ enum HeroDemo {
         let secondPin = plan.lead + plan.first + plan.gap + 0.4
         await at(secondPin - 0.9)
         await pin(model: model, at: headlinePoint, log: "pin.headline")
-        await at(plan.lead + plan.first + plan.gap + plan.second + 1.4)
+        await at(spoken)
         let session = model.session
         model.finishScouting(input: InteractionTimings.now)
         note("session.finish")
@@ -151,7 +153,7 @@ enum HeroDemo {
         guard let review else {
             problems.append("the review did not open with tasks")
             forcing.cancel()
-            await partA.stop()
+            await partA.finish()
             finish(model: model, output: output, frames: frames, session: session)
             return
         }
@@ -184,8 +186,7 @@ enum HeroDemo {
         note("copy.done", review.tasks.map { String(describing: $0.state) }.joined(separator: "; "))
         let copied = NSPasteboard.general.string(forType: .string) ?? ""
         try? copied.write(to: output.appendingPathComponent("tasks.txt"), atomically: true, encoding: .utf8)
-        try? await Task.sleep(for: .seconds(3.0))
-        await partA.stop()
+        await partA.finish()
         note("partA.stopped", partA.problem)
         forcing.cancel()
 
@@ -203,7 +204,7 @@ enum HeroDemo {
         }
         note("patch.ready")
 
-        let partB = HeroRecording(url: output.appendingPathComponent("part-b.mov"), log: output.appendingPathComponent("part-b.log"))
+        let partB = HeroRecording(url: output.appendingPathComponent("part-b.mov"), seconds: 14, log: output.appendingPathComponent("part-b.log"))
         note("partB.launched", partB.problem)
         try? await Task.sleep(for: .seconds(2.5))
         let pagePoint = CGPoint(x: headlinePoint.x + 120, y: headlinePoint.y + 230)
@@ -214,8 +215,7 @@ enum HeroDemo {
         try? await Task.sleep(for: .seconds(1.6))
         let applied = apply(patch: output.appendingPathComponent("patch/files", isDirectory: true), to: plan.site)
         note("patch.applied", applied.joined(separator: ", "))
-        try? await Task.sleep(for: .seconds(5.0))
-        await partB.stop()
+        await partB.finish()
         note("partB.stopped", partB.problem)
         finish(model: model, output: output, frames: frames, session: session, review: review)
     }
@@ -272,6 +272,22 @@ enum HeroDemo {
         let sized = AXUIElementSetAttributeValue(window.element, kAXSizeAttribute as CFString, extent)
         AXUIElementPerformAction(window.element, kAXRaiseAction as CFString)
         return moved == .success && sized == .success
+    }
+
+    @concurrent
+    nonisolated private static func dismissBanner(pid: pid_t) async -> String {
+        guard let window = mainWindow(pid: pid) else { return "no window" }
+        guard let text = window.firstDescendant(maxDepth: 30, maxVisited: 3000, where: { ($0.label ?? "").hasPrefix("Make Safari your default browser") }) else { return "no banner" }
+        var container = text.parent
+        for _ in 0..<4 {
+            guard let current = container else { break }
+            if let close = current.firstDescendant(maxDepth: 4, maxVisited: 200, where: { $0.role == "AXButton" && $0.label != "Make Safari Default" }) {
+                let result = AXUIElementPerformAction(close.element, kAXPressAction as CFString)
+                return "pressed \(close.label ?? "unlabeled button"): \(result.rawValue)"
+            }
+            container = current.parent
+        }
+        return "no close button"
     }
 
     @concurrent
@@ -347,13 +363,14 @@ private final class HeroPointer {
 @MainActor
 private final class HeroRecording {
     private let process = Process()
-    private let input = Pipe()
+    private let seconds: Int
     private(set) var problem: String?
 
-    init(url: URL, log: URL) {
+    init(url: URL, seconds: Int, log: URL) {
+        self.seconds = seconds
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = ["-v", "-C", "-x", "-V", "300", url.path]
-        process.standardInput = input
+        process.arguments = ["-v", "-C", "-x", "-V", String(seconds), url.path]
+        process.standardInput = FileHandle.nullDevice
         FileManager.default.createFile(atPath: log.path, contents: nil)
         let handle = try? FileHandle(forWritingTo: log)
         process.standardOutput = handle
@@ -365,28 +382,15 @@ private final class HeroRecording {
         }
     }
 
-    func stop() async {
-        guard process.isRunning else {
-            problem = (problem ?? "") + " exited early with status \(process.terminationStatus)"
-            return
-        }
-        try? input.fileHandleForWriting.write(contentsOf: Data("q\n".utf8))
-        if await waitForExit(seconds: 4) { return }
-        process.interrupt()
-        if await waitForExit(seconds: 8) {
-            problem = "stopped with SIGINT"
-            return
-        }
-        process.terminate()
-        _ = await waitForExit(seconds: 5)
-        problem = "stopped with SIGTERM"
-    }
-
-    private func waitForExit(seconds: Double) async -> Bool {
-        let deadline = Date().addingTimeInterval(seconds)
+    func finish() async {
+        let deadline = Date().addingTimeInterval(Double(seconds) + 30)
         while process.isRunning, Date() < deadline {
             try? await Task.sleep(for: .milliseconds(100))
         }
-        return !process.isRunning
+        if process.isRunning {
+            problem = "still running after \(seconds + 30) s"
+        } else if process.terminationStatus != 0 {
+            problem = "screencapture exited with \(process.terminationStatus)"
+        }
     }
 }
