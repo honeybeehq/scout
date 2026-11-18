@@ -6,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 
-WIDTH, HEIGHT, FPS = 1600, 900, 30
+WIDTH, HEIGHT, FPS = 1920, 1080, 30
 
 
 def run(cmd, **kw):
@@ -23,8 +23,8 @@ def probe(path):
 
 def gray_frames(path, crop, start, seconds, size=(64, 36)):
     w, h = size
-    cmd = ["ffmpeg", "-v", "error", "-ss", str(start), "-t", str(seconds), "-i", path,
-           "-vf", f"crop={crop},scale={w}:{h},format=gray,fps={FPS}", "-f", "rawvideo", "-"]
+    cmd = ["ffmpeg", "-v", "error", "-i", path,
+           "-vf", f"fps={FPS},trim=start={start}:duration={seconds},crop={crop},scale={w}:{h},format=gray", "-f", "rawvideo", "-"]
     raw = subprocess.run(cmd, check=True, capture_output=True).stdout
     step = w * h
     return [raw[i:i + step] for i in range(0, len(raw) - step + 1, step)]
@@ -54,8 +54,8 @@ def write_ass(path, captions, font):
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
         "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Caption,{font},34,&H00FFFFFF,&H00FFFFFF,&H30111111,&H30111111,-1,0,0,0,100,100,0,0,3,14,0,2,80,80,46,1",
-        f"Style: Quote,{font},34,&H00FFFFFF,&H00FFFFFF,&H30111111,&H30111111,0,-1,0,0,100,100,0,0,3,14,0,2,80,80,46,1",
+        f"Style: Caption,{font},40,&H00FFFFFF,&H00FFFFFF,&H30111111,&H30111111,-1,0,0,0,100,100,0,0,3,16,0,2,96,96,56,1",
+        f"Style: Quote,{font},40,&H00FFFFFF,&H00FFFFFF,&H30111111,&H30111111,0,-1,0,0,100,100,0,0,3,16,0,2,96,96,56,1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     for start, end, style, text in captions:
@@ -69,8 +69,8 @@ def main():
     parser.add_argument("--out", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "site/assets/hero"))
     parser.add_argument("--font", default="Liberation Sans")
     parser.add_argument("--fontsdir", default="/usr/share/fonts/truetype/liberation")
-    parser.add_argument("--crf", default="30")
-    parser.add_argument("--webm-crf", default="44")
+    parser.add_argument("--crf", default="26")
+    parser.add_argument("--webm-crf", default="38")
     parser.add_argument("--draft", action="store_true", help="only write hero-draft.mp4")
     args = parser.parse_args()
 
@@ -126,8 +126,8 @@ def main():
         (speech1 + first + 0.5, speech2 - 0.1, "Caption", "Pin a second element"),
         (speech2, speech2 + second + 0.3, "Quote", f"“{line2}”"),
         (starts[1] + 0.2, copy0 - 0.2, "Caption", "Stop. Each ask became its own task"),
-        (copy0, starts[2] - 0.1, "Caption", "Copy all: both tasks go to a coding agent"),
-        (starts[2] + 0.3, reload0 - 0.1, "Caption", "The agent edited the page"),
+        (copy0, starts[2] - 0.1, "Caption", "Copy all: both tasks, ready for a coding agent"),
+        (starts[2] + 0.3, reload0 - 0.1, "Caption", "A coding agent made the changes"),
         (reload0, total - 0.1, "Caption", "The page reloads with both changes"),
     ]
 
@@ -137,8 +137,9 @@ def main():
 
     inputs, filters = [], []
     for index, (path, start, end, speed) in enumerate(segments):
-        inputs += ["-ss", f"{start:.3f}", "-t", f"{end - start:.3f}", "-i", path]
-        filters.append(f"[{index}:v]setpts=(PTS-STARTPTS)/{speed},fps={FPS},scale={WIDTH}:{HEIGHT}:flags=lanczos,format=yuv420p,settb=1/{FPS}[v{index}]")
+        inputs += ["-i", path]
+        filters.append(f"[{index}:v]fps={FPS},tpad=stop_mode=clone:stop_duration=30,trim=start={start:.3f}:end={end:.3f},"
+                       f"setpts=(PTS-STARTPTS)/{speed},fps={FPS},scale={WIDTH}:{HEIGHT}:flags=lanczos,format=yuv420p,settb=1/{FPS}[v{index}]")
     chain = "v0"
     for index in range(1, len(segments)):
         filters.append(f"[{chain}][v{index}]xfade=transition=fade:duration={fade}:offset={starts[index]:.3f}[x{index}]")
@@ -171,7 +172,7 @@ def main():
     run(["ffmpeg", "-v", "error", "-y", "-i", master, "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", args.webm_crf, "-row-mt", "1",
          "-deadline", "good", "-cpu-used", "1", "-g", str(FPS * 4), "-pass", "2", "-passlogfile", os.path.join(work, "vp9"),
          "-c:a", "libopus", "-b:a", "32k", webm])
-    poster_at = (a("pin.button", 0.25) - s1[0])
+    poster_at = (a("pin.button", -0.3) - s1[0])
     poster_png = os.path.join(work, "poster.png")
     run(["ffmpeg", "-v", "error", "-y", "-ss", f"{poster_at:.3f}", "-i", master, "-frames:v", "1", poster_png])
     run(["ffmpeg", "-v", "error", "-y", "-i", poster_png, "-c:v", "libwebp", "-quality", "82", os.path.join(args.out, "hero-poster.webp")])
