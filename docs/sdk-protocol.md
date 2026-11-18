@@ -13,13 +13,13 @@ Status: draft for M4. Nothing here is implemented yet.
 
 ## Transport
 
-- **Desktop and simulator:** WebSocket at `ws://127.0.0.1:47811/v1`. Port 47811 is new, chosen so Syn's 47845 stays free and both can run. If 47811 is busy, Scout tries 47812–47819 and writes the chosen port to `~/Library/Application Support/Scout/bridge.json`.
+- **Desktop and simulator:** WebSocket at `ws://127.0.0.1:47811/v1`. Port 47811 is new, chosen so Syn's 47845 stays free and both can run. If 47811 is busy, Scout tries 47812–47819 and writes the chosen port to `<ScoutDataRoot>/bridge.json`. The release root defaults to `~/Library/Application Support/Scout`; a test bundle such as `com.trmdy.scout.test` defaults to `~/Library/Application Support/Scout-com.trmdy.scout.test`. An absolute `--data-root=` or `SCOUT_DATA_ROOT` override also applies to the bridge file.
 - **Physical devices (LAN):** Scout advertises Bonjour `_scout._tcp`. Devices connect over TLS using a certificate pinned during pairing. Pairing is a QR code in Scout's SDK settings.
 - **Android emulator:** `adb reverse tcp:47811 tcp:47811`, which Scout sets up when an emulator is detected.
 
 Frames are JSON text. Every message is `{"v":1,"type":"<type>", …}`. Requests carry a string `id`; responses repeat it.
 
-Connecting (web SDK): when the dev-server adapter injected a port from `bridge.json`, the SDK connects to that port only; otherwise it tries 47811–47819 in order. It sends `hello` on open, reconnects with backoff (1 s doubling to 10 s), and stops for the rest of the page load after `error {code:"unauthorized"}`.
+Connecting (web SDK): when the dev-server adapter injected a port from `bridge.json`, the SDK connects to that port only; otherwise it tries 47811–47819 in order. It sends `hello` on open, reconnects with a short localhost backoff (1 s rising to 1.5 s, with ±20% jitter, scheduled delay at most 1.8 s), retries immediately on window focus or becoming visible while disconnected, and stops for the rest of the page load after `error {code:"unauthorized"}`.
 
 ## Trust
 
@@ -179,3 +179,7 @@ Keep the import and registration behind `import.meta.env.DEV` (use a dynamic imp
 `perf` joins the signal kinds and capabilities. It reports visible-page animation-frame gaps over 50 ms as `Frame hitch: N ms`, and browser long-task entries as `Long task: N ms` where supported. It uses the same 50-entry ring, 30-second replay, 20-per-second burst limit and consecutive-message deduplication as other signals, with an additional one-per-second perf limit so hitches leave room for errors. Hidden-page frame gaps are ignored. No signal, entity description or snapshot is transmitted before the session is active.
 
 Game adapters explicitly opt in to sending saves. They must construct the repro save themselves; Scout never reads storage, cookies or input values. Do not include credentials or unrelated player data in save or extra.
+
+Task-close collection belongs to the native scouting session and precedes routing or delivery. Stop captures the open task's state before deactivating the SDK, rather than waiting for speech and video finalization while the game advances. If final transcription creates the task only after Stop, the scoped state captured at Stop is bound to that task. A responsive matching game supplies `game-snapshots/<task-id>.json`, and delivery waits for capture. A reconnect can change the native client ID; Scout remembers its project and falls back only within that project, without requiring a new hover for an explicitly selected or project-scoped client.
+
+If a reconnected client has no reported project root, Scout cannot safely associate it with the previous connection's task and skips that close capture instead of selecting an arbitrary game client.

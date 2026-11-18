@@ -80,6 +80,9 @@ final class ScoutingSession {
     private var recorderStart: Task<Void, Never>?
     private var stopRequested = false
     private var stopRequestedAt: SessionTime?
+    private var gameSnapshots: [String: Task<Void, Never>] = [:]
+    private var webProjects: [String: String] = [:]
+    private var stopGameState: (data: Data, clientID: String, projectRoot: String?)?
     private let bridge: BridgeServer
     private var webDwell: (target: Target, since: SessionTime)?
     private var activity: NSObjectProtocol?
@@ -156,7 +159,9 @@ final class ScoutingSession {
         }
         pointing?.start(watchesPointer: !SimulationMode.replaysEvents)
         bridge.onHover = { [weak self] client, element, viewport, date in
-            self?.webHover(element.target(clientID: client.id, viewport: viewport), at: date)
+            guard let self else { return }
+            if let root = client.hello?.project?.root { webProjects[client.id] = root }
+            webHover(element.target(clientID: client.id, viewport: viewport), at: date)
         }
         bridge.onSignal = { [weak self] client, signal in
             guard let self else { return }
@@ -171,6 +176,9 @@ final class ScoutingSession {
             state["_scoutProjectRoot"] = client.hello?.project?.root
             state["_scoutClientID"] = client.id
             guard let scoped = try? JSONSerialization.data(withJSONObject: state) else { return }
+            if stopRequested && date == nil {
+                stopGameState = (scoped, client.id, client.hello?.project?.root)
+            }
             try? scoped.write(to: folder.appendingPathComponent("\(taskID ?? String(date.map { self.clock.seconds(at: $0) } ?? self.clock.now)).json"), options: .atomic)
             if let walkthrough = self.walkthrough {
                 try? data.write(to: walkthrough.bundle.url(for: "game-latest.json"), options: .atomic)
@@ -226,11 +234,16 @@ final class ScoutingSession {
         follower.stop()
         aim.stop()
         pointing?.stop()
-        await bridge.requestGameState()
-        bridge.setSession(active: false)
-        bridge.onGameState = nil
         bridge.onHover = nil
         bridge.onSignal = nil
+        if let snippet = openSnippet {
+            captureGameState(for: snippet)
+            await waitForGameState(taskID: snippet.id)
+        }
+        if stopGameState == nil { await bridge.requestGameState() }
+        for snapshot in Array(gameSnapshots.values) { await snapshot.value }
+        bridge.setSession(active: false)
+        bridge.onGameState = nil
         closeWebDwell(at: clock.now)
         contextTracker?.stop()
         pointerTracker?.stop()
@@ -296,6 +309,29 @@ final class ScoutingSession {
             color: stroke.color,
             width: stroke.width
         ))
+    }
+
+    func waitForGameState(taskID: String) async {
+        await gameSnapshots[taskID]?.value
+    }
+
+    private func captureGameState(for snippet: Snippet) {
+        guard gameSnapshots[snippet.id] == nil else { return }
+        let target = snippet.targets.first { $0.provider == .web }
+        let clientID = target?.id.split(separator: ":", maxSplits: 2).dropFirst().first.map(String.init)
+        let projectRoot = clientID.flatMap { webProjects[$0] }
+            ?? target.flatMap { bridge.project(forTarget: $0) }?.rootPath
+            ?? bridge.project(forLocation: snippet.primaryContext?.location)?.rootPath
+        if stopRequested, let state = stopGameState {
+            guard clientID == state.clientID || (projectRoot != nil && projectRoot == state.projectRoot) else { return }
+            let file = directory.appendingPathComponent("game-snapshots/\(snippet.id).json")
+            try? state.data.write(to: file, options: .atomic)
+            return
+        }
+        guard clientID != nil || projectRoot != nil else { return }
+        gameSnapshots[snippet.id] = Task { [bridge] in
+            await bridge.requestGameState(taskID: snippet.id, projectRoot: projectRoot, clientID: clientID)
+        }
     }
 
     func adopt(_ card: SnippetCard) {
@@ -442,6 +478,7 @@ final class ScoutingSession {
                 closedCount += 1
                 let immediate = sendNextClosedImmediately
                 sendNextClosedImmediately = false
+                captureGameState(for: snippet)
                 onSnippetClosed?(snippet, immediate)
             case .discarded(let id):
                 if let open = openSnippet, open.id == id {

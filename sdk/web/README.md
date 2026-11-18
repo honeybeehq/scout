@@ -119,3 +119,5 @@ swiftc -I .build/debug/Modules sdk/web/scripts/game-task-proof.swift mac/Scout/B
 ```
 
 This produces `.audit/game/session/snippets/game-pin/{game-state.json,save.json,task.md,message.txt,snippet.json}`. It exercises the native game-state parser and task serialization only; it does not replace native recording and delivery verification on a test Mac.
+
+`pnpm run e2e:cold` keeps the canvas page open without Scout for at least 30 seconds, starts the bridge just after a failed connection attempt, requires a connection within 2.5 seconds, and pins at about 6 seconds. It also verifies immediate focus/visibility retries and writes `.audit/game/cold-page.png`. Run it separately from other fixture servers (default ports 5188 and 47817, configurable with `SCOUT_COLD_DEV_PORT` and `SCOUT_COLD_PORT`).

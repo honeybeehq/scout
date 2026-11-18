@@ -7,7 +7,8 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p packages/web --noEmit && tsc -p packages/react --noEmit && tsc -p packages/vite --noEmit && tsc -p fixtures/react-vite",
     "bridge": "node scripts/mock-bridge.mjs",
-    "e2e": "node scripts/e2e.mjs"
+    "e2e": "node scripts/e2e.mjs",
+    "e2e:cold": "node scripts/e2e-cold.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
