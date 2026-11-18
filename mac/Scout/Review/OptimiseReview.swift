@@ -65,7 +65,7 @@ final class OptimiseReview {
     }
 
     func start() {
-        guard run == nil, let review, !review.isFinishing else { return }
+        guard run == nil, let review, !review.isFinishing, !review.isPreparing else { return }
         state = .preparing
         startedAt = Date()
         phase = "Reading \(review.tasks.count) tasks…"

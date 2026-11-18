@@ -120,7 +120,8 @@ nonisolated enum SessionLibrary {
         let signals = text.split(separator: "\n").compactMap { try? decoder.decode(Signal.self, from: Data($0.utf8)) }
         var ledger = SessionLedger(replaying: signals)
         if let final = FinalTranscript.read(from: directory) { ledger.replaceUtterances(with: final.utterances) }
-        var segmenter = Segmenter()
+        let manual = ReviewRecord.read(from: directory)?.segmentation == "manual"
+        var segmenter = Segmenter(configuration: manual ? .manual : .default)
         for signal in signals {
             for event in segmenter.ingest(signal) {
                 if case .closed(let snippet) = event, let boundary = snippet.closedBy { ledger.recordBoundary(boundary) }

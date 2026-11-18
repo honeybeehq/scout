@@ -63,7 +63,7 @@ extension SessionReview {
                 return !(card.optimiseAttachments?.excludedFrames ?? []).contains(frame.t) && ((time >= card.snippet.range.start && time < card.snippet.range.end) || (card.optimiseAttachments?.frames ?? []).contains(frame.t))
             }.map(\.id)
             let drawings = walkthrough.drawings.filter { Double($0.t) / 1000 >= card.snippet.range.start && Double($0.t) / 1000 < card.snippet.range.end }.map(\.id)
-            return Walkthrough.Ask(id: card.snippet.id, text: card.title, segments: segments, pointers: pointers, drawings: drawings, frames: frames, question: card.optimiseAttachments?.question)
+            return Walkthrough.Ask(id: card.snippet.id, text: card.title, segments: segments, pointers: pointers, drawings: drawings, frame: frames.first, frames: frames, question: card.optimiseAttachments?.question)
         })
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

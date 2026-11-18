@@ -463,7 +463,7 @@ final class SessionReview {
     }
 
     var optimiseMarkedCuts: [SessionTime] {
-        (ledger.markedCuts ?? []) + tasks.compactMap { $0.snippet.closedBy }.filter { $0.isHard && $0.reasons.contains { $0.kind == .command || $0.kind == .cuePhrase } }.map(\.at)
+        ledger.markedCuts ?? []
     }
 
     func optimiseValidation(_ proposal: OptimiseProposal) -> String? {

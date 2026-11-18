@@ -70,7 +70,7 @@ final class ScoutingSession {
     private var pointerTracker: PointerTracker?
     private var ticker: Task<Void, Never>?
     private var sendNextClosedImmediately = false
-    private var cuts: [SessionTime] = []
+    private var cuts: [SessionTime] { ledger.markedCuts ?? [] }
     private var commandRanges: [TimeRange] = []
     private var closedRanges: [TimeRange] = []
     private var startTask: Task<Void, Never>?
@@ -364,7 +364,6 @@ final class ScoutingSession {
         walkthrough?.record(signal)
         if case .mark(let mark) = signal { pointing?.pin(mark) }
         if case .context(let change) = signal { context = change.context }
-        if case .command(let command) = signal, command.command == .split { cuts.append(command.at) }
         handle(segmenter.ingest(signal))
     }
 

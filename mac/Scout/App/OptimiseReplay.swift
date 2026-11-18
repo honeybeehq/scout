@@ -53,7 +53,7 @@ enum OptimiseReplay {
                     }
                     signals.sort { $0.time < $1.time }
                 }
-                let ledger = SessionLedger(replaying: signals)
+                var ledger = SessionLedger(replaying: signals)
                 var segmenter = Segmenter(configuration: .manual)
                 var snippets: [Snippet] = []
                 for signal in signals {
@@ -65,9 +65,19 @@ enum OptimiseReplay {
                 let encoder = JSONEncoder()
                 let log = try signals.map { String(decoding: try encoder.encode($0), as: UTF8.self) }.joined(separator: "\n")
                 try Data(log.utf8).write(to: directory.appendingPathComponent("signals.jsonl"))
+                let finalUtterances = ledger.utterances.map { utterance in
+                    var final = utterance
+                    final.text = "[final-pass] " + final.text
+                    return final
+                }
+                try FinalTranscript(engine: "replay-final", locale: "en", audioSeconds: ledger.end, elapsedSeconds: 1, utterances: finalUtterances).write(to: directory)
+                let cuts = ledger.markedCuts
+                ledger = SessionLibrary.ledger(in: directory)
+                guard ledger.utterances == finalUtterances, Set(ledger.markedCuts ?? []).isSuperset(of: cuts ?? []) else { throw CocoaError(.fileReadCorruptFile) }
                 let cards = snippets.enumerated().map { index, snippet in
                     var snippet = snippet
                     snippet.id = "task-\(index + 1)"
+                    snippet = ledger.snippet(id: snippet.id, range: snippet.range, closedBy: snippet.closedBy)
                     let card = SnippetCard(snippet: snippet, sessionID: "optimise-replay", sessionDirectory: directory)
                     card.destination = .clipboard
                     card.state = .held
@@ -75,6 +85,13 @@ enum OptimiseReplay {
                 }
                 let record = ReviewRecord(sessionID: "optimise-replay", startedAt: Date(), segmentation: "manual", duration: ledger.end, video: nil, display: nil, displayHops: nil, discarded: nil, tasks: cards.map(ReviewRecord.Task.init))
                 review = SessionReview(directory: directory, record: record, ledger: ledger, cards: cards, dispatcher: dispatcher)
+            }
+            if let card = review.tasks.first {
+                let state = card.state
+                card.state = .preparing
+                review.optimise.start()
+                guard review.optimise.state == .idle else { throw CocoaError(.validationMissingMandatoryProperty) }
+                card.state = state
             }
             guard let fixture = argument("--optimise-fixture=") else { throw CocoaError(.fileReadNoSuchFile) }
             if argument("--optimise-via-agent=") == "yes" {
@@ -150,7 +167,7 @@ enum OptimiseReplay {
             review.optimise.acceptAll()
             if let pending = review.optimise.proposals.first(where: { review.optimise.status(for: $0) == .pending || review.optimise.status(for: $0) == .stale }) { review.optimise.reject(pending.id) }
             review.save()
-            let report: [String: Any] = ["source": argument("--optimise-session=") ?? "synthetic segmenter replay", "before": before, "after": after, "accepted": accepted, "validation": invalid, "undoRestored": true, "singleUndoStep": true, "crossingsSkippedByAcceptAll": true, "individualCrossingAccepted": individualCrossingAccepted, "deliveredQuestions": questions, "manualEditsStale": manualEditsStale, "persisted": true, "sessionCopy": review.directory.path, "error": review.optimise.error ?? ""]
+            let report: [String: Any] = ["source": argument("--optimise-session=") ?? "synthetic segmenter replay", "before": before, "after": after, "accepted": accepted, "validation": invalid, "undoRestored": true, "singleUndoStep": true, "crossingsSkippedByAcceptAll": true, "individualCrossingAccepted": individualCrossingAccepted, "deliveredQuestions": questions, "manualEditsStale": manualEditsStale, "preparingBlocked": true, "finalTranscriptEngine": FinalTranscript.read(from: review.directory)?.engine ?? "walkthrough", "persisted": true, "sessionCopy": review.directory.path, "error": review.optimise.error ?? ""]
             let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: output.appendingPathComponent("report.json"), options: .atomic)
             print(String(decoding: data, as: UTF8.self))
