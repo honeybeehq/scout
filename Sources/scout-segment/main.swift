@@ -3,12 +3,14 @@ import ScoutCore
 import ScoutSegmenter
 
 struct Expectations {
+    var finalTranscripts: [String]?
+    var transcripts: [String]?
     var snippetCount: Int?
     var breaks: [Double]?
     var discarded: Int?
     var tolerance: Double = 1.5
 
-    var isEmpty: Bool { snippetCount == nil && breaks == nil && discarded == nil }
+    var isEmpty: Bool { finalTranscripts == nil && transcripts == nil && snippetCount == nil && breaks == nil && discarded == nil }
 }
 
 struct Fixture {
@@ -16,6 +18,7 @@ struct Fixture {
     var signals: [Signal]
     var expectations: Expectations
     var manual = false
+    var mergeFinalSegments = false
 
     var name: String { URL(fileURLWithPath: path).lastPathComponent }
 }
@@ -36,6 +39,7 @@ struct StreamEntry {
 }
 
 struct RunResult {
+    var finalTranscripts: [String] = []
     var snippets: [Snippet] = []
     var discarded: [String] = []
     var evaluations: [BoundaryEvaluation] = []
@@ -74,7 +78,7 @@ func loadFixture(at path: String) throws -> Fixture {
         }
     }
     let manual = text.split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces) == "# mode: manual" }
-    return Fixture(path: path, signals: signals, expectations: expectations, manual: manual)
+    return Fixture(path: path, signals: signals, expectations: expectations, manual: manual, mergeFinalSegments: text.contains("# final-segments: merged"))
 }
 
 func parseHeader(_ line: String, into expectations: inout Expectations, location: String) throws {
@@ -83,7 +87,11 @@ func parseHeader(_ line: String, into expectations: inout Expectations, location
         guard body.hasPrefix(key) else { return nil }
         return body.dropFirst(key.count).trimmingCharacters(in: .whitespaces)
     }
-    if let raw = value(after: "expect-breaks:") {
+    if let raw = value(after: "expect-final-transcripts:") {
+        expectations.finalTranscripts = try JSONDecoder().decode([String].self, from: Data(raw.utf8))
+    } else if let raw = value(after: "expect-transcripts:") {
+        expectations.transcripts = try JSONDecoder().decode([String].self, from: Data(raw.utf8))
+    } else if let raw = value(after: "expect-breaks:") {
         let parts = raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let times = parts.compactMap(Double.init)
         guard times.count == parts.count else { throw FixtureError(description: "\(location): invalid expect-breaks “\(raw)”") }
@@ -143,11 +151,25 @@ func run(_ fixture: Fixture) -> RunResult {
         absorb(segmenter.ingest(signal), at: signal.time)
     }
     absorb(segmenter.finish(at: end), at: end)
+    var segments = fixture.signals.compactMap { signal -> TranscribedSegment? in
+        guard case .utterance(let utterance) = signal else { return nil }
+        return TranscribedSegment(range: utterance.range, text: utterance.text, words: utterance.words)
+    }
+    if fixture.mergeFinalSegments, let first = segments.first, let last = segments.last {
+        segments = [TranscribedSegment(range: TimeRange(start: first.range.start, end: last.range.end), text: segments.map(\.text).joined(separator: " "), words: segments.flatMap(\.words))]
+    }
+    result.finalTranscripts = FinalTranscript.utterances(from: segments, droppingSpeechIn: [], splittingAt: result.breaks, transform: { segmenter.removingTaskPhrase(from: $0) }).map(\.text)
     return result
 }
 
 func verdict(for result: RunResult, expecting expectations: Expectations) -> Verdict {
     var problems: [String] = []
+    if let expected = expectations.finalTranscripts, expected != result.finalTranscripts {
+        problems.append("final transcripts differ: \(result.finalTranscripts)")
+    }
+    if let expected = expectations.transcripts, expected != result.snippets.map(\.transcript) {
+        problems.append("transcripts differ: \(result.snippets.map(\.transcript))")
+    }
     if let expected = expectations.snippetCount, expected != result.snippets.count {
         problems.append("expected \(expected) snippets, got \(result.snippets.count)")
     }

@@ -1,0 +1,8 @@
+# mode: manual
+# expect: 3
+# expect-transcripts: ["Add a tool tip explaining this test action.", "The new task list is slow.", "Keep the next task label visible."]
+# expect-final-transcripts: ["Add a tool tip explaining this test action.", "The new task list is slow.", "Keep the next task label visible."]
+{"type": "utterance", "id": "u1", "range": {"start": 0, "end": 3}, "text": "New task. Add a tool tip explaining this test action.", "words": []}
+{"type": "utterance", "id": "u2", "range": {"start": 5, "end": 8}, "text": "Okay, next task. The new task list is slow.", "words": []}
+{"type": "utterance", "id": "u3", "range": {"start": 10, "end": 13}, "text": "New task.", "words": []}
+{"type": "utterance", "id": "u4", "range": {"start": 15, "end": 18}, "text": "Keep the next task label visible.", "words": []}
