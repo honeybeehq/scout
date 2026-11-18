@@ -1,5 +1,5 @@
-revision=
-binary_checksum=
-artifact_sha256=
-signature=
-cdhash=
+revision=9a1d2a19d3595fcf8d9c447173f9a1687b3dcadb
+binary_checksum=dfb69c5b4d040a162c8076817e96ef635f5627f3af606222376c870e03b9f8ca
+artifact_sha256=bc8a6fa77b7669d09fab105a6e1b2c9da5e7575f5ccf40e7ede084941a785008
+signature=adhoc
+cdhash=bf211791dc2a7120ee4bd2b366d683f9460e125b
