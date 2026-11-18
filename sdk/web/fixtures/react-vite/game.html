@@ -4,9 +4,9 @@
 <body style="margin:40px;background:#151923;color:#f2f4f8;font:18px system-ui">
 <h1>Scout canvas fixture</h1>
 <p>Aim at the amber asteroid, pin it, then trigger a hitch.</p>
+<pre id="fixture-info" style="position:fixed;top:8px;right:8px;width:min(420px,45vw);margin:0;padding:10px;background:#0b1020ed;border:1px solid #53627d;border-radius:6px;white-space:pre-wrap;font:11px/1.2 monospace;pointer-events:none;z-index:2147483646"></pre>
 <canvas id="world" width="800" height="400" style="display:block;background:#202838;border:1px solid #53627d"></canvas>
 <p><button id="hitch">Trigger 90 ms hitch</button> <label><input type="checkbox" id="large-save"> Oversized save</label> <output id="status">Waiting for Scout session</output></p>
 <pre id="evidence"></pre>
-<pre id="fixture-info" style="white-space:pre-wrap"></pre>
 <script type="module" src="/src/game.ts"></script>
 </body></html>
