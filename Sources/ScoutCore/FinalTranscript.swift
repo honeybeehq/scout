@@ -47,7 +47,7 @@ public struct FinalTranscript: Codable, Hashable, Sendable {
         }
     }
 
-    public static func utterances(from segments: [TranscribedSegment], droppingSpeechIn commands: [TimeRange], splittingAt boundaries: [SessionTime], idPrefix: String = "t") -> [Utterance] {
+    public static func utterances(from segments: [TranscribedSegment], droppingSpeechIn commands: [TimeRange], splittingAt boundaries: [SessionTime], idPrefix: String = "t", transform: (Utterance) -> Utterance = { $0 }) -> [Utterance] {
         func isCommand(_ range: TimeRange) -> Bool {
             let middle = (range.start + range.end) / 2
             return commands.contains { middle >= $0.start && middle <= $0.end }
@@ -66,7 +66,8 @@ public struct FinalTranscript: Codable, Hashable, Sendable {
                 guard let first = kept.first, let last = kept.last else { continue }
                 utterance = Utterance(id: "", range: TimeRange(start: first.range.start, end: last.range.end), text: kept.map(\.text).joined(separator: " "), words: kept)
             }
-            for var piece in utterance.split(at: cuts) {
+            for split in transform(utterance).split(at: cuts) {
+                var piece = transform(split)
                 let text = piece.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !text.isEmpty else { continue }
                 piece.text = text

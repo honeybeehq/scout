@@ -90,21 +90,57 @@ public struct Segmenter: Sendable {
         return evaluations
     }
 
+    public func removingTaskPhrase(from utterance: Utterance) -> Utterance {
+        let tokens = TextAnalysis.tokens(utterance.text)
+        let phrases = PhraseSet(configuration.taskPhrases, weight: configuration.taskPhraseWeight)
+        let openers = Set(configuration.leadOpeners.flatMap(TextAnalysis.tokens))
+        guard let match = phrases.matchAtLead(of: tokens, openers: openers, depth: configuration.leadSearchDepth),
+              let expression = try? NSRegularExpression(pattern: "[\\p{L}\\p{N}]+(?:['’][\\p{L}\\p{N}]+)*") else { return utterance }
+        let source = utterance.text as NSString
+        let ranges = expression.matches(in: utterance.text, range: NSRange(location: 0, length: source.length))
+        var consumed = 0
+        var end = 0
+        for range in ranges {
+            consumed += TextAnalysis.tokens(source.substring(with: range.range)).count
+            end = NSMaxRange(range.range)
+            if consumed >= match.end { break }
+        }
+        var result = utterance
+        result.text = String(source.substring(from: end).drop(while: { $0.isWhitespace || ".,:;!?—–-".contains($0) }))
+        var wordTokens = 0
+        result.words = utterance.words.drop(while: { word in
+            guard wordTokens < match.end else { return false }
+            wordTokens += TextAnalysis.tokens(word.text).count
+            return true
+        }).map { $0 }
+        return result
+    }
+
     private mutating func receiveSpeech(_ utterance: Utterance) {
         let span = speechSpan(of: utterance)
         advance(to: max(watermark, span.start))
         let midpoint = (span.start + span.end) / 2
         settle(before: span.start, commandsThrough: midpoint)
 
+        if removingTaskPhrase(from: utterance).text.isEmpty {
+            if var draft = open {
+                let cut = draft.lastSpeechSpan.map { $0.end + max(0, span.start - $0.end) / 2 } ?? span.start
+                for item in pending.removeAll(before: cut) { attribute(item, to: &draft) }
+                close(draft, at: cut, reason: BreakpointReason(kind: .command, weight: 1, detail: "spoken task command"))
+            }
+            advanceWatermark(to: utterance.range.end)
+            return
+        }
+
         if var draft = open, let previous = draft.lastSpeech, let previousSpan = draft.lastSpeechSpan {
             if span.end <= previousSpan.end {
-                draft.addSpeech(utterance, span: span, cohesionWindow: configuration.cohesionWindow)
+                draft.addSpeech(removingTaskPhrase(from: utterance), span: span, cohesionWindow: configuration.cohesionWindow)
                 open = draft
             } else {
                 decideBoundary(draft: draft, previous: previous, previousSpan: previousSpan, next: utterance, nextSpan: span)
             }
         } else if var draft = open {
-            draft.addSpeech(utterance, span: span, cohesionWindow: configuration.cohesionWindow)
+            draft.addSpeech(removingTaskPhrase(from: utterance), span: span, cohesionWindow: configuration.cohesionWindow)
             for item in pending.removeAll(through: utterance.range.end) { attribute(item, to: &draft) }
             open = draft
         } else {
@@ -170,7 +206,7 @@ public struct Segmenter: Sendable {
             finalize(draft, breakpoint: breakpoint)
             openSnippet(with: next, span: nextSpan, claimingFrom: claimFrom)
         } else {
-            draft.addSpeech(next, span: nextSpan, cohesionWindow: configuration.cohesionWindow)
+            draft.addSpeech(removingTaskPhrase(from: next), span: nextSpan, cohesionWindow: configuration.cohesionWindow)
             for item in pending.removeAll(through: next.range.end) { attribute(item, to: &draft) }
             open = draft
         }
@@ -179,7 +215,7 @@ public struct Segmenter: Sendable {
     private mutating func openSnippet(with utterance: Utterance, span: TimeRange, claimingFrom start: SessionTime) {
         _ = pending.removeAll(before: start)
         var draft = SnippetDraft(id: nextSnippetID(), start: utterance.range.start)
-        draft.addSpeech(utterance, span: span, cohesionWindow: configuration.cohesionWindow)
+        draft.addSpeech(removingTaskPhrase(from: utterance), span: span, cohesionWindow: configuration.cohesionWindow)
         for item in pending.removeAll(through: utterance.range.end) { attribute(item, to: &draft) }
         publishOpened(&draft)
     }

@@ -35,6 +35,26 @@ A filler utterance consists only of filler words (see
 filler words around it, so "That's it." after a pause never becomes a task of
 its own.
 
+## Spoken commands and card text
+
+Manual mode recognises `new task` and `next task` as hard cuts. Automatic
+mode recognises every phrase in `SegmenterConfiguration.taskPhrases` (including
+`new issue`, `new note`, `next thing`, and the other task/issue/note/ticket/bug/item
+variants). The matching leading phrase, up to four allowed opener words, and
+its following separator are removed from snippet speech before titles are made.
+A command on its own closes the previous snippet without opening an empty card;
+a command at the start of a recording is simply consumed. Ordinary speech such
+as "the new task list is slow" keeps its words because the phrase is not at the
+recognised lead position. Cue phrases such as "also" remain ordinary speech.
+
+The app separately consumes whole-utterance send commands (`send it`, `send
+that`, `ship it`, `send it now`) and discard commands (`scratch that`, `never
+mind`, `nevermind`, `forget that`), with their allowed leading fillers. These
+commands never become card speech. The whole-recording `FinalTranscript` pass
+applies the same task-prefix removal before and after splitting at card
+boundaries, including word timings, so final refinement cannot restore a spoken
+cut as a title. The unmodified signal log remains available for replay.
+
 ## Candidate boundaries
 
 A cut only happens **between utterances**, never inside one. When utterance B
@@ -179,6 +199,9 @@ arrival order. `#` lines are comments; blank lines are ignored. Headers:
 # expect: 5                          number of closed, non-discarded snippets
 # expect-breaks: 15.3, 25.4, 42.0    cut times between snippets, ±1.5 s
 # expect-discarded: 1
+# mode: manual                     optional; automatic is the default
+# expect-transcripts: ["Fix the button."]
+# expect-final-transcripts: ["Fix the button."]
 ```
 
 ```
@@ -196,6 +219,10 @@ Workflow:
 
 Prefer changing evidence over special cases. A fixture that only passes with a
 new phrase or rule usually means a signal is missing.
+
+Fixtures (i) and (j) assert card speech and final-pass speech for manual cuts,
+command-only utterances, ordinary mentions, word timings and all 16 automatic
+task phrases. The original eight fixtures remain unchanged.
 
 Current fixtures: (a) route changes and cues in one web app; (b) browser →
 Simulator → Figma with continuous talk; (c) a 108 s single-topic ramble with

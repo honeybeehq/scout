@@ -401,8 +401,16 @@ final class ScoutingSession {
 
     private func ingest(_ signal: Signal) {
         log.append(signal)
-        ledger.record(signal)
-        walkthrough?.record(signal)
+        if case .utterance(let utterance) = signal {
+            let speech = segmenter.removingTaskPhrase(from: utterance)
+            if !speech.text.isEmpty {
+                ledger.record(.utterance(speech))
+                walkthrough?.record(.utterance(speech))
+            }
+        } else {
+            ledger.record(signal)
+            walkthrough?.record(signal)
+        }
         if case .mark(let mark) = signal {
             pointing?.pin(mark)
             if let target = mark.target { transcriber.note(target) }
@@ -515,7 +523,15 @@ extension ScoutingSession {
             keepLive(result.failures.isEmpty ? "no result" : result.failures.joined(separator: "; "), engine: transcriptionEngine.name)
             return
         }
-        let utterances = FinalTranscript.utterances(from: transcript.segments, droppingSpeechIn: commandRanges, splittingAt: cuts + FinalTranscript.gaps(between: closedRanges + discardedRanges))
+        let utterances = FinalTranscript.utterances(from: transcript.segments, droppingSpeechIn: commandRanges, splittingAt: cuts + FinalTranscript.gaps(between: closedRanges + discardedRanges), transform: { utterance in
+            if VoiceCommand.match(utterance.text) != nil {
+                var command = utterance
+                command.text = ""
+                command.words = []
+                return command
+            }
+            return self.segmenter.removingTaskPhrase(from: utterance)
+        })
         guard !utterances.isEmpty || ledger.utterances.isEmpty else {
             keepLive("second pass heard no words", engine: transcript.engine)
             return
