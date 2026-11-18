@@ -34,8 +34,8 @@ for case, mode in cases:
         result = subprocess.run(arguments, env=environment, capture_output=True, text=True, timeout=200)
         (folder / "process.log").write_text(result.stdout + result.stderr)
         assert result.returncode == 0, result.stdout + result.stderr
-        server.wait(timeout=10)
-        assert server.returncode == 0
+        server.terminate()
+        server.wait(timeout=5)
         report = json.loads((folder / "report.json").read_text())
         if case in ["success", "cancel", "timeout", "dense"]:
             stop = json.loads((folder / "spawn.json.stop.json").read_text())

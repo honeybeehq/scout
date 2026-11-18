@@ -58,7 +58,11 @@ public struct OptimiseDocument: Codable, Sendable {
     public var proposals: [OptimiseProposal]
 
     public static func read(from url: URL) throws -> Self {
-        let document = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        try decode(Data(contentsOf: url))
+    }
+
+    public static func decode(_ data: Data) throws -> Self {
+        let document = try JSONDecoder().decode(Self.self, from: data)
         guard document.v == 1, !document.engine.isEmpty, Set(document.proposals.map(\.id)).count == document.proposals.count else {
             throw CocoaError(.coderReadCorrupt)
         }

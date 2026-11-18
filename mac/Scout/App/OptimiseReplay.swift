@@ -106,6 +106,7 @@ enum OptimiseReplay {
                 }
                 while review.optimise.state == .preparing || review.optimise.state == .running { try await Task.sleep(for: .milliseconds(50)) }
                 if let expected {
+                    await review.optimise.waitForCleanup()
                     try await Task.sleep(for: .milliseconds(500))
                     let same = zip(unchanged, review.tasks).allSatisfy { before, card in before.0 == card.snippet.id && before.1 == card.title && before.2 == card.snippet.range } && unchanged.count == review.tasks.count && review.undoDepth == 0
                     let matched: Bool
