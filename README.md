@@ -6,27 +6,9 @@ Scout is a native macOS app (Swift 6, SwiftUI, macOS 26). A Linux version comes 
 
 ## Install
 
-Scout needs macOS 26 or later.
+Scout needs macOS 26 or later. Download the latest DMG from [GitHub Releases](https://github.com/honeybeehq/scout/releases/latest), drag **Scout** into **Applications** and open it.
 
-1. Download the latest Scout DMG from [GitHub Releases](https://github.com/honeybeehq/scout/releases/latest).
-2. Open the DMG and drag **Scout** into **Applications**.
-3. Open Scout from Applications. It lives in the menu bar and opens a setup window the first time.
-
-Setup asks for three permissions. You can skip them and grant them later from *Setup guide* in the menu bar panel.
-
-| Permission | Why Scout needs it |
-|---|---|
-| **Microphone** | To hear what you say while you scout. Speech is transcribed on your Mac. |
-| **Screen Recording** | To record the screen while you scout, so your recording comes with a clip and screenshots of what you were looking at. macOS asks you to reopen Scout after you switch this on; setup offers a *Relaunch* button and picks up where you left off. |
-| **Accessibility** | To see which button, field or link is under the pointer, so you can hold `⌥` and click to pin it. |
-
-When you scout in a browser, macOS may also ask whether Scout can control that browser. Scout uses this only to read the address of the page you're on, so your feedback lands in the right project.
-
-Nothing leaves your Mac until you send it.
-
-**Updates arrive automatically.** Daily automatic checks are on by default. Scout offers to install new versions, and you can choose **Check for Updates…** in the menu bar panel or Settings.
-
-**hive and Apiary are optional.** Without them, each recording ends on the clipboard, ready to paste. In the review window, *Copy all* copies every task at once.
+The [user guide](docs/guide/index.md) covers [installing and permissions](docs/guide/install.md), [your first recording](docs/guide/first-recording.md), [walkthroughs and tasks](docs/guide/modes.md), [hotkeys](docs/guide/hotkeys.md), [sending tasks](docs/guide/sending.md), [privacy](docs/guide/privacy.md), [updates](docs/guide/updates.md) and [troubleshooting](docs/guide/troubleshooting.md).
 
 ## Status
 
@@ -45,20 +27,9 @@ Next up: first-contact approval for SDK clients, Next/Svelte adapters, and nativ
 
 ## Build from source
 
-Requirements: macOS 26, Xcode 26, XcodeGen (`brew install xcodegen`).
+See [Building from source](docs/guide/building-from-source.md) for requirements, signing and `script/build_and_run.sh`, and [Contributor checks](docs/contributing.md) for isolated test data.
 
-```bash
-./script/build_and_run.sh                       # build, sign, stage at ~/Applications/Scout.app, launch
-./script/build_and_run.sh --reset-onboarding    # start onboarding from the first step
-./script/build_and_run.sh --onboarding-step=voice
-./script/build_and_run.sh --build-only
-```
-
-Before building, set `DEVELOPMENT_TEAM` in your local `mac/project.yml` to your own Apple Developer Team ID and make sure your Apple Development signing identity is available in Xcode. The checked-in team belongs to the maintainers; contributors need their own signing setup. Keep this local signing change out of your contribution.
-
-`build_and_run.sh` quits any running Scout, replaces `~/Applications/Scout.app` and signs it with that development identity, so macOS permission grants survive rebuilds. Set `SCOUT_STAGED_APP` to stage somewhere else.
-
-Maintainer releases use separate Developer ID signing and notarization through `script/release.sh`. Contributor builds do not need the maintainer release certificate or notarization credentials. See [Contributor checks](docs/contributing.md) for isolated test data.
+## Developer checks
 
 Snapshots of every onboarding step (for visual checks, no screen-recording permission needed):
 
@@ -135,6 +106,7 @@ swift run scout-segment --check Fixtures/sessions
 
 ## Docs
 
+- [User guide](docs/guide/index.md): install, recording, sending, privacy, troubleshooting. `python3 site/build.py` renders it as HTML pages into `site/dist/docs/`.
 - [Product](docs/product.md): what Scout is, principles, and how it differs from Syn, the tool it replaces
 - [Experience](docs/experience.md): onboarding, scouting, pointing, the snippet stack
 - [Design language](docs/design-language.md): mark, color, type, motion

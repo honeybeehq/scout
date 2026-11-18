@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>{{title}} · {{site_title}}</title>
+<link rel="icon" type="image/png" href="{{assets}}scout-icon-64.png">
+<link rel="stylesheet" href="{{assets}}docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="{{root}}"><img src="{{assets}}scout-icon-64.png" alt="" width="28" height="28"><span>Scout</span></a>
+  <nav class="toplinks" aria-label="Site">
+    <a href="{{docs}}">Docs</a>
+    <a href="https://github.com/honeybeehq/scout/releases/latest" rel="noopener">Download</a>
+    <a href="{{repo}}" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="sidebar" aria-label="Guide">
+    <details open>
+      <summary>Guide</summary>
+      <ol>
+{{nav}}
+      </ol>
+    </details>
+  </nav>
+  <main id="content" class="doc">
+    <article>
+{{content}}
+    </article>
+    <nav class="pager" aria-label="Previous and next page">{{prev}}{{next}}</nav>
+    <p class="source"><a href="{{source}}" rel="noopener">Edit this page on GitHub</a></p>
+  </main>
+</div>
+</body>
+</html>

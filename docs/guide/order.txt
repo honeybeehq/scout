@@ -1,0 +1,14 @@
+index
+install
+first-recording
+modes
+hotkeys
+review
+sending
+transcriber
+hint-words
+privacy
+updates
+debug-data
+troubleshooting
+building-from-source

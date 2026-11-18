@@ -1,6 +1,6 @@
 # Contributor checks
 
-Use your own development signing team as described in the [source build instructions](../README.md#build-from-source).
+Use your own development signing team as described in the [source build instructions](guide/building-from-source.md).
 
 ## Isolate recording data
 

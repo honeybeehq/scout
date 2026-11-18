@@ -17,3 +17,4 @@ mac/Scout.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
 .swiftpm/
 node_modules/
 .proof/
+site/dist/
