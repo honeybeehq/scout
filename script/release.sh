@@ -67,7 +67,11 @@ done
 current_build="$(sed -n 's/^ *CURRENT_PROJECT_VERSION: *\([0-9][0-9]*\) *$/\1/p' "$project_yml" | head -n 1)"
 [[ -n "$current_build" ]] || { echo "CURRENT_PROJECT_VERSION not found in $project_yml" >&2; exit 1; }
 if [[ -z "$build_number" ]]; then
-  build_number=$((current_build + 1))
+  if [[ "$bump" == true ]]; then
+    build_number=$((current_build + 1))
+  else
+    build_number="$current_build"
+  fi
 fi
 [[ "$build_number" =~ ^[0-9]+$ ]] || { echo "--build must be an integer" >&2; exit 2; }
 
@@ -238,6 +242,23 @@ XML
   xmllint --noout "$appcast"
 }
 
+step "Preflight: clean source checkout"
+if [[ "$dry_run" == true ]]; then
+  run git -C "$root" status --porcelain --untracked-files=all
+  echo "    require an empty working tree before starting"
+else
+  [[ -z "$(git -C "$root" status --porcelain --untracked-files=all)" ]] \
+    || { echo "Release requires a clean working tree; commit or remove local changes first" >&2; exit 1; }
+fi
+if [[ "$bump" == false ]]; then
+  if [[ "$dry_run" == true ]]; then
+    echo "    require committed MARKETING_VERSION=$version and CURRENT_PROJECT_VERSION=$build_number"
+  else
+    [[ "$(project_setting MARKETING_VERSION)" == "$version" && "$current_build" == "$build_number" ]] \
+      || { echo "--no-bump requires the requested version and build to match mac/project.yml" >&2; exit 1; }
+  fi
+fi
+
 step "Plan"
 cat <<EOF
     version          $version (build $build_number, was $current_build)
@@ -285,9 +306,16 @@ fi
 step "Bump version in mac/project.yml"
 if [[ "$bump" == true ]]; then
   run perl -pi -e "s/^(\\s*MARKETING_VERSION:\\s*).*/\${1}$version/; s/^(\\s*CURRENT_PROJECT_VERSION:\\s*).*/\${1}$build_number/" "$project_yml"
+  run git -C "$root" add -- mac/project.yml
+  run git -C "$root" commit -m "Release $version (build $build_number)"
 else
   echo "    skipped (--no-bump)"
 fi
+source_sha="$(git -C "$root" rev-parse HEAD)"
+if [[ "$dry_run" == true && "$bump" == true ]]; then
+  source_sha='<version-bump-commit-sha>'
+fi
+echo "    source commit $source_sha"
 
 step "Prepare output folder"
 if [[ -e "$out" ]]; then
@@ -317,6 +345,14 @@ else
   keychain_public_key="$("$generate_keys" --account "$sparkle_key_account" -p)"
   [[ "$keychain_public_key" == "$public_key" ]] \
     || { echo "The keychain's EdDSA public key differs from SCOUT_SPARKLE_PUBLIC_KEY" >&2; exit 1; }
+fi
+
+step "Verify build source"
+if [[ "$dry_run" == true ]]; then
+  echo "    require clean HEAD=$source_sha after project generation and package resolution"
+else
+  [[ "$(git -C "$root" rev-parse HEAD)" == "$source_sha" && -z "$(git -C "$root" status --porcelain --untracked-files=all)" ]] \
+    || { echo "Build source changed after the release commit; review and commit the changes, then restart" >&2; exit 1; }
 fi
 
 step "Build Release"
@@ -433,6 +469,13 @@ else
   } | tee "$out/verify.txt"
 fi
 
+step "Record source commit"
+if [[ "$dry_run" == true ]]; then
+  echo "    append Source commit: $source_sha to $out/verify.txt"
+else
+  printf '\nSource commit: %s\n' "$source_sha" >> "$out/verify.txt"
+fi
+
 step "Checksums"
 if [[ "$dry_run" == true ]]; then
   echo "    (in $out)"
@@ -442,19 +485,40 @@ else
 fi
 
 step "Release notes"
+release_notes="$out/release-notes.md"
 if [[ -n "$notes" ]]; then
   run test -f "$notes"
+  run cp "$notes" "$release_notes"
+elif [[ "$dry_run" == true ]]; then
+  echo "    write $release_notes: Scout $version for macOS $minimum_system_version or later; installation and update instructions"
 else
-  notes="$out/release-notes.md"
-  if [[ "$dry_run" == true ]]; then
-    echo "    write $notes: Scout $version for macOS $minimum_system_version or later; installation and update instructions"
-  else
-    printf 'Scout %s for macOS %s or later.\n\nDownload the DMG and drag Scout into Applications. Existing installations can use Check for Updates… or daily automatic checks.\n' "$version" "$minimum_system_version" > "$notes"
-  fi
+  printf 'Scout %s for macOS %s or later.\n\nDownload the DMG and drag Scout into Applications. Existing installations can use Check for Updates… or daily automatic checks.\n' "$version" "$minimum_system_version" > "$release_notes"
+fi
+if [[ "$dry_run" == true ]]; then
+  echo "    append Source commit: $source_sha to $release_notes"
+else
+  printf '\nSource commit: %s\n' "$source_sha" >> "$release_notes"
 fi
 
 step "Publish (opt-in)"
 if [[ "$publish" == true ]]; then
+  run git -C "$root" fetch origin --prune
+  if [[ "$dry_run" == true ]]; then
+    run git -C "$root" status --porcelain --untracked-files=all
+    run git -C "$root" branch -r --contains "$source_sha" --list 'origin/*'
+    echo "    require clean HEAD=$source_sha and a containing origin branch"
+    echo "    if missing: git -C $(printf '%q' "$root") push origin HEAD; land the bump, then rebuild with --version $version --no-bump --publish"
+  else
+    [[ "$(git -C "$root" rev-parse HEAD)" == "$source_sha" && -z "$(git -C "$root" status --porcelain --untracked-files=all)" ]] \
+      || { echo "Publishing requires unchanged, clean HEAD at $source_sha" >&2; exit 1; }
+    if [[ -z "$(git -C "$root" branch -r --contains HEAD --list 'origin/*')" ]]; then
+      echo "Push this commit first: $source_sha" >&2
+      printf '  git -C %q push origin HEAD\n' "$root" >&2
+      echo "Land the bump commit, check out the landed commit, then run:" >&2
+      printf '  script/release.sh --version %q --build %q --no-bump --publish\n' "$version" "$build_number" >&2
+      exit 1
+    fi
+  fi
   if [[ "$dry_run" == true ]]; then
     run gh repo view honeybeehq/scout --json visibility --jq .visibility
     echo "    require PUBLIC and all verification steps to pass in this run"
@@ -466,8 +530,8 @@ if [[ "$publish" == true ]]; then
     tag_count="$(gh api "repos/honeybeehq/scout/git/matching-refs/tags/v$version" --jq "[.[] | select(.ref == \"refs/tags/v$version\")] | length")"
     [[ "$tag_count" == 0 ]] || { echo "Tag v$version already exists" >&2; exit 1; }
   fi
-  run gh release create "v$version" --repo honeybeehq/scout --target "$(git -C "$root" rev-parse HEAD)" \
-    --title "Scout $version" --notes-file "$notes" \
+  run gh release create "v$version" --repo honeybeehq/scout --target "$source_sha" \
+    --title "Scout $version" --notes-file "$release_notes" \
     "$dmg" "$update_zip" "$out/appcast.xml" "$out/SHA256SUMS"
 else
   echo "    skipped (use --publish to upload verified assets)"
@@ -477,4 +541,4 @@ step "Done"
 echo "    $dmg"
 echo "    $update_zip"
 echo "    $out/appcast.xml"
-echo "    Nothing was installed or opened. Publish requested: $publish. Commit the mac/project.yml version bump separately."
+echo "    Nothing was installed or opened. Publish requested: $publish. Source commit: $source_sha. Push and land the bump before publishing."
