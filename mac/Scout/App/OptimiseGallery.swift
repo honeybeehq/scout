@@ -22,6 +22,9 @@ enum OptimiseGallery {
         let walkthrough = fixtures.appendingPathComponent("review-walkthrough.optimise.v1.json")
         let shots: [Shot] = [
             Shot(name: "1-idle", fixture: "eight", select: "task-5") { _, _ in },
+            Shot(name: "1-waiting-for-titles", fixture: "eight", select: "task-5") { review, _ in
+                review.tasks.last?.state = .preparing
+            },
             Shot(name: "2-running", fixture: "eight", select: "task-5") { review, _ in
                 await run(review, socket: argument("--optimise-hang-socket="), until: { $0 == .running })
             },

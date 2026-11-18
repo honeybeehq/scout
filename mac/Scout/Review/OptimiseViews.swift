@@ -39,13 +39,23 @@ struct OptimisePanel: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SecondaryButtonStyle())
-            .disabled(review.unsentCount == 0)
+            .disabled(!canStart)
             .help("Claude suggests merges, splits, titles, frames and questions. Nothing changes until you accept.")
-            Text(review.unsentCount == 0 ? "Every task is sent, so there is nothing left to optimise." : "Sends the transcript and frames to Claude, never the video.")
+            Text(note)
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var waiting: Bool { review.isFinishing || review.isPreparing }
+
+    private var canStart: Bool { !waiting && review.unsentCount > 0 }
+
+    private var note: String {
+        if waiting { return "Available once the video and task titles are ready." }
+        if review.unsentCount == 0 { return "Every task is sent, so there is nothing left to optimise." }
+        return "Sends the transcript and frames to Claude, never the video."
     }
 
     private var running: some View {
@@ -140,7 +150,7 @@ struct OptimisePanel: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SecondaryButtonStyle())
-                .disabled(review.unsentCount == 0)
+                .disabled(!canStart)
             }
         }
     }
@@ -165,6 +175,7 @@ struct OptimisePanel: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SecondaryButtonStyle())
+            .disabled(!canStart)
         }
     }
 
