@@ -140,6 +140,9 @@ final class AppModel {
         if let output = CaptureUXDemo.outputDirectory {
             Task { await CaptureUXDemo.run(model: self, output: output) }
         }
+        if let output = HeroDemo.outputDirectory {
+            Task { await HeroDemo.run(model: self, output: output) }
+        }
         if let output = ExpandKeyCheck.outputDirectory {
             Task { await ExpandKeyCheck.run(model: self, output: output) }
         }

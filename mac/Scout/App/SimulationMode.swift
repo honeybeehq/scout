@@ -160,7 +160,7 @@ enum SimulationMode {
     }
 
     static var isRunning: Bool {
-        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || CaptureUXDemo.outputDirectory != nil || ExpandKeyCheck.outputDirectory != nil
+        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || CaptureUXDemo.outputDirectory != nil || ExpandKeyCheck.outputDirectory != nil || HeroDemo.outputDirectory != nil
     }
 
     static var panelSharing: NSWindow.SharingType {
