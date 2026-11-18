@@ -127,7 +127,9 @@ nonisolated struct HiveClient: Sendable {
         let failed = commands.first { ["spawn", "send_wake"].contains($0["verb"] as? String ?? "") && ($0["status"] as? String == "failed" || ($0["failureCause"] != nil && !($0["failureCause"] is NSNull))) }
         let flags = view?["flags"] as? [String] ?? []
         let crashed = runtime?["state"] as? String == "stopped" && runtime?["exitCause"] as? String == "crashed"
-        let failedBoot = !flags.isEmpty || failed != nil || crashed
+        let failureFlags = flags.filter { ["spawn_failed", "auth_needed", "resource_blocked", "node_unreachable"].contains($0) }
+        for flag in flags where !failureFlags.contains(flag) { NSLog("[scout-optimise] unknown hive flag: %@", flag) }
+        let failedBoot = !failureFlags.isEmpty || failed != nil || crashed
         var failure: String?
         if failedBoot {
             let audit = try await call(verb: "audit.tail", params: ["beeId": beeID, "limit": 100])
@@ -136,7 +138,7 @@ nonisolated struct HiveClient: Sendable {
                 guard ["command.requeued", "flag.set", "runtime.transition"].contains(row["kind"] as? String ?? ""), let payload = row["payload"] as? [String: Any] else { return nil }
                 return payload["detail"] as? String ?? payload["exitDetail"] as? String
             }.first
-            failure = "Claude could not start: " + (detail ?? failed?["failureCause"].map { String(describing: $0) } ?? (flags.isEmpty ? "the harness exited before completing its reply" : flags.joined(separator: ", ")))
+            failure = "Claude could not start: " + (detail ?? failed?["failureCause"].map { String(describing: $0) } ?? (failureFlags.isEmpty ? "the harness exited before completing its reply" : failureFlags.joined(separator: ", ")))
         }
         let mailResult = try await call(verb: "mailbox", params: ["beeId": beeID])
         let messages = mailResult["messages"] as? [[String: Any]] ?? []
@@ -171,7 +173,7 @@ nonisolated struct HiveClient: Sendable {
                 let confirmed = try await optimiseStatus(beeID)
                 if confirmed.state == "stopped", !confirmed.pending, !confirmed.undelivered || confirmed.failure != nil { return }
             }
-            try await Task.sleep(for: .milliseconds(100))
+            try await Task.sleep(for: .milliseconds(500))
         }
         throw HiveError.requestFailed("Claude has not confirmed cancellation. Check its optimiser session in hive.")
     }

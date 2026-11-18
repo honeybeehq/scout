@@ -41,6 +41,8 @@ try:
             response = {"id": 1, "ok": True, "result": {}}
             if verb == "spawn":
                 pathlib.Path(capture).write_text(json.dumps(request, indent=2))
+                workspace = pathlib.Path(request["params"]["cwd"])
+                state["inputs"] = [str(p.relative_to(workspace)) for p in workspace.rglob("*") if p.is_file()]
                 state["events"].append("spawn:gen1")
                 if mode == "failure":
                     response = {"id": 1, "ok": False, "error": {"message": "Fixture spawn failure"}}
@@ -48,14 +50,18 @@ try:
                     response["result"] = {"beeId": "fixture-agent"}
                     if mode in ["race", "late-race"]:
                         state.update(delivered=False, pending=True)
-                    elif mode in ["success", "stop-failure", "invalid"]:
+                    elif mode in ["success", "stop-failure", "invalid", "benign", "prose", "fenced"]:
                         text = pathlib.Path(fixture).read_text() if mode != "invalid" else '{"v":2,"proposals":[]}'
+                        if mode == "prose":
+                            text = "Permission to create the file was declined; I cannot write the result."
+                        if mode == "fenced":
+                            text = "```json\n" + text + "\n```"
                         log.write_text(json.dumps({"type": "user", "message": {"content": "PRIVATE RAW TRANSCRIPT MUST NOT BE COPIED"}}) + "\n" + json.dumps({"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": text}]}}) + "\n" + json.dumps({"type": "result", "subtype": "success", "result": text}) + "\n")
                         state["runtime"] = "idle"
                     elif mode in ["boot-failure", "boot-crash"]:
                         state["runtime"] = "stopped"
             elif verb == "view":
-                flags = ["spawn_failed"] if mode == "boot-failure" else []
+                flags = ["spawn_failed"] if mode == "boot-failure" else (["future_benign_flag"] if mode == "benign" else [])
                 response["result"] = {"bee": {"id": "fixture-agent", "sessionLogPath": str(log), "env": {"SECRET": "MUST_NOT_BE_STORED"}}, "view": {"flags": flags, "working": state["runtime"] == "running"}, "runtime": {"generation": state["generation"], "state": state["runtime"], "exitCause": "crashed" if mode in ["boot-failure", "boot-crash"] else None}}
             elif verb == "commands":
                 response["result"] = {"commands": [{"verb": "spawn", "status": "failed", "failureCause": "spawn_failed"}]} if mode == "boot-failure" else {"commands": [{"verb": "send_wake", "status": "queued"}] if state["pending"] else []}
