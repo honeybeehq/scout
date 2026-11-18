@@ -2,18 +2,19 @@ import AppKit
 import SwiftUI
 
 enum MenuBarIcon {
-    static func image(scouting: Bool) -> NSImage {
-        let renderer = ImageRenderer(content: MenuBarGlyph(scouting: scouting))
+    static func image(scouting: Bool, updateReady: Bool = false) -> NSImage {
+        let renderer = ImageRenderer(content: MenuBarGlyph(scouting: scouting, updateReady: updateReady))
         renderer.scale = NSScreen.main?.backingScaleFactor ?? 2
         let image = renderer.nsImage ?? NSImage(systemSymbolName: "record.circle", accessibilityDescription: "Scout")!
         image.isTemplate = !scouting
-        image.accessibilityDescription = scouting ? "Scout is scouting" : "Scout"
+        image.accessibilityDescription = (scouting ? "Scout is scouting" : "Scout") + (updateReady ? ", update available" : "")
         return image
     }
 }
 
 struct MenuBarGlyph: View {
     var scouting: Bool
+    var updateReady = false
 
     var body: some View {
         let ink = scouting ? Color(hex: 0xFF5A3C) : Color.black
@@ -31,5 +32,15 @@ struct MenuBarGlyph: View {
                 .offset(x: -0.6, y: 0.7)
         }
         .frame(width: 18, height: 18)
+        .overlay(alignment: .topTrailing) {
+            if updateReady {
+                Circle()
+                    .fill(Color.black)
+                    .frame(width: 8, height: 8)
+                    .blendMode(.destinationOut)
+                    .overlay(Circle().fill(ink).frame(width: 5, height: 5))
+            }
+        }
+        .compositingGroup()
     }
 }

@@ -56,7 +56,7 @@ private struct MenuBarLabel: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        Image(nsImage: MenuBarIcon.image(scouting: model.isScouting))
+        Image(nsImage: MenuBarIcon.image(scouting: model.isScouting, updateReady: model.updates.available != nil))
             .onAppear {
                 model.openOnboarding = {
                     NSApp.activate()

@@ -28,6 +28,7 @@ struct MenuBarPanelState {
     var version = "1.0.0 (1)"
     var canCheckForUpdates = true
     var updatesUnavailable: String?
+    var update: Updates.Available?
 }
 
 struct MenuBarPanelActions {
@@ -40,6 +41,7 @@ struct MenuBarPanelActions {
     var openSetup: () -> Void = {}
     var openSettings: () -> Void = {}
     var checkForUpdates: () -> Void = {}
+    var showUpdate: () -> Void = {}
     var quit: () -> Void = {}
 }
 
@@ -67,8 +69,9 @@ struct MenuBarPanel: View {
             sdkApps: model.bridge.clients.filter { $0.hello != nil }.map(\.name),
             setupComplete: model.onboarding.isComplete,
             version: model.updates.version,
-            canCheckForUpdates: model.updates.canCheck,
-            updatesUnavailable: model.updates.unavailableReason
+            canCheckForUpdates: model.updates.canCheckNow,
+            updatesUnavailable: model.updates.unavailableReason,
+            update: model.updates.available
         )
     }
 
@@ -86,6 +89,7 @@ struct MenuBarPanel: View {
             },
             openSettings: { model.openSettingsWindow?() },
             checkForUpdates: { model.updates.check() },
+            showUpdate: { model.updates.showAvailable() },
             quit: { NSApp.terminate(nil) }
         )
     }
@@ -242,10 +246,27 @@ struct MenuBarPanelContent: View {
         VStack(alignment: .leading, spacing: 6) {
             connections
             HStack(spacing: 8) {
-                Button("Check for Updates…", action: actions.checkForUpdates)
+                if let update = state.update {
+                    Button(action: actions.showUpdate) {
+                        HStack(spacing: 6) {
+                            StatusDot(tone: .positive)
+                            Text(update.title)
+                                .foregroundStyle(state.isScouting ? Palette.textQuaternary : Palette.text)
+                            Text(update.version)
+                                .font(Typography.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(Palette.textTertiary)
+                        }
+                    }
                     .buttonStyle(QuietButtonStyle())
-                    .disabled(!state.canCheckForUpdates)
-                    .help(state.updatesUnavailable ?? "See if a newer Scout is available.")
+                    .disabled(state.isScouting)
+                    .help(state.isScouting ? "Available when this recording ends." : "See what's new and install it.")
+                } else {
+                    Button("Check for Updates…", action: actions.checkForUpdates)
+                        .buttonStyle(QuietButtonStyle())
+                        .disabled(!state.canCheckForUpdates)
+                        .help(state.updatesUnavailable ?? "See if a newer Scout is available.")
+                }
                 Spacer(minLength: 4)
                 Text("Version \(state.version)")
                     .font(Typography.caption)

@@ -218,7 +218,7 @@ private struct UpdatesSection: View {
             SettingRow(title: "Version \(updates.version)", detail: updates.unavailableReason) {
                 Button("Check for Updates…") { updates.check() }
                     .buttonStyle(SecondaryButtonStyle())
-                    .disabled(!updates.canCheck)
+                    .disabled(!updates.canCheckNow)
             }
         }
     }

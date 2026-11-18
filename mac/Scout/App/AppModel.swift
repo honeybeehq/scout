@@ -45,7 +45,9 @@ final class AppModel {
 
     private(set) var shortcut: KeyShortcut
     private(set) var shortcutRegistered = false
-    private(set) var isScouting = false
+    private(set) var isScouting = false {
+        didSet { updates.isRecording = isScouting }
+    }
     var confirmingWhisperRemoval = false
     var confirmingDiscard = false {
         didSet {

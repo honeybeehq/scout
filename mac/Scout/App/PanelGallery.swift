@@ -74,6 +74,12 @@ enum PanelGallery {
                 }
             }
         }
+        for (name, scouting, updateReady) in [("idle", false, false), ("idle-update", false, true), ("scouting", true, false), ("scouting-update", true, true)] {
+            let image = MenuBarIcon.image(scouting: scouting, updateReady: updateReady)
+            if let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: directory.appendingPathComponent("menubar-\(name).png"))
+            }
+        }
         NSApp.terminate(nil)
     }
 
@@ -106,6 +112,26 @@ enum PanelGallery {
             recent: Array(longTasks.prefix(3)),
             hive: .connected(activeSessions: 2),
             apiaryRunning: true
+        ), .automatic),
+        ("update", MenuBarPanelState(
+            recent: Array(longTasks.suffix(2)),
+            hive: .connected(activeSessions: 1),
+            version: "0.2.0 (2)",
+            update: .init(version: "0.3.0", readyToInstall: false)
+        ), .automatic),
+        ("update-restart", MenuBarPanelState(
+            hive: .missing,
+            version: "0.2.0 (2)",
+            update: .init(version: "0.3.0", readyToInstall: true)
+        ), .automatic),
+        ("update-recording", MenuBarPanelState(
+            isScouting: true,
+            recent: Array(longTasks.prefix(2)),
+            hive: .connected(activeSessions: 2),
+            version: "0.2.0 (2)",
+            canCheckForUpdates: false,
+            updatesUnavailable: "Available when this recording ends.",
+            update: .init(version: "0.3.0", readyToInstall: false)
         ), .automatic),
     ]
 }

@@ -11,7 +11,7 @@ The app icon is a telescope seen end-on: you look into the barrel, and its lens 
 - Rendered with the family's WebGL2 shader, `script/logo-signal/` (concept `C==16`, end-on variant `TV 3`; parameters in `final-takes.json`). See its README to re-render. Grid: an 824×824 body on a 1024 canvas, continuous-corner squircle, shadow inside the margin.
 - The telescope reads as light, not as a drawing: the barrel rim is a soft glowing ring that is brightest on the side the lens leans toward, a fainter inner ring sits between rim and lens, and the lens is the one hot point. The rings and the lens sit slightly off centre, so the barrel seems to run back into the glass.
 - 16 and 32 px are tuned by hand: the rim and lens are snapped to whole pixels, with a dark gap between them, no bevel and stronger contrast.
-- The menu bar glyph is the same end-on telescope as a template image: a soft halo, a rim ring and a solid lens dot (black, adapts to the menu bar). It turns coral while recording.
+- The menu bar glyph is the same end-on telescope as a template image: a soft halo, a rim ring and a solid lens dot (black, adapts to the menu bar). It turns coral while recording. When an update is ready it gets a small dot at the top right, cut out of the rim and in the glyph's own ink, never a second color; the panel then shows a green status dot with "Update available" or "Restart to update" in place of Check for Updates….
 - In the app, `ScoutMark` draws the same end-on telescope in SwiftUI: a soft glow, a rim ring lit toward the lens (`RimLight`), a faint inner ring and a warm lens (`LensFill`) set slightly off centre. Below 40 pt it drops the inner ring, as the 16 and 32 px icons do. Its `level` (0–3) dims or brightens it, for example one step per granted permission during onboarding, and it pulses while Scout is ready or recording.
 
 Draw the telescope as light inside the glass: a filled glowing lens and soft rings. A thin luminous outline of a telescope reads as a neon sign or line art and breaks the family.
@@ -102,7 +102,7 @@ Short, direct, second person. Say what happens, not what the feature is called: 
 
 `--design-gallery=<dir>` added to a `--simulate-session` run renders every surface with `ImageRenderer` in light and dark at all four sizes, plus a frame sequence of the recording bar with `bar-frames.json` (window frame and every control's position per frame). Use it to review design changes when the screen can't be captured.
 
-`--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding and updates not set up, five long recent tasks with a walkthrough, and recording) in light and dark at all four sizes, then quits. It needs no session and no permissions.
+`--panel-gallery=<dir>` renders the menu bar panel alone from fixed states (empty with hive not responding and updates not set up, five long recent tasks with a walkthrough, recording, an update available, an update ready to restart, and an update held during a recording), plus the menu bar glyph with and without the update dot (`menubar-*.png`), in light and dark at all four sizes, then quits. It needs no session and no permissions.
 
 `--engine-gallery=<dir>` renders the onboarding Transcriber step (full window) and the Settings → Voice pane in every Whisper model state (offer, downloading, checking, preparing, installed, ready, paused, failed, remove confirmation) in light and dark at Default and Extra large, then quits. It skips the hotkey, the bridge and pruning, and never downloads.
 
