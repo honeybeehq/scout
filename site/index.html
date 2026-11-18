@@ -50,39 +50,59 @@
       <div class="stage">
         <div class="menubar" aria-hidden="true">
           <span class="mb-app">Safari</span>
-          <span>File</span><span>Edit</span><span>View</span><span class="mb-hide">History</span>
+          <span>File</span><span>Edit</span><span>View</span><span>History</span>
           <span class="mb-right">
             <span class="glyph"></span>
             <span class="mb-time">Tue 18:26</span>
           </span>
         </div>
 
-        <picture class="win win-review">
-          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-tasks-light@1x.webp 1x, assets/img/review-tasks-light@2x.webp 2x">
-          <img src="assets/img/review-tasks-dark@1x.webp" srcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" width="1260" height="820" alt="The review window: three tasks from a 34-second session in Safari, the session video, the selected task's transcript and pointed-at elements, and a timeline" fetchpriority="high">
-        </picture>
+        <div class="win win-review">
+          <a class="win-link" href="assets/img/review-tasks-dark@2x.webp" aria-label="Open the review window screenshot at full size">
+            <picture>
+              <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-tasks-light@1x.webp 1x, assets/img/review-tasks-light@2x.webp 2x">
+              <img src="assets/img/review-tasks-dark@1x.webp" srcset="assets/img/review-tasks-dark@1x.webp 1x, assets/img/review-tasks-dark@2x.webp 2x" width="1260" height="820" alt="The review window: three tasks from a 34-second session in Safari, the session video, the selected task's transcript and pointed-at elements, and a timeline" fetchpriority="high">
+            </picture>
+          </a>
+          <span class="pin" aria-hidden="true">2</span>
+          <p class="swipe-hint" aria-hidden="true">Swipe to see the whole window</p>
+        </div>
 
-        <picture class="win win-panel">
-          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/menu-bar-panel-light@1x.webp 1x, assets/img/menu-bar-panel-light@2x.webp 2x">
-          <img src="assets/img/menu-bar-panel-dark@1x.webp" srcset="assets/img/menu-bar-panel-dark@1x.webp 1x, assets/img/menu-bar-panel-dark@2x.webp 2x" width="336" height="617" alt="The menu bar panel: Start scouting, Record as tasks, recent tasks with their state, and hive and Apiary status">
-        </picture>
+        <div class="win win-panel">
+          <picture>
+            <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/menu-bar-panel-light@1x.webp 1x, assets/img/menu-bar-panel-light@2x.webp 2x">
+            <img src="assets/img/menu-bar-panel-dark@1x.webp" srcset="assets/img/menu-bar-panel-dark@1x.webp 1x, assets/img/menu-bar-panel-dark@2x.webp 2x" width="336" height="617" loading="lazy" alt="The menu bar panel: Start scouting, Record as tasks, recent tasks with their state, and hive and Apiary status">
+          </picture>
+          <span class="pin" aria-hidden="true">3</span>
+        </div>
 
-        <picture class="win win-bar">
-          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/recording-bar-light@1x.webp 1x, assets/img/recording-bar-light@2x.webp 2x">
-          <img src="assets/img/recording-bar-dark@1x.webp" srcset="assets/img/recording-bar-dark@1x.webp 1x, assets/img/recording-bar-dark@2x.webp 2x" width="994" height="44" alt="The recording bar: timer, voice level, live transcript, what is being captured, Discard and Finish">
-        </picture>
-
-        <span class="pin pin-1" aria-hidden="true">1</span>
-        <span class="pin pin-2" aria-hidden="true">2</span>
-        <span class="pin pin-3" aria-hidden="true">3</span>
+        <div class="win win-bar">
+          <div class="bar-clip">
+            <picture>
+              <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/recording-bar-light@1x.webp 1x, assets/img/recording-bar-light@2x.webp 2x">
+              <img src="assets/img/recording-bar-dark@1x.webp" srcset="assets/img/recording-bar-dark@1x.webp 1x, assets/img/recording-bar-dark@2x.webp 2x" width="994" height="44" alt="The recording bar: timer, voice level, live transcript, what is being captured, Discard and Finish">
+            </picture>
+          </div>
+          <span class="pin" aria-hidden="true">1</span>
+        </div>
       </div>
     </figure>
 
-    <ol class="legend">
-      <li><span class="num">1</span><div><b>Recording bar.</b> Press <kbd>⌃⌥S</kbd> in any app. The bar hangs from the top of the screen and shows the words it hears as you talk.</div></li>
-      <li><span class="num">2</span><div><b>Review window.</b> After you stop, every task is laid out on a timeline. Trim, split, join, edit, then send.</div></li>
-      <li><span class="num">3</span><div><b>Menu bar panel.</b> Start scouting, see recent tasks and where they went, reopen earlier sessions.</div></li>
-    </ol>
+    <div class="hero-foot">
+      <div class="panel-card">
+        <picture>
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/menu-bar-panel-light@1x.webp 1x, assets/img/menu-bar-panel-light@2x.webp 2x">
+          <img src="assets/img/menu-bar-panel-dark@1x.webp" srcset="assets/img/menu-bar-panel-dark@1x.webp 1x, assets/img/menu-bar-panel-dark@2x.webp 2x" width="336" height="617" loading="lazy" alt="The menu bar panel: Start scouting, Record as tasks, recent tasks with their state, and hive and Apiary status">
+        </picture>
+        <span class="pin" aria-hidden="true">3</span>
+      </div>
+
+      <ol class="legend">
+        <li><span class="num">1</span><div><b>Recording bar.</b> Press <kbd>⌃⌥S</kbd> in any app. The bar hangs from the top of the screen and shows the words it hears as you talk.</div></li>
+        <li><span class="num">2</span><div><b>Review window.</b> After you stop, every task is laid out on a timeline. Trim, split, join, edit, then send.</div></li>
+        <li><span class="num">3</span><div><b>Menu bar panel.</b> Start scouting, see recent tasks and where they went, reopen the latest review.</div></li>
+      </ol>
+    </div>
   </div>
 </section>
 
@@ -126,24 +146,13 @@
         </dl>
       </article>
 
-      <article class="card c-long">
-        <picture class="shot shot-top">
-          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/review-walkthrough-light@1x.webp 1x, assets/img/review-walkthrough-light@2x.webp 2x">
-          <img src="assets/img/review-walkthrough-dark@1x.webp" srcset="assets/img/review-walkthrough-dark@1x.webp 1x, assets/img/review-walkthrough-dark@2x.webp 2x" width="1260" height="820" loading="lazy" decoding="async" alt="Review of a five-minute session across Safari and Simulator, split into six tasks">
-        </picture>
-        <div class="card-copy">
-          <h3>Five minutes, six tasks</h3>
-          <p>One session can hold many pieces of feedback, across apps. Scout follows the pane or window under your pointer, so the clip is about what you were looking at.</p>
-        </div>
-      </article>
-
       <article class="card c-point">
         <h3>Point, don't describe</h3>
         <p>Hover and Scout notes what you rest on. Hold <kbd>⌥</kbd> and click to pin an element. Hold <kbd>⌥</kbd> and drag to draw.</p>
         <div class="element" aria-label="Example of a pinned element">
           <span class="el-pin">1</span>
-          <span class="el-name">Button "Pay now"</span>
-          <span class="el-src">Checkout.tsx:88</span>
+          <span class="el-name">PayButton “Pay now”</span>
+          <span class="el-src">src/checkout/PayButton.tsx:88</span>
         </div>
         <ul class="keylist">
           <li><span>Start or finish</span><kbd>⌃⌥S</kbd></li>
@@ -161,20 +170,9 @@
         </div>
       </article>
 
-      <article class="card c-voice">
-        <div class="card-copy">
-          <h3>Pick your transcriber</h3>
-          <p>The built-in Apple transcriber is ready at once and writes your words live. Whisper large-v3-turbo writes the whole transcript again after you stop, after a one-time download of about 650 MB. Both run on your Mac.</p>
-        </div>
-        <picture class="shot shot-bleed">
-          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/transcriber-choice-light@1x.webp 1x, assets/img/transcriber-choice-light@2x.webp 2x">
-          <img src="assets/img/transcriber-choice-dark@1x.webp" srcset="assets/img/transcriber-choice-dark@1x.webp 1x, assets/img/transcriber-choice-dark@2x.webp 2x" width="940" height="640" loading="lazy" decoding="async" alt="Setup step: choose the built-in Apple transcriber or download Whisper large-v3-turbo, both on device">
-        </picture>
-      </article>
-
       <article class="card c-send">
         <h3>Send it anywhere</h3>
-        <p>Every task works as plain text, so any agent or chat can take it.</p>
+        <p>A task is plain Markdown with its files attached by path, so any agent or chat can take it.</p>
         <ul class="dests">
           <li>
             <span class="dest-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><rect x="5" y="3.5" width="10" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7.5" y="2" width="5" height="3" rx="1" fill="currentColor"/></svg></span>
@@ -188,23 +186,43 @@
           </li>
           <li>
             <span class="dest-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M10 2.8 16.2 6.4v7.2L10 17.2 3.8 13.6V6.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
-            <div><b>Apiary</b><span>Tasks and attachments render the same as in hive.</span></div>
+            <div><b>Apiary</b><span>Reaches Apiary panes through hive. Clips and images show up in the conversation.</span></div>
             <span class="tag">Optional</span>
           </li>
         </ul>
-        <pre class="task-md" aria-label="Example task body"><code><span class="md-h">## Pay now button is too small</span>
-<span class="md-q">&gt; The pay now button is way too small…</span>
-<span class="md-k">**Pointed at:**</span> Button "Pay now" · Checkout.tsx:88
-[Attached video: …/clip.mp4]</code></pre>
+        <pre class="task-md" aria-label="Example task, as Scout writes it"><code><span class="md-h">## Make the Pay now button bigger and primary</span>
+
+<span class="md-q">&gt; The pay now button is way too small and it's grey, it looks disabled. Make it the primary color and full width on mobile.</span>
+
+<span class="md-k">**Where:**</span> Safari · http://localhost:3000/checkout · repo `…/acme-web` (branch `checkout-polish`)
+
+<span class="md-k">**Pointed at:**</span> PayButton “Pay now” · `src/checkout/PayButton.tsx:88` · in web:main
+
+<span class="md-k">**When:**</span> 0:01–0:09 into the session
+
+<span class="md-a">[Attached video: …/task-0/clip.mp4]
+[Attached image: …/task-0/pin-1.png]
+[Attached file: …/task-0/snippet.json]</span></code></pre>
+      </article>
+
+      <article class="card c-voice">
+        <div class="card-copy">
+          <h3>Pick your transcriber</h3>
+          <p>The built-in Apple transcriber is ready at once and writes your words live. Whisper large-v3-turbo writes the whole transcript again after you stop, after a one-time download of about 650 MB. Both run on your Mac.</p>
+        </div>
+        <picture class="shot shot-bleed">
+          <source media="(prefers-color-scheme: light)" type="image/webp" srcset="assets/img/transcriber-choice-light@1x.webp 1x, assets/img/transcriber-choice-light@2x.webp 2x">
+          <img src="assets/img/transcriber-choice-dark@1x.webp" srcset="assets/img/transcriber-choice-dark@1x.webp 1x, assets/img/transcriber-choice-dark@2x.webp 2x" width="940" height="640" loading="lazy" decoding="async" alt="Setup step: choose the built-in Apple transcriber or download Whisper large-v3-turbo, both on device">
+        </picture>
       </article>
 
       <article class="card c-privacy">
         <h3>Stays on your Mac</h3>
         <ul class="checks">
-          <li><b>Transcribed on your Mac.</b> Speech never goes to a server to be written down.</li>
-          <li><b>Nothing leaves until you send it.</b> You see each task, and can edit it or leave things out, first.</li>
-          <li><b>Discard means gone.</b> <kbd>⌃⌥X</kbd> twice deletes the recording and its files. Nothing is sent or copied.</li>
-          <li><b>No account needed.</b> hive and Apiary are optional. Without them, tasks go to the clipboard.</li>
+          <li><b>Transcribed on your Mac.</b> Both transcribers, Apple and Whisper, run on the Mac itself.</li>
+          <li><b>Nothing leaves until you send it.</b> In the review you can edit a task, or leave out what you pointed at, before it goes.</li>
+          <li><b>Discard throws it away.</b> <kbd>⌃⌥X</kbd> twice stops the recording and deletes what it wrote. Nothing is sent, and the clipboard stays as it was.</li>
+          <li><b>hive and Apiary are optional.</b> Without them, each task ends on the clipboard, ready to paste.</li>
         </ul>
       </article>
 
