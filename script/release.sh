@@ -237,7 +237,8 @@ cat <<EOF
     notary profile   $notary_profile
     keychain         $keychain
     entitlements     $entitlements
-    sparkle          $(project_setting exactVersion), checked against mac/Sparkle.expected
+    sparkle          $(awk '/^  [^ ]/{in_sparkle=($1=="Sparkle:")} in_sparkle && $1=="exactVersion:"{print $2}' "$project_yml"), checked against mac/Sparkle.expected
+    other packages   checked against mac/Packages.allowed
     feed             $(project_setting SCOUT_FEED_URL)
     download base    ${release_base_url:-<unset>}
     EdDSA key        $([[ -n "$sparkle_key_command" ]] && echo "SCOUT_SPARKLE_KEY_COMMAND" || echo "login keychain, account $sparkle_key_account")
@@ -294,7 +295,7 @@ run xcodebuild -resolvePackageDependencies \
   -scheme Scout \
   -derivedDataPath "$derived"
 
-step "Verify Sparkle: exact version, revision, checksums and Team ID"
+step "Verify packages: Sparkle against mac/Sparkle.expected, every other pin against mac/Packages.allowed"
 run "$root/script/verify-sparkle.sh" --derived "$derived"
 
 step "Check the EdDSA key matches the public key in mac/project.yml"

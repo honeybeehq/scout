@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 project_yml="$root/mac/project.yml"
 expected_file="$root/mac/Sparkle.expected"
+allowed_file="$root/mac/Packages.allowed"
 resolved="$root/mac/Scout.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 derived="$root/build/release/DerivedData"
 record=false
@@ -15,14 +16,15 @@ Usage: script/verify-sparkle.sh [--derived DIR] [--record]
 Run on the Mac Studio after:
   xcodebuild -resolvePackageDependencies -project mac/Scout.xcodeproj -derivedDataPath DIR
 
-Checks that Package.resolved pins only Sparkle, at the exact version in mac/project.yml
-and the revision in mac/Sparkle.expected; that the checked-out Package.swift declares the
+Checks that Package.resolved pins Sparkle at the exact version in mac/project.yml and
+the revision in mac/Sparkle.expected, and that every other pin is listed, with the same
+version and revision, in mac/Packages.allowed (identity version revision per line); that the checked-out Package.swift declares the
 expected binary checksum; that the SHA-256 of the resolved Sparkle artifact tree matches;
 and that Sparkle.framework passes codesign --verify with the expected signature state
 (Sparkle's SPM artifact is ad-hoc signed, so there is no Team ID) and CDHash.
 
 --record gathers every value first and writes it into mac/Sparkle.expected, then reports
-any problem it found. A human reviews that diff and commits it. Until then every check fails.
+any problem it found. It never touches mac/Packages.allowed; only a human edits that. A human reviews that diff and commits it. Until then every check fails.
 
 Default DIR: $derived
 USAGE
@@ -56,23 +58,38 @@ tree_sha256() {
   ) | shasum -a 256 | cut -d' ' -f1
 }
 
-pinned_version="$(sed -n 's/^ *exactVersion: *\([0-9][0-9.]*\) *$/\1/p' "$project_yml")"
-[[ "$(printf '%s\n' "$pinned_version" | grep -c .)" == 1 ]] || fail "expected one exactVersion in $project_yml, found: ${pinned_version:-none}"
+pinned_version="$(awk '/^  [^ ]/{in_sparkle=($1=="Sparkle:")} in_sparkle && $1=="exactVersion:"{print $2}' "$project_yml")"
+[[ "$(printf '%s\n' "$pinned_version" | grep -c .)" == 1 ]] || fail "expected one exactVersion for Sparkle in $project_yml, found: ${pinned_version:-none}"
 [[ -f "$resolved" ]] || fail "no Package.resolved at $resolved; run xcodebuild -resolvePackageDependencies first"
 [[ -f "$expected_file" ]] || fail "missing $expected_file"
+[[ -f "$allowed_file" ]] || fail "missing $allowed_file"
 
 problems=()
 problem() { problems+=("$*"); }
 
 pins=0
 sparkle_index=""
+other_pins=()
 while plutil -extract "pins.$pins.identity" raw -o - "$resolved" >/dev/null 2>&1; do
   identity="$(plutil -extract "pins.$pins.identity" raw -o - "$resolved")"
-  [[ "$identity" == "sparkle" ]] && sparkle_index="$pins"
+  if [[ "$identity" == "sparkle" ]]; then
+    sparkle_index="$pins"
+  else
+    pin_version="$(plutil -extract "pins.$pins.state.version" raw -o - "$resolved" 2>/dev/null || echo none)"
+    pin_revision="$(plutil -extract "pins.$pins.state.revision" raw -o - "$resolved" 2>/dev/null || echo none)"
+    other_pins+=("$identity $pin_version $pin_revision")
+    allowed="$(awk -v id="$identity" '$1==id{print $1, $2, $3}' "$allowed_file")"
+    if [[ -z "$allowed" ]]; then
+      problem "pin $identity $pin_version $pin_revision is not in mac/Packages.allowed"
+    elif [[ "$(printf '%s\n' "$allowed" | grep -c .)" != 1 ]]; then
+      problem "mac/Packages.allowed lists $identity more than once"
+    elif [[ "$allowed" != "$identity $pin_version $pin_revision" ]]; then
+      problem "pin $identity is $pin_version $pin_revision, mac/Packages.allowed says ${allowed#* }"
+    fi
+  fi
   pins=$((pins + 1))
 done
 [[ -n "$sparkle_index" ]] || fail "Package.resolved has no sparkle pin"
-[[ "$pins" == 1 ]] || problem "Package.resolved pins $pins remote packages; Sparkle is the only allowed one"
 
 location="$(plutil -extract "pins.$sparkle_index.location" raw -o - "$resolved")"
 resolved_version="$(plutil -extract "pins.$sparkle_index.state.version" raw -o - "$resolved" 2>/dev/null || true)"
@@ -111,6 +128,8 @@ binary checksum  ${binary_checksum:-none}
 artifact         $artifact_dir
 artifact sha256  $artifact_sha256
 framework        $framework
+other pins       ${#other_pins[@]} checked against mac/Packages.allowed
+$(for item in ${other_pins[@]+"${other_pins[@]}"}; do echo "  $item"; done)
 signature        ${signature_state:-none}
 cdhash           ${cdhash:-none}
 $(printf '%s\n' "$signature" | grep -E '^(Identifier|Signature|Authority|TeamIdentifier|Timestamp)=' | sed 's/^/codesign         /')

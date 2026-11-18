@@ -2,7 +2,7 @@
 
 Releases are built, signed and notarized headless on the Mac Studio, inside a Cell. Nothing is launched there. Every app test runs on a Mac mini.
 
-Scout updates itself with Sparkle 2. Sparkle is pinned to one exact version in `mac/project.yml` (`exactVersion`), and `script/verify-sparkle.sh` checks the resolved copy against the approved values in `mac/Sparkle.expected` before each build. The EdDSA private key that signs updates lives in the Studio's login keychain and in Hem, never in the repo. Only the public key is committed.
+Scout updates itself with Sparkle 2. Sparkle is pinned to one exact version in `mac/project.yml` (`exactVersion`), and `script/verify-sparkle.sh` checks the resolved copy against the approved values in `mac/Sparkle.expected` before each build. The same script checks every other pin in `Package.resolved` against `mac/Packages.allowed`, one `identity version revision` line per approved package (today WhisperKit 1.1.1 and swift-argument-parser 1.7.0). A pin that isn't listed, or whose version or revision differs, fails the release. Only a human edits that list, after Needle and Tormod approve the package; `--record` never touches it. The EdDSA private key that signs updates lives in the Studio's login keychain and in Hem, never in the repo. Only the public key is committed.
 
 ## One-time setup on the Studio
 
@@ -70,3 +70,9 @@ The script resolves packages, runs `verify-sparkle.sh` (and stops if it fails), 
 ## Changing the Sparkle version
 
 Change `exactVersion` in `mac/project.yml`, empty `mac/Sparkle.expected`, and repeat setup steps 1 and 2, including Tormod's approval.
+
+If a resolve changes Sparkle's recorded values for any other reason (for example after a rebase that touched `mac/project.yml`), `verify-sparkle.sh` fails with a MISMATCH. Re-record with `--record` and get Tormod's approval again before committing. Don't edit `mac/Sparkle.expected` by hand to make it pass.
+
+## Adding or changing another package
+
+Get it approved first (Needle for placement, Tormod for acceptance). Then pin it with `exactVersion` in `mac/project.yml`, resolve on the Studio, and add or change its line in `mac/Packages.allowed` by hand, with the version and revision from the resolved `Package.resolved`. Commit `Package.resolved` with it.
