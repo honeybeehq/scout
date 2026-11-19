@@ -166,13 +166,8 @@ private struct GeneralSettings: View {
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScoutScroll {
-                generalSections
-            }
-            .onAppear {
-                if let anchor = SnapshotMode.settingsScrollAnchor { proxy.scrollTo(anchor, anchor: .top) }
-            }
+        ScoutScroll {
+            generalSections
         }
     }
 
@@ -194,7 +189,6 @@ private struct GeneralSettings: View {
                 }
             }
             SplittingSection()
-            VoiceSection().id("voice")
             SettingsSection(title: "App") {
                 SettingRow(title: "Open Scout at login", detail: nil, divider: false) {
                     Toggle("", isOn: $opensAtLogin)
