@@ -7,8 +7,8 @@ struct VoiceSection: View {
 
     var body: some View {
         @Bindable var preferences = model.preferences
-        SettingsSection(title: "Voice") {
-            SettingRow(title: "Transcriber", detail: nil, divider: false) {
+        SettingsSection(title: "Recognition") {
+            SettingRow(title: "Apple recognizer", detail: nil, divider: false) {
                 SegmentedChoice(options: TranscriptionModule.allCases, selection: $preferences.transcriptionModule, title: \.title)
             }
             SettingNote(text: preferences.transcriptionModule.explanation)
