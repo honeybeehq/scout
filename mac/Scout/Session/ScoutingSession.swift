@@ -47,6 +47,7 @@ final class ScoutingSession {
     var refineCard: ((SnippetCard, Snippet) -> Void)?
     var transcriptionEngine: any TranscriptionEngine = AppleTranscriptionEngine()
     var fallbackEngine: (any TranscriptionEngine)?
+    var skippedEngines: [SkippedEngine] = []
     private(set) var transcriptPass: TranscriptPass?
     private(set) var secondPassFailures: [String] = []
     @ObservationIgnored private var secondPassStart: (request: TranscriptionRequest, limit: Double, at: SessionTime)?
@@ -559,6 +560,7 @@ extension ScoutingSession {
             reason: outcome.1,
             engines: [transcriptionEngine.name] + (fallbackEngine.map { [$0.name] } ?? []),
             failures: result.failures,
+            skipped: skippedEngines,
             segments: result.transcript?.segments ?? []
         ))
     }

@@ -466,7 +466,6 @@ enum SimulationMode {
 
     private static func pickerSnapshot(_ model: AppModel, _ name: String, into output: URL) {
         try? model.picker.snapshot()?.representation(using: .png, properties: [:])?.write(to: output.appendingPathComponent("picker-\(name).png"))
-        ViewShot.write(TargetPickerView().environment(model.picker.model), to: output.appendingPathComponent("picker-\(name)-rendered.png"), padding: 0)
         if name == "1-open" {
             ViewShot.write(MenuBarPanel().environment(model), to: output.appendingPathComponent("menu-bar.png"))
         }
