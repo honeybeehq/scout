@@ -302,6 +302,7 @@ final class AppModel {
             if whisperModels.state != .ready { NSLog("[scout-transcript] Whisper is %@; this session falls back to the Apple pass unless it is ready %d s after the session ends", whisperModels.state.summary, Int(ScoutingSession.prepareLimit)) }
         } else {
             NSLog("[scout-transcript] Whisper is selected but the model is %@; using the Apple pass", whisperModels.state.summary)
+            session.skippedEngines.append(SkippedEngine(engine: "Whisper", reason: "model is \(whisperModels.state.summary)"))
         }
     }
 

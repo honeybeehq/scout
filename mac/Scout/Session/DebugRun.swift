@@ -19,6 +19,11 @@ nonisolated struct DebugTranscriberSetup: Encodable, Sendable {
     var contextualStrings: [String]
 }
 
+nonisolated struct SkippedEngine: Encodable, Sendable {
+    var engine: String
+    var reason: String
+}
+
 nonisolated struct DebugSecondPass: Encodable, Sendable {
     var engine: String
     var requestedLocale: String
@@ -33,6 +38,7 @@ nonisolated struct DebugSecondPass: Encodable, Sendable {
     var reason: String?
     var engines: [String]
     var failures: [String]
+    var skipped: [SkippedEngine]
     var segments: [TranscribedSegment]
 }
 

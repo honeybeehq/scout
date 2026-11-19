@@ -122,7 +122,7 @@ debug/
   run.json           run id and kind, app, input, audio format, live and second-pass engine, module, preset, locale and contextual strings, walkthrough id and bundle
   audio.wav          a hard link to the session's audio.wav (a copy only if linking fails)
   live.jsonl         every live result as it arrived: t, final, text, start, end, words; volatile and final
-  second-pass.json   the whole-recording pass: engine, locale, contextual strings, start, finish, outcome and its raw segments with word timings
+  second-pass.json   the whole-recording pass: engines tried, failures, engines skipped (e.g. Whisper selected but not installed), locale, contextual strings, start, finish, outcome and its raw segments with word timings
   events.jsonl       a hard link to transcript-events.jsonl: stalls, restarts, dropped words, errors
   scout.log          Scout's own [scout-…] log lines during the run, teed from stderr: session time, wall time, message
   timings.json       phase times (transcriber ready, first volatile and final, stop, second pass, end), interaction timings, walkthrough finish timings
