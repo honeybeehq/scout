@@ -1,6 +1,7 @@
 @preconcurrency import AVFoundation
 import Speech
 import Synchronization
+import ScoutCore
 
 nonisolated protocol MicrophoneDevice: AnyObject, Sendable {
     var name: String? { get }
@@ -59,6 +60,22 @@ nonisolated final class MicrophoneCapture: @unchecked Sendable {
     }
 
     static let retryDelays: [Double] = [0.1, 0.2, 0.4, 0.6, 0.7]
+
+    nonisolated static func walkthroughMicrophone(_ summary: Summary) -> Walkthrough.Microphone {
+        Walkthrough.Microphone(
+            device: summary.device,
+            sampleRate: summary.sampleRate,
+            channels: summary.channels,
+            buffers: summary.buffers,
+            peakDb: summary.peakDecibels,
+            restarts: summary.restarts,
+            retries: summary.retries,
+            channelMode: summary.channelMode,
+            channelSwitches: (summary.channels ?? 1) > 1 ? summary.channelSwitches : nil,
+            droppedBuffers: summary.droppedBuffers > 0 ? summary.droppedBuffers : nil,
+            unlearnedClasses: summary.unlearnedClasses > 0 ? summary.unlearnedClasses : nil
+        )
+    }
     static let firstBufferWait: Double = 1.0
     static let bufferSize: AVAudioFrameCount = 2048
 

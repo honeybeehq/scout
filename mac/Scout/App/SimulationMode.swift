@@ -724,6 +724,7 @@ enum SimulationMode {
         var uiSizeReport: [String: Any] = [:]
         var snapped = false
         var stallShot = false
+        var pillText = ""
         if ProcessInfo.processInfo.arguments.contains("--simulate-pin") {
             Task {
                 try? await Task.sleep(for: .seconds(4))
@@ -742,6 +743,11 @@ enum SimulationMode {
             if !stallShot, model.session?.transcriber.stalledSince != nil {
                 stallShot = true
                 ViewShot.write(ScoutingPill().environment(model), to: output.appendingPathComponent("pill-stalled.png"), padding: 12)
+            }
+            if let transcriber = model.session?.transcriber {
+                let live = [transcriber.finalizedText, transcriber.volatileText].filter { !$0.isEmpty }.joined(separator: " ")
+                if !live.isEmpty { pillText = live }
+                if pillText.isEmpty, case .failed(let message) = transcriber.phase { pillText = message }
             }
             if !snapped, (model.session?.closedCount ?? 0) >= 1 {
                 snapped = true
@@ -796,7 +802,7 @@ enum SimulationMode {
         try? await Task.sleep(for: .seconds(1))
         snapshotPanels(into: output, suffix: "after-stop")
         let debugReport = await debugDataReport(model: model, output: output)
-        writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport, "debugData": debugReport])
+        writeReport(model: model, into: output, elapsed: Date().timeIntervalSince(started), extra: ["review": reviewReport, "uiSizeChange": uiSizeReport, "debugData": debugReport, "pillDuringRecording": pillText])
         if DesignGallery.directory != nil {
             await DesignGallery.captureFinished(model: model)
         }
@@ -1101,6 +1107,20 @@ enum SimulationMode {
         report["breaks"] = breakLog
         report["walkthrough"] = model.lastWalkthrough?.directory.path ?? ""
         report["secondPass"] = secondPassReport(of: model.session)
+        if let session = model.session {
+            let transcriber = session.transcriber
+            report["soundSeconds"] = transcriber.sound.seconds
+            report["transcriberFailure"] = transcriber.failure.map { ["message": $0.message, "t": $0.at.map(Walkthrough.milliseconds) ?? -1, "microphone": $0.microphone ?? ""] } ?? [:]
+            if let microphone = transcriber.microphoneSummary, let data = try? JSONEncoder().encode(MicrophoneCapture.walkthroughMicrophone(microphone)) {
+                report["microphone"] = try? JSONSerialization.jsonObject(with: data)
+            }
+            report["counts"] = [
+                "cards": cards.count,
+                "utterances": session.ledger.utterances.count,
+                "words": session.ledger.utterances.reduce(0) { $0 + $1.words.count },
+                "discarded": session.discardedRanges.count,
+            ]
+        }
         if let events = model.session?.transcriber.events, let data = try? JSONEncoder().encode(events) {
             report["transcriptEvents"] = try? JSONSerialization.jsonObject(with: data)
         }

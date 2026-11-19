@@ -505,9 +505,7 @@ final class AppModel {
             language: transcriber.localeIdentifier,
             engine: transcriber.run?.engine,
             failed: session.captureProblem != nil && preferences.includeClips,
-            microphoneSummary: microphone.map {
-                Walkthrough.Microphone(device: $0.device, sampleRate: $0.sampleRate, channels: $0.channels, buffers: $0.buffers, peakDb: $0.peakDecibels, restarts: $0.restarts, retries: $0.retries, channelMode: $0.channelMode, channelSwitches: ($0.channels ?? 1) > 1 ? $0.channelSwitches : nil, droppedBuffers: $0.droppedBuffers > 0 ? $0.droppedBuffers : nil, unlearnedClasses: $0.unlearnedClasses > 0 ? $0.unlearnedClasses : nil)
-            }
+            microphoneSummary: microphone.map(MicrophoneCapture.walkthroughMicrophone)
         )
     }
 
