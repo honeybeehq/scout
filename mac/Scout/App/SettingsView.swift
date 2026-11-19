@@ -211,9 +211,9 @@ private struct GeneralSettings: View {
                         .toggleStyle(SignalToggleStyle())
                         .labelsHidden()
                 }
-                UpdatesSection()
             }
             .id("app")
+            UpdatesSection()
         }
         .padding(20)
     }
