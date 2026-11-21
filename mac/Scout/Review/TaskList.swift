@@ -173,7 +173,9 @@ struct StateLine: View {
     private var detail: String {
         switch card.state {
         case .sent("clipboard"): "Copied to the clipboard"
-        case .sent(let destination): card.linearReceipt?.issue.map { issue in "Filed in Linear as \(issue.identifier)" + (card.linearReceipt?.parent.map { ", a sub-issue of \($0.identifier)" } ?? "") } ?? "Sent to \(destination)"
+        case .sent(let destination):
+            if let added = card.linearReceipt?.addedTo { "Added to \(added.identifier) in Linear as a comment" }
+            else { card.linearReceipt?.issue.map { issue in "Filed in Linear as \(issue.identifier)" + (card.linearReceipt?.parent.map { ", a sub-issue of \($0.identifier)" } ?? "") } ?? "Sent to \(destination)" }
         case .failed(let message): "Couldn't send: \(message)"
         case .copiedInstead(let reason): "Not sent, copied to the clipboard instead: \(reason)"
         default: card.destination.map { "To \($0.label)" } ?? text
@@ -195,10 +197,10 @@ struct StateLine: View {
     private var text: String {
         switch card.state {
         case .sent("clipboard"): "Copied"
-        case .sent: card.linearReceipt?.issue.map { "Filed as \($0.identifier)" } ?? "Sent"
+        case .sent: card.linearReceipt?.sentText ?? "Sent"
         case .failed: "Couldn't send"
         case .copiedInstead: "Copied instead"
-        case .sending: card.destination?.linearTarget == nil ? "Sending…" : "Filing…"
+        case .sending: card.destination?.linearTarget == nil ? "Sending…" : card.linearOptions.addTo == nil ? "Filing…" : "Adding…"
         case .countdown: "Sending soon"
         case .needsDestination: "Needs a destination"
         case .preparing: "Preparing"

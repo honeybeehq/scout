@@ -92,8 +92,20 @@ enum LinearDemo {
             review.editingParentTitle = false
             try? await Task.sleep(for: .milliseconds(500))
         }
-        if let card = review.tasks.first {
+        let focus = argument("linear-demo-task").flatMap(Int.init).flatMap { review.tasks.indices.contains($0) ? review.tasks[$0] : nil } ?? review.tasks.first
+        if let focus, focus !== review.tasks.first {
+            review.select(focus)
+            try? await Task.sleep(for: .seconds(1))
+        }
+        if let card = focus {
             await prepareVideo(card, review: review, model: model, label: label, output: output, steps: &steps)
+        }
+        if let card = focus, flag("linear-demo-duplicates") || argument("linear-demo-add-to") != nil {
+            if let problem = await duplicates(card, review: review, model: model, label: label, output: output, steps: &steps) {
+                steps.append(["error": problem])
+                finish(steps, output: output, label: label)
+                return
+            }
         }
         let send = argument("linear-demo-send") ?? "none"
         if send != "none", model.dispatcher.dryRun, !SimulationMode.asksDryRun {
@@ -119,14 +131,15 @@ enum LinearDemo {
             async let first: Void = model.sendAll(in: review)
             async let second: Void = model.sendAll(in: review)
             _ = await (first, second)
-        } else if send == "first", let card = review.tasks.first {
+        } else if send == "first", let card = focus {
             await model.dispatcher.send(card)
-            review.save()
+            await review.finishSending()
         }
         if send != "none" {
             try? await Task.sleep(for: .seconds(1))
             steps.append(describe(review, model: model, step: "after send=\(send)"))
             draw(review, model: model, name: "\(label)-2-after-send", into: output)
+            if flag("linear-demo-menubar") { drawMenuBar(review, name: "\(label)-3-menubar", into: output) }
         }
         finish(steps, output: output, label: label)
     }
@@ -177,6 +190,62 @@ enum LinearDemo {
             card.redactionSheet = nil
             try? await Task.sleep(for: .seconds(1))
         }
+    }
+
+    private static func duplicates(_ card: SnippetCard, review: SessionReview, model: AppModel, label: String, output: URL, steps: inout [[String: Any]]) async -> String? {
+        guard let target = card.destination?.linearTarget else { return "the task has no Linear destination" }
+        let wanted = argument("linear-demo-add-to")
+        var waited = 0.0
+        while true {
+            card.duplicates = .idle
+            await model.dispatcher.checkDuplicates(for: card, in: target, debounce: false)
+            let ids = card.duplicates.candidates.map(\.id)
+            if wanted == nil || wanted == "first" ? !ids.isEmpty : ids.contains(wanted ?? "") { break }
+            if waited >= 45 { break }
+            try? await Task.sleep(for: .seconds(5))
+            waited += 5
+        }
+        let candidates = card.duplicates.candidates
+        steps.append([
+            "step": "duplicate check",
+            "term": Dispatcher.duplicateTerm(for: card),
+            "result": String(describing: card.duplicates).prefix(60).description,
+            "waitedSeconds": waited,
+            "candidates": candidates.map { candidate -> [String: Any] in ["identifier": candidate.identifier, "id": candidate.id, "renderedTitle": RemoteText.clean(candidate.title), "renderedLength": RemoteText.clean(candidate.title).count, "state": candidate.state ?? ""] },
+        ])
+        try? await Task.sleep(for: .seconds(1.5))
+        draw(review, model: model, name: "\(label)-1-candidate", into: output)
+        renderRow(card, review: review, target: target, name: "\(label)-1-candidate-row", into: output)
+        guard let wanted else { return nil }
+        guard let chosen = wanted == "first" ? candidates.first : candidates.first(where: { $0.id == wanted }) else {
+            return "the duplicate check did not return the wanted issue \(wanted) (got \(candidates.map(\.identifier)))"
+        }
+        card.linearOptions.addTo = chosen
+        card.linearOptions.fileNew = nil
+        review.edited(card)
+        try? await Task.sleep(for: .seconds(1.5))
+        draw(review, model: model, name: "\(label)-1-add-to", into: output)
+        renderRow(card, review: review, target: target, name: "\(label)-1-add-to-row", into: output)
+        steps.append(["step": "chose Add to it", "addTo": chosen.identifier])
+        return nil
+    }
+
+    private static func renderRow(_ card: SnippetCard, review: SessionReview, target: LinearTarget, name: String, into directory: URL) {
+        let row = DuplicateRow(review: review, card: card, target: target)
+            .frame(width: 300)
+            .padding(16)
+            .background(Palette.surface)
+        let renderer = ImageRenderer(content: row.environment(\.stillRender, true))
+        renderer.scale = 2
+        if let image = renderer.cgImage { write(image, to: directory.appendingPathComponent("\(name).png")) }
+    }
+
+    private static func drawMenuBar(_ review: SessionReview, name: String, into directory: URL) {
+        let state = MenuBarPanelState(recent: review.tasks.suffix(5).reversed().map(MenuBarPanelState.RecentTask.init), version: "T6 demo")
+        let panel = MenuBarPanelContent(state: state, segmentation: .constant(review.segmentation), actions: MenuBarPanelActions())
+        let renderer = ImageRenderer(content: panel.environment(\.stillRender, true))
+        renderer.scale = 2
+        if let image = renderer.cgImage { write(image, to: directory.appendingPathComponent("\(name).png")) }
     }
 
     private static func measure(_ sources: [URL], output: URL, label: String) async {
@@ -378,6 +447,11 @@ enum LinearDemo {
                     "state": String(describing: card.state),
                     "receipt": card.linearReceipt.map { String(describing: $0.status) } ?? "none",
                     "subIssueOf": card.linearReceipt?.parent?.identifier ?? "none",
+                    "addedTo": card.linearReceipt?.addedTo?.identifier ?? "none",
+                    "addedToIssueID": card.linearReceipt?.addedTo?.id ?? "",
+                    "commentID": card.linearReceipt?.comment?.id ?? "",
+                    "addToChoice": card.linearOptions.addTo?.identifier ?? "none",
+                    "sentText": card.linearReceipt?.sentText ?? "",
                     "uploadedAssets": card.linearReceipt?.assets.map { "\($0.name) \($0.kind?.rawValue ?? "image") \($0.byteCount.map { "\($0) bytes" } ?? "") → \($0.url.absoluteString)" } ?? [],
                     "clipAttachment": card.linearReceipt?.clipAttachmentID ?? "none",
                     "unlinkedClip": card.linearReceipt?.unlinkedClip ?? false,

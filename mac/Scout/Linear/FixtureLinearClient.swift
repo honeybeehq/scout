@@ -152,6 +152,47 @@ nonisolated struct FixtureLinearClient: LinearAPI {
                 try? data.write(to: issues.appendingPathComponent("\(issueID).json"))
             }
             return reply(["attachmentCreate": ["success": true, "attachment": ["id": id]]])
+        case "duplicates":
+            let term = operation.variables["term"]?.string ?? ""
+            let team = operation.variables["team"]?.string ?? ""
+            let files = (try? FileManager.default.contentsOfDirectory(at: issues, includingPropertiesForKeys: nil)) ?? []
+            let open = files.compactMap { stored($0.deletingPathExtension().lastPathComponent, in: issues) }
+                .filter { $0["teamId"] as? String == team && $0["trashed"] as? Bool != true && $0["archivedAt"] == nil && $0["state"] as? String != "Done" }
+                .sorted { number($0) < number($1) }
+                .prefix(6)
+            log(state, "searchIssues(duplicates, team: \(teamKey(team)), term: \(term)) → \(open.map { $0["identifier"] as? String ?? "?" }.joined(separator: ", "))")
+            let nodes = open.map { issue -> [String: Any] in
+                ["id": issue["id"] ?? "", "identifier": issue["identifier"] ?? "", "title": issue["title"] ?? "", "url": issue["url"] ?? "", "trashed": false, "state": ["name": issue["state"] ?? "Backlog"]]
+            }
+            return reply(["searchIssues": ["nodes": nodes]])
+        case "commentTarget":
+            let id = operation.variables["id"]?.string ?? ""
+            log(state, "issue(id: \(id)) for a comment")
+            guard let issue = stored(id, in: issues) else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
+            var node = issue
+            node["team"] = ["id": issue["teamId"] ?? ""]
+            node["comments"] = ["nodes": issue["comments"] as? [[String: Any]] ?? []]
+            return reply(["issue": node])
+        case "commentCreate":
+            guard let input = operation.variables["input"]?.object else { throw .malformed }
+            let issueID = input["issueId"]?.string ?? ""
+            let id = input["id"]?.string ?? UUID().uuidString.lowercased()
+            let body = input["body"]?.string ?? ""
+            guard var issue = stored(issueID, in: issues) else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
+            log(state, "commentCreate(id: \(input["id"]?.string ?? "none"), issue: \(issue["identifier"] ?? "?"), body: \(body.count) chars, clip: \(body.contains("clip.mp4")), footer: \(body.split(separator: "\n").last ?? ""))")
+            if input["id"] != nil, environment["SCOUT_LINEAR_FIXTURE_REFUSE_IDS"] == "1" {
+                return reply(errors: "Argument Validation Error: id is not allowed", code: "INVALID_INPUT")
+            }
+            let files = (try? FileManager.default.contentsOfDirectory(at: issues, includingPropertiesForKeys: nil)) ?? []
+            let taken = files.compactMap { stored($0.deletingPathExtension().lastPathComponent, in: issues) }
+                .contains { ($0["comments"] as? [[String: Any]] ?? []).contains { $0["id"] as? String == id } }
+            if taken { return reply(errors: "Conflict: an entity with this id already exists", code: "INVALID_INPUT") }
+            let comment: [String: Any] = ["id": id, "body": body, "url": "\(issue["url"] ?? "")#comment-\(id.prefix(8))"]
+            issue["comments"] = (issue["comments"] as? [[String: Any]] ?? []) + [comment]
+            if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: issues.appendingPathComponent("\(issueID).json"))
+            }
+            return reply(["commentCreate": ["success": true, "comment": ["id": id, "url": comment["url"] ?? ""]]])
         case "searchIssues":
             let term = operation.variables["term"]?.string ?? ""
             log(state, "searchIssues(\(term))")
@@ -167,6 +208,10 @@ nonisolated struct FixtureLinearClient: LinearAPI {
     private func stored(_ id: String, in issues: URL) -> [String: Any]? {
         guard RemoteText.isID(id), let data = try? Data(contentsOf: issues.appendingPathComponent("\(id).json")) else { return nil }
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+
+    private func number(_ issue: [String: Any]) -> Int {
+        Int((issue["identifier"] as? String ?? "").split(separator: "-").last ?? "") ?? 0
     }
 
     private func teamKey(_ teamID: String) -> String {

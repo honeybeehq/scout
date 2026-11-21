@@ -20,7 +20,7 @@ extension Dispatcher {
         let base = issueInput(for: card)
         let marks = card.snippet.marks
         let hasRecording = card.hasRecording
-        let compose: @Sendable ([StoredAsset]) -> IssueDraft = { assets in
+        let assembled: @Sendable ([StoredAsset]) -> IssueInput = { assets in
             var input = base
             if let clip = assets.first(where: \.isVideo), let video {
                 input.clip = .included(url: clip.url.absoluteString, duration: video.duration, hiddenParts: video.hiddenParts)
@@ -32,7 +32,13 @@ extension Dispatcher {
                 let caption = marks.indices.contains(number - 1) ? marks[number - 1].target?.displayName ?? "Pinned spot" : "Pinned spot"
                 return IssueInput.Pin(number: number, caption: caption, url: asset.url.absoluteString)
             }
-            return IssueComposer.compose(input)
+            return input
+        }
+        let compose: @Sendable ([StoredAsset]) -> IssueDraft = { IssueComposer.compose(assembled($0)) }
+        let addTo = card.linearOptions.addTo
+        var composeComment: (@Sendable ([StoredAsset], String?) -> String)?
+        if addTo != nil {
+            composeComment = { assets, existing in IssueComposer.composeComment(assembled(assets), existing: existing) }
         }
         if dryRun {
             var local = images.map { StoredAsset(provider: .linear, name: $0.lastPathComponent, url: URL(string: $0.lastPathComponent) ?? $0, contentHash: "") }
@@ -41,8 +47,13 @@ extension Dispatcher {
             let directory = card.sessionDirectory.appendingPathComponent("snippets/\(card.snippet.id)", isDirectory: true)
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                let header = "# \(draft.title)\n\n<!-- team \(target.team.key) · labels \(labelIDs(for: card, team: target.team.id)) · priority \(priority(for: card)) -->\n\n"
-                try (header + draft.markdown + "\n").write(to: directory.appendingPathComponent("issue.md"), atomically: true, encoding: .utf8)
+                if let addTo, let composeComment {
+                    let header = "<!-- comment on \(addTo.identifier) in \(target.team.key) -->\n\n"
+                    try (header + composeComment(local, nil) + "\n").write(to: directory.appendingPathComponent("comment.md"), atomically: true, encoding: .utf8)
+                } else {
+                    let header = "# \(draft.title)\n\n<!-- team \(target.team.key) · labels \(labelIDs(for: card, team: target.team.id)) · priority \(priority(for: card)) -->\n\n"
+                    try (header + draft.markdown + "\n").write(to: directory.appendingPathComponent("issue.md"), atomically: true, encoding: .utf8)
+                }
                 card.state = .sent("\(target.label) (dry run)")
             } catch {
                 card.state = .failed(error.localizedDescription)
@@ -51,7 +62,7 @@ extension Dispatcher {
         }
         let parent: (issue: LinearIssueRef, position: Int)?
         do {
-            parent = try await linearParent?(card)
+            parent = addTo == nil ? try await linearParent?(card) : nil
         } catch {
             card.state = .failed("Couldn't file the parent issue. " + ((error as? LinearError)?.message ?? "Couldn't reach Linear."))
             return
@@ -70,7 +81,9 @@ extension Dispatcher {
                 priority: priority(for: card),
                 parent: parent?.issue,
                 subIssuePosition: parent?.position,
-                compose: compose
+                compose: compose,
+                addTo: addTo?.ref,
+                composeComment: composeComment
             )
             let receipt = try await linear.filer.file(request, pending: { [weak self, weak card] receipt in
                 guard let card else { return }
@@ -81,6 +94,10 @@ extension Dispatcher {
             })
             card.linearReceipt = receipt
             card.state = .sent(receipt.issue?.identifier ?? target.label)
+        } catch LinearError.targetGone(let identifier) {
+            card.linearOptions.addTo = nil
+            card.duplicates = .idle
+            card.state = .failed(LinearError.targetGone(identifier).message + " File it as a new issue instead.")
         } catch LinearError.deletedRemotely {
             card.linearReceipt = LinearReceipt(key: card.linearKey, status: .deletedRemotely, assets: card.linearReceipt?.assets ?? [])
             card.state = .failed(LinearError.deletedRemotely.message)
@@ -183,6 +200,14 @@ extension Dispatcher {
     }
 
     func previewIssue(for card: SnippetCard) -> IssueDraft {
+        let input = previewInput(for: card)
+        if let addTo = card.linearOptions.addTo {
+            return IssueDraft(title: "Comment on \(addTo.identifier)", markdown: IssueComposer.composeComment(input, existing: nil))
+        }
+        return IssueComposer.compose(input)
+    }
+
+    private func previewInput(for card: SnippetCard) -> IssueInput {
         var input = issueInput(for: card)
         if includesVideo(card) {
             let hidden = card.linearOptions.redaction.map { $0.regions.count + $0.mergedCuts(in: card.clipRange).count } ?? 0
@@ -195,7 +220,7 @@ extension Dispatcher {
             guard redaction?.cuts(near: mark.at, within: SnippetMedia.pinSlack) != true else { return nil }
             return IssueInput.Pin(number: index + 1, caption: mark.target?.displayName ?? "Pinned spot", url: "pin-\(index + 1).png")
         }
-        return IssueComposer.compose(input)
+        return input
     }
 
     private func issueInput(for card: SnippetCard) -> IssueInput {

@@ -14,6 +14,7 @@ actor LinearFiler {
         case creating
         case creatingParent
         case attaching
+        case commenting
         case updating
         case waiting(until: Date)
     }
@@ -32,6 +33,8 @@ actor LinearFiler {
         var parent: LinearIssueRef?
         var subIssuePosition: Int?
         var compose: @Sendable ([StoredAsset]) -> IssueDraft
+        var addTo: LinearIssueRef? = nil
+        var composeComment: (@Sendable ([StoredAsset], String?) -> String)? = nil
     }
 
     typealias Report = @MainActor @Sendable (Step) -> Void
@@ -75,6 +78,9 @@ actor LinearFiler {
     private func perform(_ request: Request, pending: Pending, report: @escaping Report) async throws -> LinearReceipt {
         let workspace = try await retrying(report) { try await self.workspaceID(request.credential) }
         let mode = identity(for: workspace)
+        if let target = request.addTo, let composeComment = request.composeComment {
+            return try await addComment(to: target, request: request, compose: composeComment, workspace: workspace, mode: mode, pending: pending, report: report)
+        }
         let issueID = mode == .clientID ? LinearIdentity.issueID(workspaceID: workspace, key: request.key) : nil
         await report(.checking)
         let video = request.video.flatMap { LocalAsset.video($0, includeVideo: request.includeVideo) }
@@ -136,6 +142,67 @@ actor LinearFiler {
             }
             throw error
         }
+    }
+
+    private func addComment(to target: LinearIssueRef, request: Request, compose: @Sendable ([StoredAsset], String?) -> String, workspace: String, mode: Identity, pending: Pending, report: @escaping Report) async throws -> LinearReceipt {
+        await report(.checking)
+        let marker = "`\(request.key)`"
+        let commentID = mode == .clientID ? LinearIdentity.commentID(workspaceID: workspace, key: request.key, target: target.id) : nil
+        let teamID = request.target.team.id
+        func read() async throws -> LinearCommentTarget {
+            let state: LinearCommentTarget?
+            do {
+                state = try await retrying(report) { try await self.api.perform(LinearOperations.commentTarget(id: target.id), credential: request.credential) }.issue
+            } catch LinearError.notFound {
+                state = nil
+            }
+            guard let state, !state.issue.isGone else { throw LinearError.targetGone(target.identifier) }
+            guard state.teamID == teamID else { throw LinearError.forbidden }
+            return state
+        }
+        func existing(_ state: LinearCommentTarget) -> LinearCommentRef? {
+            state.comments.first { $0.id == commentID || $0.body.contains(marker) }.map { LinearCommentRef(id: $0.id, url: $0.url) }
+        }
+        let state = try await read()
+        let issue = state.issue.ref
+        let video = request.video.flatMap { LocalAsset.video($0, includeVideo: request.includeVideo) }
+        var stored = (request.previous?.assets ?? []).filter { !$0.isVideo || $0.contentHash == video?.contentHash }
+        if let comment = existing(state) {
+            let attached = stored.contains(where: \.isVideo) ? request.previous?.clipAttachmentID : nil
+            let receipt = LinearReceipt(key: request.key, status: .filed(issue), assets: stored, clipAttachmentID: attached, comment: comment)
+            return await attachClip(receipt, video: video, request: request, workspace: workspace, mode: mode, report: report)
+        }
+        let storage = LinearStorage(api: api, credential: request.credential, teamID: teamID)
+        if let video, !stored.contains(where: \.isVideo) {
+            stored.insert(try await upload(video, to: storage, report: report), at: 0)
+        }
+        for (index, url) in request.images.enumerated() {
+            guard let asset = LocalAsset.image(at: url), !stored.contains(where: { $0.contentHash == asset.contentHash }) else { continue }
+            await report(.uploading(index + 1, of: request.images.count))
+            stored.append(try await retrying(report) { try await storage.store(asset, name: url.lastPathComponent) { _, _ in } })
+        }
+        await pending(LinearReceipt(key: request.key, status: .pending, assets: stored))
+        let body = compose(stored, state.issue.description)
+        await report(.commenting)
+        let comment: LinearCommentRef
+        do {
+            let reply = try await retrying(report) { try await self.api.perform(LinearOperations.createComment(id: commentID, issueID: issue.id, teamID: teamID, body: body), credential: request.credential) }.commentCreate
+            guard reply.success, let created = reply.comment else { throw LinearError.server("Linear didn't add the comment.") }
+            comment = LinearCommentRef(id: created.id, url: created.url)
+        } catch {
+            if let found = existing(try await read()) {
+                comment = found
+            } else if mode == .clientID, case LinearError.server(let message) = error, Self.refusesClientIDs(message) {
+                useMarkers(for: workspace)
+                var retry = request
+                retry.previous = LinearReceipt(key: request.key, status: .pending, assets: stored)
+                return try await addComment(to: target, request: retry, compose: compose, workspace: workspace, mode: .marker, pending: pending, report: report)
+            } else {
+                throw error
+            }
+        }
+        let receipt = LinearReceipt(key: request.key, status: .filed(issue), assets: stored, comment: comment)
+        return await attachClip(receipt, video: video, request: request, workspace: workspace, mode: mode, report: report)
     }
 
     private func upload(_ asset: LocalAsset, to storage: LinearStorage, report: @escaping Report) async throws -> StoredAsset {

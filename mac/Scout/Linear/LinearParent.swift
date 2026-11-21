@@ -44,9 +44,10 @@ extension SessionReview {
 
     var linearPlan: LinearParentPlan? {
         guard linearStructure == .parent else { return nil }
-        let linear = tasks.filter { $0.destination?.linearTarget != nil }
+        let linear = tasks.filter { $0.destination?.linearTarget != nil && ($0.linearOptions.addTo == nil || $0.linearReceipt?.issue != nil) }
         func standalone(_ card: SnippetCard) -> Bool {
             guard let receipt = card.linearReceipt, receipt.issue != nil else { return false }
+            if receipt.addedTo != nil { return true }
             return receipt.parent == nil || receipt.parent?.id != linearParent?.issue.id
         }
         guard let target = linearParent?.target ?? linear.first(where: { !standalone($0) })?.destination?.linearTarget else { return nil }

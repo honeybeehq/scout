@@ -28,10 +28,14 @@ def main():
         video_verify(key, team_id, out)
     elif command == "parent-verify":
         parent_verify(key, team_id, out)
+    elif command == "dupe-seed":
+        dupe_seed(key, team_id, out, sys.argv[4])
+    elif command == "dupe-verify":
+        dupe_verify(key, team_id, out)
     elif command == "cleanup":
         cleanup(key, team_id, out)
     else:
-        sys.exit("usage: <key on stdin> live.py check|video-verify|parent-verify|cleanup <team id> <out dir> [clip.mp4]")
+        sys.exit("usage: <key on stdin> live.py check|video-verify|parent-verify|dupe-seed|dupe-verify|cleanup <team id> <out dir> [clip.mp4 | seed title]")
 
 
 def client(key, team_id):
@@ -334,6 +338,84 @@ def parent_verify(key, team_id, out):
         if len(listed) != len(nodes):
             problems.append("the parent description does not list every sub-issue after the tidy")
     say("\n".join(problems) if problems else "Scout parent flow: one parent, sub-issues in task order, resend and resend without review.json created nothing")
+    sys.exit(6 if problems else 0)
+
+
+DUPLICATES = "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 6, filter: { team: { id: { eq: $team } }, state: { type: { nin: [\"completed\", \"canceled\"] } } }) { nodes { id identifier title url trashed archivedAt state { name } } } }"
+
+
+def dupe_seed(key, team_id, out, title):
+    say = logger(os.path.join(out, "dupe.log"))
+    gql = client(key, team_id)
+    if not title.startswith(TITLE_PREFIX):
+        sys.exit("the seed title must start with the test prefix")
+    say(f"20 introspection (read-only): which search the API exposes, and the shapes Scout's duplicate check and comment use")
+    _, data, errors = gql('query { q: __type(name: "Query") { fields { name isDeprecated args { name } } } c: __type(name: "CommentCreateInput") { inputFields { name } } f: __type(name: "IssueFilter") { inputFields { name } } w: __type(name: "WorkflowStateFilter") { inputFields { name } } }')
+    data = data or {}
+    searches = [(f["name"], "deprecated" if f.get("isDeprecated") else "current", [a["name"] for a in f.get("args") or []]) for f in ((data.get("q") or {}).get("fields") or []) if "search" in f["name"].lower() and "issue" in f["name"].lower()]
+    say(f"   Query search fields: {searches}")
+    say(f"   CommentCreateInput fields: {sorted(f['name'] for f in ((data.get('c') or {}).get('inputFields') or []))}")
+    say(f"   IssueFilter has team={any(f['name'] == 'team' for f in ((data.get('f') or {}).get('inputFields') or []))} state={any(f['name'] == 'state' for f in ((data.get('f') or {}).get('inputFields') or []))}; WorkflowStateFilter has type={any(f['name'] == 'type' for f in ((data.get('w') or {}).get('inputFields') or []))} errors={errors}")
+    create = "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }"
+    description = "Seeded by Scout's live check (T6): an open issue the duplicate check should find. Scout adds the task to it as one comment."
+    status, data, errors = gql(create, {"input": {"teamId": team_id, "title": title, "description": description, "labelIds": [], "priority": 0}}, mutation_team=team_id)
+    issue = ((data or {}).get("issueCreate") or {}).get("issue") or {}
+    say(f"21 seeded {issue.get('identifier')} title={title!r} status={status} errors={errors}")
+    if not issue.get("id"):
+        sys.exit(7)
+    with open(os.path.join(out, "created-ids.txt"), "a") as handle:
+        handle.write(issue["id"] + "\n")
+    with open(os.path.join(out, "dupe-seeded.txt"), "w") as handle:
+        handle.write(issue["id"] + "\t" + issue["identifier"] + "\n")
+    started = time.time()
+    found = []
+    while time.time() - started < 120:
+        _, data, errors = gql(DUPLICATES, {"term": title, "team": team_id})
+        nodes = (((data or {}).get("searchIssues") or {}).get("nodes")) or []
+        found = [n.get("identifier") for n in nodes]
+        if issue["id"] in [n.get("id") for n in nodes]:
+            break
+        time.sleep(5)
+    say(f"22 Scout's duplicate query finds {issue['identifier']} after {int(time.time() - started)} s: {issue['identifier'] in found} results={found} errors={errors}")
+    print(issue["id"])
+    sys.exit(0 if issue["identifier"] in found else 7)
+
+
+def dupe_verify(key, team_id, out):
+    say = logger(os.path.join(out, "dupe.log"))
+    gql = client(key, team_id)
+    seeded_id, seeded_identifier = open(os.path.join(out, "dupe-seeded.txt")).read().split()
+    problems = []
+    runs = ["live-10-dupe-add", "live-11-dupe-resend", "live-12-dupe-no-review-json"]
+    comments = set()
+    for label in runs:
+        path = os.path.join(out, label + ".json")
+        steps = json.load(open(path)) if os.path.exists(path) else []
+        checks = [s for s in steps if s.get("step") == "duplicate check"]
+        if checks:
+            say(f"{label}: duplicate check term={checks[-1].get('term')!r} found={[c.get('identifier') for c in checks[-1].get('candidates') or []]}")
+        task = ((steps[-1].get("tasks") or [{}])[0]) if steps else {}
+        say(f"{label}: state={task.get('state')} sentText={task.get('sentText')!r} addedTo={task.get('addedTo')} comment={task.get('commentID')} clipAttachment={task.get('clipAttachment')}")
+        if task.get("addedToIssueID") != seeded_id:
+            problems.append(f"{label}: not added to the seeded issue {seeded_identifier}")
+        comments.add(task.get("commentID"))
+    if len(comments) != 1 or not next(iter(comments)):
+        problems.append(f"the comment changed between runs: {comments}")
+    _, data, errors = gql("query($id: String!) { issue(id: $id) { identifier title team { id } comments(first: 50) { nodes { id url body } } attachments(first: 50) { nodes { id title subtitle url } } } }", {"id": seeded_id})
+    issue = (data or {}).get("issue") or {}
+    nodes = ((issue.get("comments") or {}).get("nodes")) or []
+    scout = [n for n in nodes if "Added from Scout" in (n.get("body") or "")]
+    attachments = ((issue.get("attachments") or {}).get("nodes")) or []
+    say(f"read back {issue.get('identifier')}: team is the test team={(issue.get('team') or {}).get('id') == team_id} comments={len(nodes)} from Scout={len(scout)} attachments={[(a.get('title'), a.get('subtitle'), urllib.parse.urlparse(a.get('url') or '').hostname) for a in attachments]} errors={errors}")
+    for n in scout:
+        body = n.get("body") or ""
+        say(f"   comment {n.get('id')} id_matches_scout={n.get('id') in comments} url_host={urllib.parse.urlparse(n.get('url') or '').hostname} footer={body.splitlines()[-1] if body else ''!r} clip_link={'clip.mp4' in body} has_context_heading={'### Context' in body} chars={len(body)}")
+    if len(scout) != 1:
+        problems.append(f"expected exactly one Scout comment on {seeded_identifier}, found {len(scout)}")
+    clips = [a for a in attachments if a.get("subtitle") == "Recorded with Scout"]
+    if len(clips) != 1:
+        problems.append(f"expected one clip card on {seeded_identifier}, found {len(clips)}")
+    say("\n".join(problems) if problems else f"Scout dedupe flow: search found {seeded_identifier}; Add to it made one comment and one clip card; the resend and the resend without review.json made nothing new")
     sys.exit(6 if problems else 0)
 
 

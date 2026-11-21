@@ -135,6 +135,10 @@ final class LinearAccount {
         teams.value?.first { $0.id == id }
     }
 
+    func duplicates(term: String, team: String) async throws(LinearError) -> [LinearCandidate] {
+        try await perform(LinearOperations.duplicates(term: term, team: team)).searchIssues.nodes.compactMap(\.candidate)
+    }
+
     func credential() throws(LinearError) -> LinearCredential {
         guard let credential = try credentials.current() else { throw .unauthorized }
         return credential

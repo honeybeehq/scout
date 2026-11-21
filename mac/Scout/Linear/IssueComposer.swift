@@ -73,6 +73,27 @@ nonisolated enum IssueComposer {
         return IssueDraft(title: title(input.title), markdown: markdown)
     }
 
+    static func composeComment(_ input: IssueInput, existing description: String?) -> String {
+        var blocks = ["**Seen again in Scout:** \(escaped(title(input.title)))"]
+        if let brief = input.brief, brief.hasSummary {
+            blocks.append(summary(brief))
+        }
+        blocks.append("### What was said\n" + quote(transcript(input)))
+        if let clip = clipBlock(input.clip) { blocks.append(clip) }
+        if !input.pins.isEmpty {
+            blocks.append((["### Pins"] + input.pins.map { "![Pin \($0.number) · \(escaped($0.caption))](\($0.url))" }).joined(separator: "\n"))
+        }
+        let existing = (description ?? "").replacingOccurrences(of: input.homeDirectory, with: "~")
+        let context = contextLines(input)
+            .map { $0.replacingOccurrences(of: input.homeDirectory, with: "~") }
+            .filter { !existing.contains($0) }
+        if !context.isEmpty {
+            blocks.append((["### Context"] + context).joined(separator: "\n"))
+        }
+        blocks.append("---\nAdded from Scout · `\(input.key)`")
+        return blocks.joined(separator: "\n\n").replacingOccurrences(of: input.homeDirectory, with: "~")
+    }
+
     static func clipBlock(_ clip: IssueInput.Clip) -> String? {
         switch clip {
         case .none: nil

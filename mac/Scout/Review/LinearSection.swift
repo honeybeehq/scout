@@ -23,8 +23,11 @@ struct LinearSection: View {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .surfaceCard(Palette.surface, stroke: Palette.stroke)
+            if !card.isLocked {
+                DuplicateRow(review: review, card: card, target: target)
+            }
             HStack(spacing: 8) {
-                Button("Preview issue") { previewing = true }
+                Button(card.linearOptions.addTo == nil ? "Preview issue" : "Preview comment") { previewing = true }
                     .buttonStyle(SecondaryButtonStyle())
                 Text(leavesTheMac)
                     .font(Typography.caption)
@@ -37,6 +40,10 @@ struct LinearSection: View {
             guard !still else { return }
             await model.linear.loadTeamDetails(target.team.id)
             await model.dispatcher.ensureBrief(for: card)
+        }
+        .task(id: duplicateKey) {
+            guard !still, !card.isLocked else { return }
+            await model.dispatcher.checkDuplicates(for: card, in: target, debounce: card.duplicates != .idle)
         }
         .task(id: videoKey) {
             guard !still, !card.isLocked, includesVideo else { return }
@@ -166,6 +173,10 @@ struct LinearSection: View {
         .disabled(card.isLocked)
     }
 
+    private var duplicateKey: String {
+        "\(target.team.id)|\(card.isLocked)|\(Dispatcher.duplicateTerm(for: card))"
+    }
+
     private var includesVideo: Bool { model.dispatcher.includesVideo(card) }
 
     private var videoKey: String {
@@ -217,8 +228,12 @@ struct LinearSection: View {
     }
 
     private var leavesTheMac: String {
+        if let added = card.linearReceipt?.addedTo { return "Added to \(added.identifier) as a comment." }
         if let issue = card.linearReceipt?.issue { return "Filed in \(target.team.key) as \(issue.identifier)." }
         let outgoing = Self.outgoing(card, dispatcher: model.dispatcher)
+        if let addTo = card.linearOptions.addTo {
+            return "\(outgoing.list) go to \(addTo.identifier) as a comment.\(outgoing.video ? "" : " No video.")"
+        }
         return "\(outgoing.list) go to \(target.team.key) when you file.\(outgoing.video ? "" : " No video.")"
     }
 
@@ -267,6 +282,156 @@ struct LinearSection: View {
         brief.edited = true
         card.brief = brief
         review.edited(card)
+    }
+}
+
+struct DuplicateRow: View {
+    let review: SessionReview
+    let card: SnippetCard
+    let target: LinearTarget
+
+    var body: some View {
+        if let chosen = card.linearOptions.addTo {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "text.bubble")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: "Adds a comment to \(chosen.identifier)")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(Palette.text)
+                    CandidateTitle(title: chosen.title)
+                }
+                Spacer(minLength: 0)
+                Button("File new") { choose(nil) }
+                    .buttonStyle(QuietButtonStyle())
+                    .fixedSize()
+                    .help("File this task as its own issue instead")
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 4)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .surfaceCard(Palette.surface, stroke: Palette.stroke)
+        } else {
+            switch card.duplicates {
+            case .checking:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.mini)
+                    Text("Looking for similar open issues in \(target.team.key)…")
+                }
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textTertiary)
+            case .failed:
+                HStack(spacing: 6) {
+                    StatusDot(tone: .neutral)
+                    Text("Couldn't check \(target.team.key) for similar issues.")
+                }
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textTertiary)
+            case .found(_, let candidates) where !candidates.isEmpty:
+                if card.linearOptions.fileNew == true {
+                    HStack(spacing: 6) {
+                        StatusDot(tone: .neutral)
+                        Text(candidates.count == 1 ? "Files as a new issue. 1 similar open issue." : "Files as a new issue. \(candidates.count) similar open issues.")
+                        Spacer(minLength: 0)
+                        Button("Show") { card.linearOptions.fileNew = nil; review.edited(card) }
+                            .buttonStyle(QuietButtonStyle())
+                            .padding(.vertical, -6)
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                } else {
+                    found(candidates)
+                }
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    private func found(_ candidates: [LinearCandidate]) -> some View {
+        let first = candidates[0]
+        let rest = Array(candidates.dropFirst())
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                StatusDot(tone: .caution)
+                Text(candidates.count == 1 ? "Similar open issue" : "Similar open issues")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Palette.textSecondary)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(verbatim: first.identifier)
+                    .font(Typography.mono)
+                    .foregroundStyle(Palette.text)
+                    .fixedSize()
+                CandidateTitle(title: first.title)
+                    .layoutPriority(-1)
+                if let state = first.state {
+                    Spacer(minLength: 0)
+                    Text(verbatim: state)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textTertiary)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+            }
+            HStack(spacing: 8) {
+                Button("Add to it") { choose(first) }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .fixedSize()
+                    .help(Text(verbatim: "Add this task to \(first.identifier) as a comment"))
+                Button("File new") { choose(nil) }
+                    .buttonStyle(QuietButtonStyle())
+                    .fixedSize()
+                Spacer(minLength: 0)
+                if !rest.isEmpty {
+                    ScoutMenu {
+                        ForEach(rest) { candidate in
+                            Button {
+                                choose(candidate)
+                            } label: {
+                                Text(verbatim: "Add to \(candidate.identifier) · \(RemoteText.clean(candidate.title, limit: 60))")
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("More (\(rest.count))")
+                            Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Palette.textSecondary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 26)
+                    }
+                    .fixedSize()
+                    .help("Other similar open issues in \(target.team.key)")
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .surfaceCard(Palette.surface, stroke: Palette.stroke)
+    }
+
+    private func choose(_ candidate: LinearCandidate?) {
+        guard !card.isLocked else { return }
+        card.linearOptions.addTo = candidate
+        card.linearOptions.fileNew = candidate == nil ? true : nil
+        review.edited(card)
+    }
+}
+
+private struct CandidateTitle: View {
+    let title: String
+
+    var body: some View {
+        Text(verbatim: RemoteText.clean(title))
+            .font(.system(size: 12.5))
+            .foregroundStyle(Palette.textSecondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .help(Text(verbatim: RemoteText.clean(title)))
     }
 }
 

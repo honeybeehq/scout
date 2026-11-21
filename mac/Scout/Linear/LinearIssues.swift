@@ -263,3 +263,131 @@ nonisolated enum LinearIdentity {
         return parts.joined(separator: "-")
     }
 }
+
+nonisolated struct LinearCandidate: Codable, Hashable, Identifiable, Sendable {
+    var id: String
+    var identifier: String
+    var title: String
+    var url: URL
+    var state: String?
+
+    var ref: LinearIssueRef {
+        LinearIssueRef(id: id, identifier: identifier, url: url)
+    }
+}
+
+nonisolated struct LinearCandidateNode: Decodable, Sendable {
+    private struct State: Decodable { var name: String? }
+
+    var candidate: LinearCandidate?
+
+    init(from decoder: Decoder) throws {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self),
+              let id = try? container.remoteID(.id),
+              let identifier = try? container.remoteText(.identifier, limit: 24),
+              let title = try? container.remoteText(.title, limit: 120),
+              let url = (try? container.decode(String.self, forKey: .url)).flatMap(RemoteURL.issue)
+        else { return }
+        let trashed = (try? container.decodeIfPresent(Bool.self, forKey: .trashed)) ?? false
+        let archived = ((try? container.decodeIfPresent(String.self, forKey: .archivedAt)) ?? nil) != nil
+        guard !trashed, !archived else { return }
+        let state = ((try? container.decodeIfPresent(State.self, forKey: .state)) ?? nil)?.name.map { RemoteText.clean($0, limit: 32) }
+        candidate = LinearCandidate(id: id, identifier: identifier, title: title, url: url, state: state)
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, identifier, title, url, trashed, archivedAt, state }
+}
+
+nonisolated struct LinearCommentRef: Codable, Hashable, Sendable {
+    var id: String
+    var url: URL?
+}
+
+nonisolated struct LinearCommentTarget: Decodable, Sendable {
+    struct Comment: Decodable, Sendable {
+        var id: String
+        var url: URL?
+        var body: String
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.remoteID(.id)
+            url = try container.decodeIfPresent(String.self, forKey: .url).flatMap(RemoteURL.issue)
+            body = String((try container.decodeIfPresent(String.self, forKey: .body) ?? "").prefix(20_000))
+        }
+
+        private enum CodingKeys: String, CodingKey { case id, url, body }
+    }
+
+    private struct Team: Decodable { var id: String }
+
+    var issue: LinearIssue
+    var teamID: String
+    var comments: [Comment]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        issue = try LinearIssue(from: decoder)
+        teamID = try container.decode(Team.self, forKey: .team).id
+        comments = try container.decodeIfPresent(LinearNodes<Comment>.self, forKey: .comments)?.nodes ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey { case team, comments }
+}
+
+nonisolated extension LinearOperations {
+    struct DuplicatesData: Decodable, Sendable { var searchIssues: LinearNodes<LinearCandidateNode> }
+    struct CommentTargetData: Decodable, Sendable { var issue: LinearCommentTarget? }
+    struct CommentCreateData: Decodable, Sendable {
+        struct Comment: Decodable, Sendable {
+            var id: String
+            var url: URL?
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                id = try container.remoteID(.id)
+                url = try container.decodeIfPresent(String.self, forKey: .url).flatMap(RemoteURL.issue)
+            }
+
+            private enum CodingKeys: String, CodingKey { case id, url }
+        }
+        struct Payload: Decodable, Sendable {
+            var success: Bool
+            var comment: Comment?
+        }
+        var commentCreate: Payload
+    }
+
+    static func duplicates(term: String, team: String) -> LinearOperation<DuplicatesData> {
+        LinearOperation(
+            name: "duplicates",
+            document: "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 6, filter: { team: { id: { eq: $team } }, state: { type: { nin: [\"completed\", \"canceled\"] } } }) { nodes { id identifier title url trashed archivedAt state { name } } } }",
+            variables: ["term": .string(term), "team": .string(team)]
+        )
+    }
+
+    static func commentTarget(id: String) -> LinearOperation<CommentTargetData> {
+        LinearOperation(
+            name: "commentTarget",
+            document: "query($id: String!) { issue(id: $id) { id identifier url trashed archivedAt description team { id } comments(first: 100) { nodes { id url body } } } }",
+            variables: ["id": .string(id)]
+        )
+    }
+
+    static func createComment(id: String?, issueID: String, teamID: String, body: String) -> LinearOperation<CommentCreateData> {
+        var input: [String: LinearValue] = ["issueId": .string(issueID), "body": .string(body)]
+        if let id { input["id"] = .string(id) }
+        return LinearOperation(
+            name: "commentCreate",
+            kind: .mutation(teamID: teamID),
+            document: "mutation($input: CommentCreateInput!) { commentCreate(input: $input) { success comment { id url } } }",
+            variables: ["input": .object(input)]
+        )
+    }
+}
+
+nonisolated extension LinearIdentity {
+    static func commentID(workspaceID: String, key: String, target: String) -> String {
+        Self.issueID(workspaceID: workspaceID, key: key + ":comment:" + target)
+    }
+}

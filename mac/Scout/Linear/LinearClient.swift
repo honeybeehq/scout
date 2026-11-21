@@ -11,6 +11,7 @@ nonisolated enum LinearError: Error, Equatable, Sendable {
     case keychain(OSStatus)
     case notFound
     case deletedRemotely
+    case targetGone(String)
     case uploadFailed
     case videoUploadFailed
     case tooLarge
@@ -29,6 +30,7 @@ nonisolated enum LinearError: Error, Equatable, Sendable {
         case .keychain: "Scout couldn't use your Keychain."
         case .notFound: "Linear couldn't find that."
         case .deletedRemotely: "This task's issue was deleted in Linear."
+        case .targetGone(let identifier): "\(identifier) was closed, archived or deleted in Linear."
         case .uploadFailed: "An image couldn't be uploaded to Linear."
         case .videoUploadFailed: "The video couldn't be uploaded to Linear."
         case .tooLarge: "The video is too big for Linear."

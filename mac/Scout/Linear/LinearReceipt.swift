@@ -14,6 +14,7 @@ nonisolated struct LinearReceipt: Codable, Hashable, Sendable {
     var clipAttachmentID: String?
     var unlinkedClip: Bool?
     var parent: LinearIssueRef?
+    var comment: LinearCommentRef?
 
     var video: StoredAsset? {
         assets.first(where: \.isVideo)
@@ -22,6 +23,19 @@ nonisolated struct LinearReceipt: Codable, Hashable, Sendable {
     var issue: LinearIssueRef? {
         if case .filed(let issue) = status { issue } else { nil }
     }
+
+    var addedTo: LinearIssueRef? {
+        comment == nil ? nil : issue
+    }
+
+    var link: URL? {
+        comment?.url ?? issue?.url
+    }
+
+    var sentText: String? {
+        if let added = addedTo { return "Added to \(added.identifier)" }
+        return issue.map { "Filed as \($0.identifier)" }
+    }
 }
 
 nonisolated struct LinearTaskOptions: Codable, Hashable, Sendable {
@@ -29,6 +43,8 @@ nonisolated struct LinearTaskOptions: Codable, Hashable, Sendable {
     var priority: Int?
     var includeVideo: Bool?
     var redaction: ClipRedaction?
+    var addTo: LinearCandidate?
+    var fileNew: Bool?
 }
 
 nonisolated enum LinearPriority: Int, CaseIterable, Identifiable, Sendable {

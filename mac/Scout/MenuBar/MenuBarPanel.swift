@@ -6,6 +6,7 @@ struct MenuBarPanelState {
         let id: String
         let title: String
         let state: SnippetCard.State
+        var linear: String? = nil
     }
 
     struct WalkthroughSummary {
@@ -30,6 +31,12 @@ struct MenuBarPanelState {
     var updatesUnavailable: String?
     var update: Updates.Available?
     var hasDebugData = false
+}
+
+extension MenuBarPanelState.RecentTask {
+    init(_ card: SnippetCard) {
+        self.init(id: card.id, title: card.title, state: card.state, linear: card.state.isFinished ? card.linearReceipt?.sentText : nil)
+    }
 }
 
 struct MenuBarPanelActions {
@@ -62,7 +69,7 @@ struct MenuBarPanel: View {
             isScouting: model.isScouting,
             shortcut: model.shortcut.symbols.joined(),
             breakShortcut: model.breakShortcut.symbols.joined(),
-            recent: model.dispatcher.cards.suffix(5).reversed().map { .init(id: $0.id, title: $0.title, state: $0.state) },
+            recent: model.dispatcher.cards.suffix(5).reversed().map(MenuBarPanelState.RecentTask.init),
             lastSessionSaveFailed: model.review?.saveError != nil,
             lastWalkthrough: model.lastWalkthrough.map(Self.summary),
             walkthroughProblem: model.walkthroughProblem,
@@ -436,7 +443,7 @@ private struct RecentTaskRow: View {
         switch task.state {
         case .needsDestination: "Needs a destination"
         case .countdown, .sending: "Sending"
-        case .sent: "Sent"
+        case .sent: task.linear ?? "Sent"
         case .failed: "Failed"
         case .copiedInstead: "Copied instead"
         case .withdrawn: "Withdrawn"

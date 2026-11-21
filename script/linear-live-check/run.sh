@@ -138,3 +138,28 @@ pdemo live-8-parent-no-review-json
 feed | python3 -I "$HERE/live.py" parent-verify "$TEAM" "$OUT"
 PFLOW=$?
 if [ "$FLOW" -eq 0 ] && [ "$PFLOW" -ne 0 ]; then FLOW=$PFLOW; fi
+
+echo "== Scout dedupe flow ($RUN): seed a similar open issue, Add to it with video on, then two resends"
+ddemo() {
+  local label=$1 send=$2; shift 2
+  feed | perl -e 'alarm shift; exec @ARGV' 300 "$APP" --linear-demo="$OUT/session-dupe" --linear-demo-key-stdin \
+    --linear-demo-session="$RUN-dupe" --linear-demo-title-prefix="[scout-test] " --live-delivery --linear-demo-video="$VIDEO" \
+    --linear-demo-output="$OUT" --linear-demo-label="$label" --linear-demo-send="$send" "$@" > "$OUT/$label.stdout" 2>&1
+}
+ddemo live-9-dupe-open none
+SEED_TITLE=$(python3 -I -c 'import json,sys; s=json.load(open(sys.argv[1])); print([x for x in s if "tasks" in x][0]["tasks"][0]["title"])' "$OUT/live-9-dupe-open.json" 2>/dev/null)
+DFLOW=7
+if [ -n "$SEED_TITLE" ]; then
+  SEEDED=$(feed | python3 -I "$HERE/live.py" dupe-seed "$TEAM" "$OUT" "$SEED_TITLE" | tail -1)
+  if [ -n "$SEEDED" ]; then
+    ddemo live-10-dupe-add first --linear-demo-add-to="$SEEDED" --linear-demo-include-video --linear-demo-menubar
+    ddemo live-11-dupe-resend first --linear-demo-menubar
+    rm -f "$OUT/session-dupe/review.json"
+    ddemo live-12-dupe-no-review-json first --linear-demo-add-to="$SEEDED" --linear-demo-include-video
+    feed | python3 -I "$HERE/live.py" dupe-verify "$TEAM" "$OUT"
+    DFLOW=$?
+  fi
+else
+  echo "no task title in live-9-dupe-open.json"
+fi
+if [ "$FLOW" -eq 0 ] && [ "$DFLOW" -ne 0 ]; then FLOW=$DFLOW; fi

@@ -443,37 +443,57 @@ private struct HandoffBar: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
                 }
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
+                if let receipt = card.linearReceipt, let issue = receipt.issue {
+                    VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label(sentText(destination), systemImage: "checkmark")
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundStyle(Palette.positive)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            if let parent = receipt.parent {
+                                Text(verbatim: "Sub-issue of \(parent.identifier)")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(Palette.textSecondary)
+                                    .lineLimit(1)
+                                    .padding(.leading, 21)
+                            } else if receipt.addedTo != nil {
+                                Text("As a comment, with this task's text\(receipt.video == nil ? "" : " and clip").")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(Palette.textSecondary)
+                                    .lineLimit(1)
+                                    .padding(.leading, 21)
+                            }
+                        }
+                        HStack(spacing: 8) {
+                            let link = receipt.link.flatMap { RemoteURL.issue($0.absoluteString) }
+                            Button("Open in Linear") {
+                                if let link { NSWorkspace.shared.open(link) }
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .fixedSize()
+                            .disabled(link == nil)
+                            .help(Text(verbatim: "Open \(issue.identifier) in Linear"))
+                            Button("Copy link") {
+                                guard let link else { return }
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(link.absoluteString, forType: .string)
+                            }
+                            .buttonStyle(QuietButtonStyle())
+                            .fixedSize()
+                            .disabled(link == nil)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                } else {
+                    HStack(spacing: 10) {
                         Label(sentText(destination), systemImage: "checkmark")
                             .font(.system(size: 12.5, weight: .semibold))
                             .foregroundStyle(Palette.positive)
                             .lineLimit(1)
                             .truncationMode(.middle)
-                        if let parent = card.linearReceipt?.parent {
-                            Text("Sub-issue of \(parent.identifier)")
-                                .font(Typography.caption)
-                                .foregroundStyle(Palette.textSecondary)
-                                .lineLimit(1)
-                                .padding(.leading, 21)
-                        }
-                    }
-                    .layoutPriority(1)
-                    Spacer(minLength: 0)
-                    if let issue = card.linearReceipt?.issue {
-                        Button("Copy link") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(issue.url.absoluteString, forType: .string)
-                        }
-                        .buttonStyle(QuietButtonStyle())
-                        .fixedSize()
-                        Button("Open") {
-                            if let url = RemoteURL.issue(issue.url.absoluteString) { NSWorkspace.shared.open(url) }
-                        }
-                        .buttonStyle(SecondaryButtonStyle())
-                        .fixedSize()
-                        .help("Open \(issue.identifier) in Linear")
-                    } else {
+                            .layoutPriority(1)
+                        Spacer(minLength: 0)
                         Button("Copy task") { copy() }
                             .buttonStyle(SecondaryButtonStyle())
                     }
@@ -551,13 +571,14 @@ private struct HandoffBar: View {
     }
 
     private var primaryTitle: String {
+        if isLinear, let addTo = card.linearOptions.addTo { return card.state == .sending ? "Adding…" : "Add to \(addTo.identifier)" }
         if isLinear { return card.state == .sending ? "Filing…" : review.linearPlan?.children.contains(where: { $0 === card }) == true ? "File sub-issue" : "File issue" }
         return card.state == .sending ? "Sending…" : card.destination == .clipboard ? "Copy task" : "Send task"
     }
 
     private func sentText(_ destination: String) -> String {
-        guard let issue = card.linearReceipt?.issue else { return destination == "clipboard" ? "Copied to the clipboard" : "Sent to \(destination)" }
-        return "Filed as \(issue.identifier)"
+        guard let text = card.linearReceipt?.sentText else { return destination == "clipboard" ? "Copied to the clipboard" : "Sent to \(destination)" }
+        return text
     }
 
     static func caption(_ step: LinearFiler.Step) -> String {
@@ -568,6 +589,7 @@ private struct HandoffBar: View {
         case .creating: "Creating issue…"
         case .creatingParent: "Creating the parent issue…"
         case .attaching: "Attaching the clip…"
+        case .commenting: "Adding the comment…"
         case .updating: "Updating the issue's clip…"
         case .waiting(let until): "Linear asked Scout to slow down. Continues at \(until.formatted(date: .omitted, time: .shortened))."
         }
