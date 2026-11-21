@@ -31,6 +31,8 @@ final class BridgeServer {
     var onGameState: ((Client, Data, String?, Date?) -> Void)?
     var onSignal: ((Client, BridgeSignalMessage) -> Void)?
 
+    private let sdkServer = SDKServer()
+    private var sdkURL: String?
     private var listeners: [Int: NWListener] = [:]
     private var readyListeners = Set<Int>()
     private var listenerGeneration = UUID()
@@ -58,6 +60,11 @@ final class BridgeServer {
 
     func start() {
         guard listeners.isEmpty else { return }
+        sdkServer.onReady = { [weak self] url in
+            self?.sdkURL = url
+            self?.writeConfiguration()
+        }
+        sdkServer.start()
         listen(on: BridgeProtocol.ports.lowerBound)
     }
 
@@ -115,6 +122,8 @@ final class BridgeServer {
     }
 
     func stop() {
+        sdkServer.stop()
+        sdkURL = nil
         stopListeners()
         connections.values.forEach { $0.cancel() }
         connections = [:]
@@ -374,7 +383,8 @@ final class BridgeServer {
 
     private func writeConfiguration() {
         guard let port else { return }
-        let configuration: [String: Any] = ["port": Int(port), "token": token, "pid": Int(ProcessInfo.processInfo.processIdentifier), "protocol": BridgeProtocol.version]
+        var configuration: [String: Any] = ["port": Int(port), "token": token, "pid": Int(ProcessInfo.processInfo.processIdentifier), "protocol": BridgeProtocol.version]
+        if let sdkURL { configuration["sdkURL"] = sdkURL }
         guard let data = try? JSONSerialization.data(withJSONObject: configuration, options: [.prettyPrinted, .sortedKeys]) else { return }
         try? FileManager.default.createDirectory(at: ScoutPaths.support, withIntermediateDirectories: true)
         try? data.write(to: Self.configurationURL, options: .atomic)

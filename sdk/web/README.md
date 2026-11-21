@@ -121,3 +121,20 @@ swiftc -I .build/debug/Modules sdk/web/scripts/game-task-proof.swift mac/Scout/B
 This produces `.audit/game/session/snippets/game-pin/{game-state.json,save.json,task.md,message.txt,snippet.json}`. It exercises the native game-state parser and task serialization only; it does not replace native recording and delivery verification on a test Mac.
 
 `pnpm run e2e:cold` keeps the canvas page open without Scout for at least 30 seconds, starts the bridge just after a failed connection attempt, requires a connection within 2.5 seconds, and pins at about 6 seconds. It also verifies immediate focus/visibility retries and writes `.audit/game/cold-page.png`. Run it separately from other fixture servers (default ports 5188 and 47817, configurable with `SCOUT_COLD_DEV_PORT` and `SCOUT_COLD_PORT`).
+
+### Dependency-free queue fixture
+
+`pnpm run e2e` also drives `fixtures/queue-vite` with its inline dependency-free plugin: pre/post SDK queue pushes, unregister, malformed entries, callback failures, highlight/clear, session privacy and adapter save omission reasons. Evidence is written to `.audit/g3`. See [the protocol](../../docs/sdk-protocol.md#games-without-an-npm-dependency-on-scout) for the loading contract.
+
+For a headless run of the production native HTTP server on a Mac mini (without launching Scout), create a small bundle containing the browser entry:
+
+```sh
+mkdir -p .audit/SDKHTTPProof.app/Contents/{MacOS,Resources}
+cp sdk/web/packages/web/dist/index.js .audit/SDKHTTPProof.app/Contents/Resources/scout.js
+swiftc -swift-version 6 -default-isolation MainActor \
+  mac/Scout/Bridge/SDKServer.swift sdk/web/scripts/sdk-http-proof.swift \
+  -o .audit/SDKHTTPProof.app/Contents/MacOS/SDKHTTPProof
+.audit/SDKHTTPProof.app/Contents/MacOS/SDKHTTPProof
+```
+
+It prints its loopback SDK URL. Curl that URL to check the bundle and headers, or run `SCOUT_SDK_URL=<printed-url> node sdk/web/scripts/e2e-queue.mjs` to load the fixture through the native server. The latter uses a mock WebSocket bridge and writes a browser screenshot and message trace; a running-app rig must still verify recording and delivery.

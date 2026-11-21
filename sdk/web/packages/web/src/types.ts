@@ -98,6 +98,7 @@ export interface GameSnapshot {
   clock: number
   position: unknown
   save?: unknown
+  saveStatus?: string
   extra?: unknown
 }
 
@@ -106,5 +107,11 @@ export interface GameConfig {
   name: string
   build: string
   describe(point: { x: number; y: number }): GameDescription | null
+  highlight?(entityIds: string[]): void
   snapshot(): GameSnapshot | Promise<GameSnapshot>
+}
+
+export interface QueuedGame extends GameConfig {
+  v: 1
+  unregister?: () => void
 }

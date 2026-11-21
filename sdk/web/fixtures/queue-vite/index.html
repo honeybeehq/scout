@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Scout dependency-free queue fixture</title>
+<body style="margin:40px;background:#151923;color:#f2f4f8;font:18px system-ui">
+<h1>Scout dependency-free queue fixture</h1>
+<p>Amber asteroid: Asteroid A-17. Registration uses only window.__scoutGames.</p>
+<canvas id="world" width="800" height="400" style="display:block;background:#202838"></canvas>
+<pre id="status"></pre><pre id="geometry"></pre>
+<script>
+const canvas = document.querySelector('canvas')
+const context = canvas.getContext('2d')
+window.highlights = []
+window.draw = (ids = []) => {
+  context.clearRect(0, 0, 800, 400)
+  context.fillStyle = '#f2af50'
+  context.beginPath(); context.arc(260, 180, 48, 0, Math.PI * 2); context.fill()
+  if (ids.length) { context.strokeStyle = 'white'; context.lineWidth = 5; context.stroke() }
+  context.fillStyle = 'white'; context.font = '20px system-ui'; context.fillText('Asteroid A-17', 195, 260)
+}
+draw()
+window.makeGame = (name = 'Queue fixture') => ({
+  v: 1, name, build: 'queue-v1', canvas,
+  describe: ({x,y}) => Math.hypot(x - 260, y - 180) <= 48 ? {entity:{id:'asteroid-17',kind:'asteroid',label:'Asteroid A-17'},scene:'ring'} : null,
+  snapshot: () => ({scene:'ring',seed:42,frame:120,clock:2,position:{x:12,y:4},save:{version:1,seed:42}}),
+  highlight: ids => { highlights.push(ids); draw(ids); document.querySelector('#status').textContent = JSON.stringify(highlights) },
+})
+window.__scoutGames = window.__scoutGames || []
+window.preGame = makeGame()
+window.__scoutGames.push(preGame)
+addEventListener('pointermove', e => {
+  const b = canvas.getBoundingClientRect()
+  const point = {x:e.screenX-e.clientX+b.x+260,y:e.screenY-e.clientY+b.y+180}
+  document.querySelector('#geometry').textContent = JSON.stringify({asteroidScreenCentre:point})
+})
+</script>
+</body></html>

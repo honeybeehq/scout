@@ -40,7 +40,17 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
   const roots = { projectRoot: config.projectRoot, serverRoot: config.serverRoot }
   const describe = createDescriber(roots, config.props ?? "off")
   const games = new Map<HTMLCanvasElement, GameConfig>()
-  const gameElements = new Map<string, Element>()
+  const gameElements = new Map<string, { game: GameConfig; entityId: string }>()
+  let highlightedGame: GameConfig | null = null
+  let highlightTimer: ReturnType<typeof setTimeout> | undefined
+  const callHighlight = (game: GameConfig, ids: string[]) => {
+    try { void Promise.resolve(game.highlight?.(ids)).catch(() => {}) } catch {}
+  }
+  const clearHighlight = () => {
+    clearTimeout(highlightTimer)
+    if (highlightedGame) callHighlight(highlightedGame, [])
+    highlightedGame = null
+  }
   let lastGame: GameConfig | null = null
   const gameDescriptor = async (element: Element, at: number, sourceBudgetMs = 2000) => {
     const point = pointer?.pointAt(at)
@@ -52,7 +62,7 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
       const bounds = element.getBoundingClientRect()
       const hit = game.describe({ x: point.localX ?? point.x - bounds.x, y: point.localY ?? point.y - bounds.y })
       if (gameElements.size >= 5000) gameElements.delete(gameElements.keys().next().value!)
-      if (hit) gameElements.set(`game:${game.name}:${hit.entity.id}`, element)
+      if (hit) gameElements.set(`game:${game.name}:${hit.entity.id}`, { game, entityId: hit.entity.id })
       return hit ? { ...descriptor, id: `game:${game.name}:${hit.entity.id}`, kind: "game" as const, game: hit, role: hit.entity.kind, label: hit.entity.label } : descriptor
     } catch { return descriptor }
   }
@@ -65,7 +75,7 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
     for (const adapter of game ? [game] : []) {
       try {
         const state = JSON.parse(JSON.stringify(await adapter.snapshot()))
-        let saveStatus = "absent"
+        let saveStatus = typeof state.saveStatus === "string" && state.saveStatus.length <= 200 ? state.saveStatus : "absent"
         if (state.save !== undefined) {
           if (new TextEncoder().encode(JSON.stringify(state.save)).length > 262144) {
             delete state.save
@@ -216,6 +226,8 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
       const since = Date.now() - SIGNAL_REPLAY_MS
       signals.filter((signal) => !signal.sent && signal.at >= since).forEach((signal) => void sendSignal(signal))
     } else {
+      clearHighlight()
+      for (const game of games.values()) callHighlight(game, [])
       setAim(false)
       pointer?.stop()
       pointer = null
@@ -246,11 +258,18 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
   }
 
   const highlight = (message: Incoming) => {
-    const element = typeof message.elementId === "string"
-      ? gameElements.get(message.elementId) ?? elementById(message.elementId)
-      : typeof message.selector === "string" ? query(message.selector) : null
+    clearHighlight()
+    const target = typeof message.elementId === "string" ? gameElements.get(message.elementId) : null
+    const element = target?.game.canvas ?? (typeof message.elementId === "string"
+      ? elementById(message.elementId)
+      : typeof message.selector === "string" ? query(message.selector) : null)
     if (!element) return
     const duration = Math.min(Math.max(Number(message.durationMs) || 1500, 100), 10_000)
+    if (target) {
+      highlightedGame = target.game
+      callHighlight(target.game, [target.entityId])
+      highlightTimer = setTimeout(clearHighlight, duration)
+    }
     overlay ??= createOverlay()
     overlay.flash(element, message.style === "flare" ? "flare" : "beam", duration, chipText(element, null))
   }
@@ -334,16 +353,26 @@ export function createScout(config: ScoutConfig, onStop: () => void): ScoutHandl
       return active
     },
     game(game: GameConfig) {
+      const previous = games.get(game.canvas)
+      if (previous) {
+        if (highlightedGame === previous) clearHighlight()
+        else callHighlight(previous, [])
+        for (const [id, target] of gameElements) if (target.game === previous) gameElements.delete(id)
+      }
       games.set(game.canvas, game)
       if (lastGame?.canvas === game.canvas) lastGame = game
       return () => {
         if (games.get(game.canvas) !== game) return
+        if (highlightedGame === game) clearHighlight()
+        else callHighlight(game, [])
         games.delete(game.canvas)
         if (lastGame === game) lastGame = null
-        for (const [id, element] of gameElements) if (element === game.canvas) gameElements.delete(id)
+        for (const [id, target] of gameElements) if (target.game === game) gameElements.delete(id)
       }
     },
     stop() {
+      clearHighlight()
+      for (const game of games.values()) callHighlight(game, [])
       gameElements.clear()
       games.clear()
       bridge.close()

@@ -183,3 +183,45 @@ Game adapters explicitly opt in to sending saves. They must construct the repro 
 Task-close collection belongs to the native scouting session and precedes routing or delivery. Stop captures the open task's state before deactivating the SDK, rather than waiting for speech and video finalization while the game advances. If final transcription creates the task only after Stop, the scoped state captured at Stop is bound to that task. A responsive matching game supplies `game-snapshots/<task-id>.json`, and delivery waits for capture. A reconnect can change the native client ID; Scout remembers its project and falls back only within that project, without requiring a new hover for an explicitly selected or project-scoped client.
 
 If a reconnected client has no reported project root, Scout cannot safely associate it with the previous connection's task and skips that close capture instead of selecting an arbitrary game client.
+
+### Games without an npm dependency on Scout
+
+A dev page can register before or after the SDK loads:
+
+```js
+window.__scoutGames = window.__scoutGames || [];
+const entry = { v: 1, name, build, canvas, describe, snapshot, highlight };
+window.__scoutGames.push(entry);
+entry.unregister();
+```
+
+The SDK drains existing entries through `scout.game`, then registers later pushes immediately. The queue remains an array and `push` returns its new length. Unknown versions and malformed entries are ignored. Each accepted entry gets an idempotent `unregister()` function. Keep this code dev-only. The same snapshot caps and session privacy rules apply. Throwing callbacks are isolated.
+
+Both registration APIs accept optional `highlight(entityIds)`. Scout's existing highlight message calls it with the pinned entity's original ID, as `[id]`; it receives `[]` when the highlight expires, is replaced or cleared, the adapter unregisters, or the session ends. DOM overlay highlighting remains available. Highlight callbacks may run outside an active recording, as review highlights do today.
+
+A snapshot without `save` can supply a string `saveStatus` of at most 200 characters to explain an adapter-side omission. Scout preserves it; otherwise the status is `absent`. When `save` is present the SDK sets `included` or its own size omission reason. Adapter-defined `extra` remains JSON data.
+
+Scout bundles the built `@scout/web` browser entry with the installed app. A second loopback-only HTTP listener serves just `GET /sdk/v1/scout.js`; all other requests return 404. `bridge.json` advertises its full `sdkURL`. The `v1` URL versions the loading contract, while the bundled SDK version follows the installed Scout build. The WebSocket port and protocol stay unchanged and still require the token in `window.__SCOUT__`. The public script response uses `Content-Type: text/javascript`, `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin`, and `Cache-Control: no-store`.
+
+A dev server without `@scout/vite` injects `<script>window.__SCOUT__={port,token,projectRoot}</script>` before `<script type="module" src="http://127.0.0.1:<sdk-port>/sdk/v1/scout.js"></script>`, reading the URL from `sdkURL`. This dependency-free Vite plugin injects only when `bridge.json` exists and parses; use the test app's data root or `SCOUT_BRIDGE_FILE` for a rig:
+
+```js
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+const scoutLocal = {
+  name: 'scout-local', apply: 'serve',
+  transformIndexHtml() {
+    try {
+      const file = process.env.SCOUT_BRIDGE_FILE ?? join(homedir(), 'Library/Application Support/Scout/bridge.json')
+      const { port, token, sdkURL } = JSON.parse(readFileSync(file, 'utf8'))
+      const config = JSON.stringify({ port, token, projectRoot: process.cwd() }).replace(/</g, '\\u003c')
+      return [
+        { tag: 'script', children: `window.__SCOUT__=${config}`, injectTo: 'head-prepend' },
+        { tag: 'script', attrs: { type: 'module', src: sdkURL ?? `http://127.0.0.1:${port}/sdk/v1/scout.js` }, injectTo: 'head' },
+      ]
+    } catch { return [] }
+  },
+}
+export default { plugins: [scoutLocal] }
+```
