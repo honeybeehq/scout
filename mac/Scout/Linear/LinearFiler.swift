@@ -13,6 +13,7 @@ actor LinearFiler {
         case uploadingVideo(sent: Int, total: Int)
         case creating
         case attaching
+        case updating
         case waiting(until: Date)
     }
 
@@ -74,23 +75,23 @@ actor LinearFiler {
         let issueID = mode == .clientID ? LinearIdentity.issueID(workspaceID: workspace, key: request.key) : nil
         await report(.checking)
         let video = request.video.flatMap { LocalAsset.video($0, includeVideo: request.includeVideo) }
+        let storage = LinearStorage(api: api, credential: request.credential, teamID: request.target.team.id)
         if let existing = try await find(issueID, request: request, report: report) {
-            let kept = (request.previous?.assets ?? []).filter { !$0.isVideo || $0.contentHash == video?.contentHash }
+            var kept = (request.previous?.assets ?? []).filter { !$0.isVideo || $0.contentHash == video?.contentHash }
+            if let video, !kept.contains(where: \.isVideo) {
+                kept.insert(try await upload(video, to: storage, report: report), at: 0)
+            }
             let attached = kept.contains(where: \.isVideo) ? request.previous?.clipAttachmentID : nil
-            let receipt = LinearReceipt(key: request.key, status: .filed(existing), assets: kept, clipAttachmentID: attached)
+            var receipt = LinearReceipt(key: request.key, status: .filed(existing), assets: kept, clipAttachmentID: attached, unlinkedClip: request.previous?.unlinkedClip)
+            receipt = try await reconcileClip(receipt, issue: existing, request: request, report: report)
             return await attachClip(receipt, video: video, request: request, workspace: workspace, mode: mode, report: report)
         }
-        let storage = LinearStorage(api: api, credential: request.credential, teamID: request.target.team.id)
         var stored: [StoredAsset] = []
         if let asset = video {
             if let done = request.previous?.assets.first(where: { $0.contentHash == asset.contentHash }) {
                 stored.append(done)
             } else {
-                await report(.uploadingVideo(sent: 0, total: asset.byteCount))
-                let progress: @Sendable (Int, Int) -> Void = { sent, total in
-                    Task { @MainActor in report(.uploadingVideo(sent: sent, total: max(total, asset.byteCount))) }
-                }
-                stored.append(try await retrying(report) { try await storage.store(asset, name: "clip.mp4", progress: progress) })
+                stored.append(try await upload(asset, to: storage, report: report))
             }
         }
         for (index, url) in request.images.enumerated() {
@@ -131,6 +132,47 @@ actor LinearFiler {
             throw error
         }
     }
+
+    private func upload(_ asset: LocalAsset, to storage: LinearStorage, report: @escaping Report) async throws -> StoredAsset {
+        await report(.uploadingVideo(sent: 0, total: asset.byteCount))
+        let progress: @Sendable (Int, Int) -> Void = { sent, total in
+            Task { @MainActor in report(.uploadingVideo(sent: sent, total: max(total, asset.byteCount))) }
+        }
+        return try await retrying(report) { try await storage.store(asset, name: "clip.mp4", progress: progress) }
+    }
+
+    private func reconcileClip(_ receipt: LinearReceipt, issue: LinearIssueRef, request: Request, report: Report) async throws -> LinearReceipt {
+        guard let state = try await retrying(report, { try await self.api.perform(LinearOperations.issueClips(id: issue.id), credential: request.credential) }).issue else { return receipt }
+        var receipt = receipt
+        let current = receipt.video?.url.absoluteString
+        let teamID = request.target.team.id
+        var unlinked = false
+        for node in state.attachments.nodes where node.subtitle == Self.clipSubtitle && node.url != current {
+            await report(.updating)
+            let reply = try await retrying(report) { try await self.api.perform(LinearOperations.deleteAttachment(id: node.id, teamID: teamID), credential: request.credential) }
+            guard reply.attachmentDelete.success else { throw LinearError.server("Linear didn't remove the earlier clip card.") }
+            if receipt.clipAttachmentID == node.id { receipt.clipAttachmentID = nil }
+            unlinked = true
+        }
+        if let description = state.description, description.contains("clip.mp4"), current.map({ !description.contains($0) }) ?? true {
+            let clip: IssueInput.Clip
+            if let current, let media = request.video {
+                clip = .included(url: current, duration: media.duration, hiddenParts: media.hiddenParts)
+            } else {
+                clip = .notIncluded
+            }
+            if let updated = IssueComposer.replacingClip(in: description, with: clip), updated != description {
+                await report(.updating)
+                let reply = try await retrying(report) { try await self.api.perform(LinearOperations.updateDescription(issueID: issue.id, teamID: teamID, description: updated), credential: request.credential) }
+                guard reply.issueUpdate.success else { throw LinearError.server("Linear didn't update the issue's clip link.") }
+                unlinked = true
+            }
+        }
+        if unlinked { receipt.unlinkedClip = true }
+        return receipt
+    }
+
+    static let clipSubtitle = "Recorded with Scout"
 
     private func attachClip(_ receipt: LinearReceipt, video current: LocalAsset?, request: Request, workspace: String, mode: Identity, report: Report) async -> LinearReceipt {
         guard request.includeVideo, receipt.clipAttachmentID == nil, let current, let video = receipt.video, video.contentHash == current.contentHash, let issue = receipt.issue else { return receipt }

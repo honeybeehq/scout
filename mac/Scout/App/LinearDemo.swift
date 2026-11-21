@@ -317,6 +317,7 @@ enum LinearDemo {
                     "receipt": card.linearReceipt.map { String(describing: $0.status) } ?? "none",
                     "uploadedAssets": card.linearReceipt?.assets.map { "\($0.name) \($0.kind?.rawValue ?? "image") \($0.byteCount.map { "\($0) bytes" } ?? "") → \($0.url.absoluteString)" } ?? [],
                     "clipAttachment": card.linearReceipt?.clipAttachmentID ?? "none",
+                    "unlinkedClip": card.linearReceipt?.unlinkedClip ?? false,
                     "includeVideo": model.dispatcher.includesVideo(card),
                     "redaction": card.linearOptions.redaction.map { "\($0.regions.count) areas, \($0.excluded.count) cuts" } ?? "none",
                     "brief": card.brief.map { "\($0.source) kind=\($0.kind.rawValue) urgency=\($0.urgency.rawValue) summary=\($0.hasSummary)" } ?? "none",

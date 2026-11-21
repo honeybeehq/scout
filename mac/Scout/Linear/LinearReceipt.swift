@@ -12,6 +12,7 @@ nonisolated struct LinearReceipt: Codable, Hashable, Sendable {
     var status: Status
     var assets: [StoredAsset]
     var clipAttachmentID: String?
+    var unlinkedClip: Bool?
 
     var video: StoredAsset? {
         assets.first(where: \.isVideo)

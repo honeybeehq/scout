@@ -195,6 +195,7 @@ struct LinearSection: View {
 
     private var videoDetail: String {
         guard card.hasRecording else { return "This task has no recording." }
+        if card.linearReceipt?.unlinkedClip == true, card.linearReceipt?.video == nil { return Self.unlinkedNote }
         if let uploaded = card.linearReceipt?.video {
             return "Uploaded \(Self.size(uploaded.byteCount ?? 0))" + (card.linearReceipt?.clipAttachmentID == nil ? "." : " and attached to the issue.")
         }
@@ -234,6 +235,8 @@ struct LinearSection: View {
         let list = parts.count > 1 ? parts.dropLast().joined(separator: ", ") + " and " + parts[parts.count - 1] : parts[0]
         return (list, video)
     }
+
+    static let unlinkedNote = "A clip was uploaded earlier and is no longer linked."
 
     static func size(_ bytes: Int) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)

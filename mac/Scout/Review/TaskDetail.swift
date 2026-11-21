@@ -435,6 +435,14 @@ private struct HandoffBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if case .sent(let destination) = card.state {
+                if card.linearReceipt?.unlinkedClip == true {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        StatusDot(tone: .caution, size: 6)
+                        Text(LinearSection.unlinkedNote).lineLimit(2)
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                }
                 HStack(spacing: 10) {
                     Label(sentText(destination), systemImage: "checkmark")
                         .font(.system(size: 12.5, weight: .semibold))
@@ -550,6 +558,7 @@ private struct HandoffBar: View {
         case .uploadingVideo(let sent, let total): "Uploading video \(megabytes(sent)) / \(megabytes(total)) MB…"
         case .creating: "Creating issue…"
         case .attaching: "Attaching the clip…"
+        case .updating: "Updating the issue's clip…"
         case .waiting(let until): "Linear asked Scout to slow down. Continues at \(until.formatted(date: .omitted, time: .shortened))."
         }
     }

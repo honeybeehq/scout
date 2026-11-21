@@ -1,4 +1,5 @@
 import hashlib
+import re
 import json
 import os
 import struct
@@ -199,7 +200,8 @@ def check_video(gql, say, team_id, workspace, run_key, issue_id_value, clip_path
 def video_verify(key, team_id, out):
     say = logger(os.path.join(out, "video.log"))
     gql = client(key, team_id)
-    for label in ["live-video-off", "live-video-redacted", "live-video-resend"]:
+    still_linked = False
+    for label in ["live-video-off", "live-video-redacted", "live-video-resend", "live-video-unlinked"]:
         path = os.path.join(out, label + ".json")
         steps = json.load(open(path)) if os.path.exists(path) else []
         prepared = [s for s in steps if s.get("step") == "video prepared"]
@@ -218,8 +220,18 @@ def video_verify(key, team_id, out):
         lines = [l for l in (issue.get("description") or "").split("\n") if "clip.mp4" in l or "Video not included" in l]
         nodes = ((issue.get("attachments") or {}).get("nodes")) or []
         shapes = [{"title": n.get("title"), "subtitle": n.get("subtitle"), "host": urllib.parse.urlparse(n.get("url") or "").hostname, "sourceType": n.get("sourceType"), "id_matches_scout": n.get("id") == task.get("clipAttachment")} for n in nodes]
-        clip_lines = [urllib.parse.urlparse(l.split("](")[1].split(")")[0]).hostname if "](" in l else l for l in lines]
+        clip_lines = []
+        for l in lines:
+            found = re.search(r"https?://[^\s)>\]]+", l)
+            clip_lines.append(("link to " + (urllib.parse.urlparse(found.group(0)).hostname or "?")) if found else l.strip()[:80])
+        if lines and not clip_lines:
+            clip_lines = [l.strip()[:80] for l in lines]
+        if label in ("live-video-off", "live-video-unlinked") and (any("clip.mp4" in l for l in lines) or nodes):
+            still_linked = True
+            say(f"   STILL LINKED: {label} must have no clip link and no clip card")
         say(f"   read back {issue.get('identifier')} team={(issue.get('team') or {}).get('key')} title_prefixed={(issue.get('title') or '').startswith(TITLE_PREFIX)} clip line={clip_lines} attachments={shapes} errors={errors}")
+    if still_linked:
+        sys.exit(6)
 
 
 def cleanup(key, team_id, out):

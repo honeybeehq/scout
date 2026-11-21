@@ -30,7 +30,7 @@ import json,sys
 for step in json.load(open(sys.argv[1])):
     if "tasks" in step:
         t = step["tasks"][0]
-        print("  [%s] task-0 state=%s includeVideo=%s redaction=%s receipt=%s clipAttachment=%s" % (step["step"], t["state"], t["includeVideo"], t["redaction"], t["receipt"], t["clipAttachment"]))
+        print("  [%s] task-0 state=%s includeVideo=%s redaction=%s receipt=%s clipAttachment=%s unlinkedClip=%s" % (step["step"], t["state"], t["includeVideo"], t["redaction"], t["receipt"], t["clipAttachment"], t.get("unlinkedClip")))
         for a in t["uploadedAssets"]: print("     uploaded:", a)
     else:
         print("  ", json.dumps(step))
@@ -89,13 +89,23 @@ import json,sys
 r=json.load(open(sys.argv[1])); t=r["tasks"][0]
 print("  receipt after the kill:", json.dumps(t.get("linearReceipt",{}).get("status")), "assets:", [a["name"] for a in t.get("linearReceipt",{}).get("assets",[])])
 PY
-section "V5b the user turns video off, then resends: the issue is adopted and the uploaded clip is NOT attached"
+section "V5b the user turns video off, then resends: the issue is adopted, the clip is not attached, and the clip link is replaced with Video not included"
 python3 - $SESSION/review.json <<'PY'
 import json,sys
 p=sys.argv[1]; r=json.load(open(p)); t=r["tasks"][0]; t.setdefault("linear",{})["includeVideo"]=False; json.dump(r,open(p,"w"),indent=2)
 PY
 : > $STATE/requests.log
 scout v5b-video-off-resend first; summary v5b-video-off-resend; issues; requests v5b
+
+section "V6 video on and filed with its clip card; review.json then loses the sent state and the user turns video off; resend"
+fresh v6
+scout v6-filed first --linear-demo-include-video; summary v6-filed; issues
+python3 - $SESSION/review.json <<'PY'
+import json,sys
+p=sys.argv[1]; r=json.load(open(p)); t=r["tasks"][0]; t.pop("sentTo",None); t["linearReceipt"]["status"]={"pending":{}}; t.setdefault("linear",{})["includeVideo"]=False; json.dump(r,open(p,"w"),indent=2)
+PY
+: > $STATE/requests.log
+scout v6b-video-off-unlinks first; summary v6b-video-off-unlinks; issues; requests v6b
 
 section "V4 too big for Linear (fixture video limit 1000 bytes): the error offers File without video"
 fresh v4

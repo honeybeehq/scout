@@ -94,7 +94,15 @@ vdemo() {
 vdemo "$OUT/session-video-off" "$RUN-off" live-video-off first
 vdemo "$OUT/session-video" "$RUN-video" live-video-redacted first --linear-demo-include-video --linear-demo-redact
 vdemo "$OUT/session-video" "$RUN-video" live-video-resend first --linear-demo-include-video --linear-demo-redact
+python3 -I - "$OUT/session-video/review.json" <<'PY'
+import json, sys
+p = sys.argv[1]; r = json.load(open(p)); t = r["tasks"][0]
+t.pop("sentTo", None); t["linearReceipt"]["status"] = {"pending": {}}; t.setdefault("linear", {})["includeVideo"] = False
+json.dump(r, open(p, "w"), indent=2)
+PY
+vdemo "$OUT/session-video" "$RUN-video" live-video-unlinked first
 feed | python3 -I "$HERE/live.py" video-verify "$TEAM" "$OUT"
+VVERIFY=$?
 python3 -I - "$OUT" <<'PY'
 import json, os, sys
 out = sys.argv[1]
@@ -102,15 +110,17 @@ def task(label):
     path = os.path.join(out, label + ".json")
     steps = json.load(open(path)) if os.path.exists(path) else []
     return ((steps[-1].get("tasks") or [{}])[0]) if steps else {}
-off, red, again = task("live-video-off"), task("live-video-redacted"), task("live-video-resend")
+off, red, again, unlinked = task("live-video-off"), task("live-video-redacted"), task("live-video-resend"), task("live-video-unlinked")
 videos = lambda t: [a for a in t.get("uploadedAssets") or [] if " video " in a]
 problems = []
 if not off.get("identifier") or videos(off) or off.get("includeVideo"): problems.append("video off: expected an issue and no video asset")
 if not red.get("identifier") or len(videos(red)) != 1 or red.get("clipAttachment") in (None, "none"): problems.append("redacted: expected one video asset and a clip attachment")
 if again.get("issueID") != red.get("issueID") or again.get("clipAttachment") != red.get("clipAttachment") or videos(again) != videos(red): problems.append("resend: expected the same issue, video and attachment")
-print("\n".join(problems) if problems else "Scout video flow: off files no video; redacted uploads one clip and one card; resend changes nothing")
+if unlinked.get("issueID") != red.get("issueID") or videos(unlinked) or unlinked.get("clipAttachment") not in (None, "none") or not unlinked.get("unlinkedClip"): problems.append("video turned off after filing: expected the same issue with the clip unlinked")
+print("\n".join(problems) if problems else "Scout video flow: off files no video; redacted uploads one clip and one card; resend changes nothing; video turned off afterwards unlinks the clip")
 sys.exit(5 if problems else 0)
 PY
 VFLOW=$?
+if [ "$VFLOW" -eq 0 ] && [ "$VVERIFY" -ne 0 ]; then VFLOW=$VVERIFY; fi
 [ -n "${MADE:-}" ] && rm -rf "$MADE"
 if [ "$FLOW" -eq 0 ] && [ "$VFLOW" -ne 0 ]; then FLOW=$VFLOW; fi

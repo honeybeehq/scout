@@ -97,6 +97,38 @@ nonisolated struct FixtureLinearClient: LinearAPI {
                 "assetUrl": "https://uploads.linear.app/fixture/\(token)/\(name)",
                 "headers": [["key": "x-goog-content-length-range", "value": "0,52428800"]],
             ]]])
+        case "issueClips":
+            let id = operation.variables["id"]?.string ?? ""
+            log(state, "issueClips(id: \(id))")
+            guard let issue = stored(id, in: issues) else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
+            let nodes = (issue["attachments"] as? [[String: Any]] ?? []).map { ["id": $0["id"] ?? "", "url": $0["url"] ?? "", "subtitle": $0["subtitle"] ?? ""] }
+            return reply(["issue": ["description": issue["description"] ?? "", "attachments": ["nodes": nodes]]])
+        case "issueUpdate":
+            let id = operation.variables["id"]?.string ?? ""
+            guard var issue = stored(id, in: issues), let description = operation.variables["input"]?.object?["description"]?.string else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
+            let clipLine = description.split(separator: "\n").first { $0.contains("clip.mp4") || $0.contains("Video not included") } ?? ""
+            log(state, "issueUpdate(id: \(id), clip line: \(clipLine))")
+            issue["description"] = description
+            if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
+                try? data.write(to: issues.appendingPathComponent("\(id).json"))
+            }
+            return reply(["issueUpdate": ["success": true]])
+        case "attachmentDelete":
+            let id = operation.variables["id"]?.string ?? ""
+            log(state, "attachmentDelete(id: \(id))")
+            let files = (try? FileManager.default.contentsOfDirectory(at: issues, includingPropertiesForKeys: nil)) ?? []
+            for file in files {
+                let issueID = file.deletingPathExtension().lastPathComponent
+                guard var issue = stored(issueID, in: issues), var attachments = issue["attachments"] as? [[String: Any]],
+                      attachments.contains(where: { $0["id"] as? String == id }) else { continue }
+                attachments.removeAll { $0["id"] as? String == id }
+                issue["attachments"] = attachments
+                if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
+                    try? data.write(to: issues.appendingPathComponent("\(issueID).json"))
+                }
+                return reply(["attachmentDelete": ["success": true]])
+            }
+            return reply(errors: "Entity not found: Attachment", code: "INVALID_INPUT")
         case "attachmentCreate":
             guard let input = operation.variables["input"]?.object else { throw .malformed }
             let id = input["id"]?.string ?? UUID().uuidString.lowercased()
@@ -105,7 +137,7 @@ nonisolated struct FixtureLinearClient: LinearAPI {
             guard var issue = stored(issueID, in: issues) else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
             var attachments = issue["attachments"] as? [[String: Any]] ?? []
             if attachments.contains(where: { $0["id"] as? String == id }) {
-                return reply(errors: "Conflict: an entity with this id already exists", code: "INVALID_INPUT")
+                return reply(["attachmentCreate": ["success": true, "attachment": ["id": id]]])
             }
             attachments.append(["id": id, "url": input["url"]?.string ?? "", "title": input["title"]?.string ?? "", "subtitle": input["subtitle"]?.string ?? ""])
             issue["attachments"] = attachments

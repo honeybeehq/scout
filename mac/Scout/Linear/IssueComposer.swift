@@ -44,13 +44,7 @@ nonisolated enum IssueComposer {
             blocks.append(summary(brief))
         }
         blocks.append("### What was said\n" + quote(transcript(input)))
-        switch input.clip {
-        case .none: break
-        case .notIncluded: blocks.append("### Clip\n_Video not included._")
-        case .included(let url, let duration, let hidden):
-            let note = hidden == 0 ? "" : hidden == 1 ? " · 1 part hidden in Scout before upload" : " · \(hidden) parts hidden in Scout before upload"
-            blocks.append("### Clip\n[clip.mp4 · \(clock(duration))](\(url))\(note)")
-        }
+        if let clip = clipBlock(input.clip) { blocks.append(clip) }
         if !input.pins.isEmpty {
             blocks.append((["### Pins"] + input.pins.map { "![Pin \($0.number) · \(escaped($0.caption))](\($0.url))" }).joined(separator: "\n"))
         }
@@ -61,6 +55,31 @@ nonisolated enum IssueComposer {
         blocks.append("---\nFiled from Scout · `\(input.key)`")
         let markdown = blocks.joined(separator: "\n\n").replacingOccurrences(of: input.homeDirectory, with: "~")
         return IssueDraft(title: title(input.title), markdown: markdown)
+    }
+
+    static func clipBlock(_ clip: IssueInput.Clip) -> String? {
+        switch clip {
+        case .none: nil
+        case .notIncluded: "### Clip\n_Video not included._"
+        case .included(let url, let duration, let hidden):
+            "### Clip\n[clip.mp4 · \(clock(duration))](\(url))" + (hidden == 0 ? "" : hidden == 1 ? " · 1 part hidden in Scout before upload" : " · \(hidden) parts hidden in Scout before upload")
+        }
+    }
+
+    static func replacingClip(in description: String, with clip: IssueInput.Clip) -> String? {
+        guard let block = clipBlock(clip) else { return nil }
+        var lines = description.components(separatedBy: "\n")
+        guard let heading = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "### Clip" }) else {
+            guard let line = lines.firstIndex(where: { $0.contains("clip.mp4") }), let last = block.components(separatedBy: "\n").last else { return nil }
+            lines[line] = last
+            return lines.joined(separator: "\n")
+        }
+        let blank: (String) -> Bool = { $0.trimmingCharacters(in: .whitespaces).isEmpty }
+        var end = heading + 1
+        while end < lines.count, blank(lines[end]) { end += 1 }
+        while end < lines.count, !blank(lines[end]), !lines[end].hasPrefix("#"), !lines[end].hasPrefix("---") { end += 1 }
+        lines.replaceSubrange(heading..<end, with: block.components(separatedBy: "\n"))
+        return lines.joined(separator: "\n")
     }
 
     static func title(_ text: String) -> String {

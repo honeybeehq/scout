@@ -158,12 +158,68 @@ nonisolated extension LinearOperations {
         )
     }
 
+    struct IssueClipsData: Decodable, Sendable {
+        struct Attachment: Decodable, Sendable {
+            var id: String
+            var url: String
+            var subtitle: String?
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                id = try container.remoteID(.id)
+                url = String(try container.decode(String.self, forKey: .url).prefix(4096))
+                subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle).map { RemoteText.clean($0) }
+            }
+
+            private enum CodingKeys: String, CodingKey { case id, url, subtitle }
+        }
+        struct Issue: Decodable, Sendable {
+            var description: String?
+            var attachments: LinearNodes<Attachment>
+        }
+        var issue: Issue?
+    }
+    struct IssueUpdateData: Decodable, Sendable {
+        struct Payload: Decodable, Sendable { var success: Bool }
+        var issueUpdate: Payload
+    }
+    struct AttachmentDeleteData: Decodable, Sendable {
+        struct Payload: Decodable, Sendable { var success: Bool }
+        var attachmentDelete: Payload
+    }
+
+    static func issueClips(id: String) -> LinearOperation<IssueClipsData> {
+        LinearOperation(
+            name: "issueClips",
+            document: "query($id: String!) { issue(id: $id) { description attachments(first: 50) { nodes { id url subtitle } } } }",
+            variables: ["id": .string(id)]
+        )
+    }
+
+    static func updateDescription(issueID: String, teamID: String, description: String) -> LinearOperation<IssueUpdateData> {
+        LinearOperation(
+            name: "issueUpdate",
+            kind: .mutation(teamID: teamID),
+            document: "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
+            variables: ["id": .string(issueID), "input": .object(["description": .string(description)])]
+        )
+    }
+
+    static func deleteAttachment(id: String, teamID: String) -> LinearOperation<AttachmentDeleteData> {
+        LinearOperation(
+            name: "attachmentDelete",
+            kind: .mutation(teamID: teamID),
+            document: "mutation($id: String!) { attachmentDelete(id: $id) { success } }",
+            variables: ["id": .string(id)]
+        )
+    }
+
     static func attachClip(id: String?, issueID: String, teamID: String, url: URL, title: String) -> LinearOperation<AttachmentCreateData> {
         var input: [String: LinearValue] = [
             "issueId": .string(issueID),
             "url": .string(url.absoluteString),
             "title": .string(title),
-            "subtitle": .string("Recorded with Scout"),
+            "subtitle": .string(LinearFiler.clipSubtitle),
         ]
         if let id { input["id"] = .string(id) }
         return LinearOperation(
