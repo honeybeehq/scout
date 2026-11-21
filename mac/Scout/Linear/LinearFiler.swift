@@ -30,6 +30,7 @@ actor LinearFiler {
         var labelIDs: [String]
         var priority: Int
         var parent: LinearIssueRef?
+        var subIssuePosition: Int?
         var compose: @Sendable ([StoredAsset]) -> IssueDraft
     }
 
@@ -115,7 +116,8 @@ actor LinearFiler {
             description: draft.markdown,
             labelIDs: request.labelIDs,
             priority: request.priority,
-            parentID: request.parent?.id
+            parentID: request.parent?.id,
+            subIssueSortOrder: request.parent == nil ? nil : request.subIssuePosition
         )
         await report(.creating)
         do {

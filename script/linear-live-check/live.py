@@ -152,7 +152,10 @@ def check_parent(gql, say, team_id, workspace, run_key, issue_id, created_file):
     parent_key = run_key + ":parent"
     parent_id = issue_id(workspace, parent_key)
     children = [(run_key + f":task-{n}", TITLE_PREFIX + f"Scout live check sub-issue {n}") for n in (1, 2)]
-    say("15 parent + sub-issues: parent first with a derived id, then children with parentId in task order")
+    say("15 parent + sub-issues: parent first with a derived id, then children with parentId and subIssueSortOrder in task order")
+    _, data, errors = gql('query { __type(name: "IssueCreateInput") { inputFields { name } } }')
+    fields = [f.get("name") for f in (((data or {}).get("__type") or {}).get("inputFields") or [])]
+    say(f"   IssueCreateInput has subIssueSortOrder={'subIssueSortOrder' in fields} sortOrder={'sortOrder' in fields} errors={errors}")
     parent_input = {"id": parent_id, "teamId": team_id, "title": TITLE_PREFIX + "Scout live check parent", "description": f"Live check of Scout's T5 slice.\n\n### Sub-issues\n1. sub-issue 1\n2. sub-issue 2\n\n---\nFiled from Scout · `{parent_key}`", "labelIds": [], "priority": 0}
     status, data, errors = gql(create, {"input": parent_input}, mutation_team=team_id)
     parent = ((data or {}).get('issueCreate') or {}).get('issue') or {}
@@ -164,8 +167,8 @@ def check_parent(gql, say, team_id, workspace, run_key, issue_id, created_file):
         say("   parent was not created with its derived id; stopping the parent checks")
         return
     identifiers = []
-    for key, title in children:
-        child_input = {"id": issue_id(workspace, key), "teamId": team_id, "parentId": parent_id, "title": title, "description": f"---\nFiled from Scout · `{key}`", "labelIds": [], "priority": 0}
+    for position, (key, title) in enumerate(children):
+        child_input = {"id": issue_id(workspace, key), "teamId": team_id, "parentId": parent_id, "subIssueSortOrder": position, "title": title, "description": f"---\nFiled from Scout · `{key}`", "labelIds": [], "priority": 0}
         status, data, errors = gql(create, {"input": child_input}, mutation_team=team_id)
         issue = ((data or {}).get("issueCreate") or {}).get("issue") or {}
         identifiers.append(issue.get("identifier"))
@@ -188,9 +191,11 @@ def check_parent(gql, say, team_id, workspace, run_key, issue_id, created_file):
         created_file.write(duplicate + "\n")
         created_file.flush()
         say(f"   DUPLICATE parent created by the resend: {duplicate}")
-    _, data, errors = gql("query($id: String!) { issue(id: $id) { children { nodes { identifier number } } description } }", {"id": parent_id})
+    _, data, errors = gql("query($id: String!) { issue(id: $id) { children { nodes { identifier number subIssueSortOrder } } description } }", {"id": parent_id})
     issue = (data or {}).get("issue") or {}
-    nodes = [n.get("identifier") for n in sorted(((issue.get("children") or {}).get("nodes") or []), key=lambda n: n.get("number") or 0)]
+    raw = (issue.get("children") or {}).get("nodes") or []
+    say(f"   children as returned={[(n.get('identifier'), n.get('subIssueSortOrder')) for n in raw]}")
+    nodes = [n.get("identifier") for n in sorted(raw, key=lambda n: (n.get("subIssueSortOrder") is None, n.get("subIssueSortOrder") or 0))]
     say(f"19 parent children={nodes} (expect exactly {identifiers}) tidied={all(i and i in (issue.get('description') or '') for i in identifiers)} errors={errors}")
 
 
@@ -314,10 +319,10 @@ def parent_verify(key, team_id, out):
         if task.get("subIssueOf") != parent_identifier:
             problems.append(f"{task.get('identifier')} is not a sub-issue of {parent_identifier}")
     if parents[first]:
-        _, data, errors = gql("query($id: String!) { issue(id: $id) { identifier title team { id } children { nodes { id identifier title number } } description } }", {"id": parents[first]})
+        _, data, errors = gql("query($id: String!) { issue(id: $id) { identifier title team { id } children { nodes { id identifier title number subIssueSortOrder } } description } }", {"id": parents[first]})
         issue = (data or {}).get("issue") or {}
-        nodes = sorted(((issue.get("children") or {}).get("nodes") or []), key=lambda n: n.get("number") or 0)
-        say(f"read back parent {issue.get('identifier')} title={issue.get('title')!r} children={[n.get('identifier') for n in nodes]} errors={errors}")
+        nodes = sorted(((issue.get("children") or {}).get("nodes") or []), key=lambda n: (n.get("subIssueSortOrder") is None, n.get("subIssueSortOrder") or 0))
+        say(f"read back parent {issue.get('identifier')} title={issue.get('title')!r} children by subIssueSortOrder={[(n.get('identifier'), n.get('subIssueSortOrder')) for n in nodes]} errors={errors}")
         if (issue.get("team") or {}).get("id") != team_id or not (issue.get("title") or "").startswith(TITLE_PREFIX):
             problems.append("the parent is not a prefixed issue in the test team")
         if [n.get("id") for n in nodes] != children[first]:

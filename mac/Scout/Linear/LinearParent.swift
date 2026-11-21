@@ -110,14 +110,14 @@ extension SessionReview {
         return draft
     }
 
-    func ensureLinearParent(for card: SnippetCard) async throws -> LinearIssueRef? {
-        guard !dispatcher.dryRun, let plan = linearPlan, plan.children.contains(where: { $0 === card }) else { return nil }
-        if let parent = linearParent { return parent.issue }
-        if let running = parentFiling { return try await running.value }
+    func ensureLinearParent(for card: SnippetCard) async throws -> (issue: LinearIssueRef, position: Int)? {
+        guard !dispatcher.dryRun, let plan = linearPlan, let position = plan.children.firstIndex(where: { $0 === card }) else { return nil }
+        if let parent = linearParent { return (parent.issue, position) }
+        if let running = parentFiling { return (try await running.value, position) }
         let filing = Task { try await fileParent(plan, reporting: card) }
         parentFiling = filing
         defer { parentFiling = nil }
-        return try await filing.value
+        return (try await filing.value, position)
     }
 
     private func fileParent(_ plan: LinearParentPlan, reporting card: SnippetCard) async throws -> LinearIssueRef {

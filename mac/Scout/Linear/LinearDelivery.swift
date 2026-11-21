@@ -49,7 +49,7 @@ extension Dispatcher {
             }
             return
         }
-        let parent: LinearIssueRef?
+        let parent: (issue: LinearIssueRef, position: Int)?
         do {
             parent = try await linearParent?(card)
         } catch {
@@ -68,7 +68,8 @@ extension Dispatcher {
                 previous: card.linearReceipt,
                 labelIDs: labelIDs(for: card, team: target.team.id),
                 priority: priority(for: card),
-                parent: parent,
+                parent: parent?.issue,
+                subIssuePosition: parent?.position,
                 compose: compose
             )
             let receipt = try await linear.filer.file(request, pending: { [weak self, weak card] receipt in

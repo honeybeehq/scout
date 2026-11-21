@@ -53,7 +53,7 @@ nonisolated struct FixtureLinearClient: LinearAPI {
             guard let input = operation.variables["input"]?.object else { throw .malformed }
             let requested = input["id"]?.string
             let parentID = input["parentId"]?.string
-            log(state, "issueCreate(id: \(requested ?? "none"), team: \(teamKey(input["teamId"]?.string ?? "")), parentId: \(parentID ?? "none"), title: \(input["title"]?.string ?? ""))")
+            log(state, "issueCreate(id: \(requested ?? "none"), team: \(teamKey(input["teamId"]?.string ?? "")), parentId: \(parentID ?? "none"), subIssueSortOrder: \(input["subIssueSortOrder"].flatMap { if case .int(let value) = $0 { String(value) } else { nil } } ?? "none"), title: \(input["title"]?.string ?? ""))")
             if requested != nil, environment["SCOUT_LINEAR_FIXTURE_REFUSE_IDS"] == "1" {
                 return reply(errors: "Argument Validation Error: id is not allowed", code: "INVALID_INPUT")
             }
@@ -78,6 +78,7 @@ nonisolated struct FixtureLinearClient: LinearAPI {
             if let parentID {
                 guard let parent = stored(parentID, in: issues) else { return reply(errors: "Entity not found: parent issue", code: "INVALID_INPUT") }
                 issue["parent"] = ["id": parentID, "identifier": parent["identifier"] ?? "", "url": parent["url"] ?? ""]
+                if case .int(let order) = input["subIssueSortOrder"] { issue["subIssueSortOrder"] = order }
             }
             if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: issues.appendingPathComponent("\(id).json"))

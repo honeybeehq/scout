@@ -86,6 +86,7 @@ nonisolated struct LinearIssueInput: Sendable {
     var labelIDs: [String]
     var priority: Int
     var parentID: String?
+    var subIssueSortOrder: Int?
 
     var value: LinearValue {
         var input: [String: LinearValue] = [
@@ -98,6 +99,7 @@ nonisolated struct LinearIssueInput: Sendable {
         if let id { input["id"] = .string(id) }
         if let projectID { input["projectId"] = .string(projectID) }
         if let parentID { input["parentId"] = .string(parentID) }
+        if let subIssueSortOrder { input["subIssueSortOrder"] = .int(subIssueSortOrder) }
         return .object(input)
     }
 }
