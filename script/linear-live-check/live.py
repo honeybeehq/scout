@@ -407,7 +407,12 @@ def dupe_verify(key, team_id, out):
         steps = json.load(open(path)) if os.path.exists(path) else []
         checks = [s for s in steps if s.get("step") == "duplicate check"]
         if checks:
-            say(f"{label}: duplicate check term={checks[-1].get('term')!r} found={[c.get('identifier') for c in checks[-1].get('candidates') or []]}")
+            found = [c.get("id") for c in checks[-1].get("candidates") or []]
+            say(f"{label}: Scout's own duplicate check term={checks[-1].get('term')!r} found={[c.get('identifier') for c in checks[-1].get('candidates') or []]} includes {seeded_identifier}={seeded_id in found}")
+            if seeded_id not in found:
+                problems.append(f"{label}: Scout's own duplicate check did not return {seeded_identifier}")
+        if any(s.get("step", "").startswith("search did not return") for s in steps):
+            problems.append(f"{label}: the add used the live check's by-id fallback, not a candidate Scout found")
         task = ((steps[-1].get("tasks") or [{}])[0]) if steps else {}
         say(f"{label}: state={task.get('state')} sentText={task.get('sentText')!r} addedTo={task.get('addedTo')} comment={task.get('commentID')} clipAttachment={task.get('clipAttachment')}")
         if task.get("addedToIssueID") != seeded_id:

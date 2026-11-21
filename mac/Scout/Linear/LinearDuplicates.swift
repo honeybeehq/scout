@@ -20,11 +20,7 @@ enum DuplicateCheck: Equatable {
 
 extension Dispatcher {
     static func duplicateTerm(for card: SnippetCard) -> String {
-        var term = IssueComposer.title(card.title)
-        if let target = card.targets.first, let name = target.component ?? target.label, !name.isEmpty, !term.localizedCaseInsensitiveContains(name) {
-            term += " " + name
-        }
-        return String(term.prefix(200))
+        String(IssueComposer.title(card.title).prefix(200))
     }
 
     func checkDuplicates(for card: SnippetCard, in target: LinearTarget, debounce: Bool) async {
