@@ -188,9 +188,9 @@ def check_parent(gql, say, team_id, workspace, run_key, issue_id, created_file):
         created_file.write(duplicate + "\n")
         created_file.flush()
         say(f"   DUPLICATE parent created by the resend: {duplicate}")
-    _, data, errors = gql("query($id: String!) { issue(id: $id) { children { nodes { identifier } } description } }", {"id": parent_id})
+    _, data, errors = gql("query($id: String!) { issue(id: $id) { children { nodes { identifier number } } description } }", {"id": parent_id})
     issue = (data or {}).get("issue") or {}
-    nodes = [n.get("identifier") for n in ((issue.get("children") or {}).get("nodes") or [])]
+    nodes = [n.get("identifier") for n in sorted(((issue.get("children") or {}).get("nodes") or []), key=lambda n: n.get("number") or 0)]
     say(f"19 parent children={nodes} (expect exactly {identifiers}) tidied={all(i and i in (issue.get('description') or '') for i in identifiers)} errors={errors}")
 
 
