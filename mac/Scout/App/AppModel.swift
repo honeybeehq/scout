@@ -65,7 +65,7 @@ final class AppModel {
     private var hotkey: GlobalHotkey?
 
     static var rendersOnly: Bool {
-        OptimiseReplay.output != nil || PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil
+        OptimiseReplay.output != nil || PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil || LinearDemo.directory != nil
     }
 
     private static let shortcutKey = "shortcut.startScouting"

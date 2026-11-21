@@ -1,6 +1,6 @@
 #!/bin/bash
 set -uo pipefail
-if [ $# -ne 1 ]; then echo "usage: SCOUT_APP=<Scout binary> SCOUT_DEMO_VIDEO=<mp4> run.sh <test-team-id>   (key in SCOUT_LINEAR_KEY or on stdin)" >&2; exit 2; fi
+if [ $# -ne 1 ]; then echo "usage: SCOUT_APP=<Scout binary built as com.trmdy.scout.dev.linear> SCOUT_DEMO_VIDEO=<mp4> run.sh <test-team-id>   (key in SCOUT_LINEAR_KEY or on stdin)" >&2; exit 2; fi
 TEAM=$1
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=${SCOUT_LIVE_OUT:-$PWD/linear-live-out}
@@ -17,6 +17,8 @@ else
 fi
 unset INPUT
 if [ -z "$KEY" ]; then echo "no key" >&2; exit 2; fi
+BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$(dirname "$APP")/../Info.plist" 2>/dev/null || true)
+case "$BUNDLE" in com.trmdy.scout.dev.*) ;; *) echo "SCOUT_APP must be built with PRODUCT_BUNDLE_IDENTIFIER=com.trmdy.scout.dev.linear, found '$BUNDLE'" >&2; exit 2 ;; esac
 if [ -e "$OUT" ] && [ -n "$(ls -A "$OUT" 2>/dev/null)" ]; then echo "$OUT is not empty; use a fresh SCOUT_LIVE_OUT" >&2; exit 2; fi
 mkdir -p "$OUT"
 feed() { printf '%s\n' "$KEY"; }
@@ -39,7 +41,7 @@ finish() {
 }
 trap finish EXIT
 
-defaults delete com.trmdy.scout.linear-demo >/dev/null 2>&1 || true
+defaults delete "$BUNDLE.linear-demo" >/dev/null 2>&1 || true
 echo "== API checks"
 feed | python3 -I "$HERE/live.py" check "$TEAM" "$OUT" || echo "API checks stopped early (see api.log)"
 

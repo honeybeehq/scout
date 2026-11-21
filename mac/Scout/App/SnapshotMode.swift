@@ -81,7 +81,7 @@ enum SnapshotMode {
         let volatile = (directory != nil && state != nil && state != .keychain) || LinearDemo.directory != nil || ReviewGallery.directory != nil
         var defaults = UserDefaults.standard
         if volatile {
-            let suite = LinearDemo.directory == nil ? "com.trmdy.scout.linear-snapshot" : "com.trmdy.scout.linear-demo"
+            let suite = (Bundle.main.bundleIdentifier ?? "com.trmdy.scout") + (LinearDemo.directory == nil ? ".linear-snapshot" : ".linear-demo")
             if LinearDemo.directory == nil { UserDefaults.standard.removePersistentDomain(forName: suite) }
             defaults = UserDefaults(suiteName: suite) ?? .standard
         }

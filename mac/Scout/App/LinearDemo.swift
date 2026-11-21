@@ -18,6 +18,10 @@ enum LinearDemo {
         try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         try? await Task.sleep(for: .seconds(1))
         let live = ProcessInfo.processInfo.arguments.contains("--linear-demo-key-stdin")
+        if live, Bundle.main.bundleIdentifier == "com.trmdy.scout" {
+            finish([["error": "live demo runs need a dev build (PRODUCT_BUNDLE_IDENTIFIER=com.trmdy.scout.dev.linear), not com.trmdy.scout"]], output: output, label: label)
+            return
+        }
         model.linear.draftKey = live ? readLine(strippingNewline: true) ?? "" : "lin_api_SCOUTFIXTURENOTAREALKEY00003f9a"
         await model.linear.connect()
         var steps: [[String: Any]] = []
