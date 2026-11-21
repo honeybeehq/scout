@@ -201,27 +201,46 @@ Both registration APIs accept optional `highlight(entityIds)`. Scout's existing 
 
 A snapshot without `save` can supply a string `saveStatus` of at most 200 characters to explain an adapter-side omission. Scout preserves it; otherwise the status is `absent`. When `save` is present the SDK sets `included` or its own size omission reason. Adapter-defined `extra` remains JSON data.
 
-Scout bundles the built `@scout/web` browser entry with the installed app. A second loopback-only HTTP listener serves just `GET /sdk/v1/scout.js`; all other requests return 404, including HTTP/1.0 and query-string variants. `bridge.json` advertises its full `sdkURL`. The `v1` URL versions the loading contract, while the bundled SDK version follows the installed Scout build. The WebSocket port and protocol stay unchanged and still require the token in `window.__SCOUT__`. The public script response uses `Content-Type: text/javascript`, `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin`, and `Cache-Control: no-store`.
+Scout bundles the built `@scout/web` browser entry with the installed app. A second loopback-only HTTP listener tries ports 47911–47920 in order, starting at 47911 on each launch, and serves just `GET /sdk/v1/scout.js`; all other requests return 404, including HTTP/1.0 and query-string variants. `bridge.json` advertises its full `sdkURL`. The `v1` URL versions the loading contract, while the bundled SDK version follows the installed Scout build. The WebSocket port and protocol stay unchanged and still require the token in `window.__SCOUT__`. The public script response uses `Content-Type: text/javascript`, `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin`, and `Cache-Control: no-store`.
 
-A dev server without `@scout/vite` injects `<script>window.__SCOUT__={port,token,projectRoot}</script>` before `<script type="module" src="http://127.0.0.1:<sdk-port>/sdk/v1/scout.js"></script>`, reading the URL from `sdkURL`. This dependency-free Vite plugin injects only when `bridge.json` exists and parses; use the test app's data root or `SCOUT_BRIDGE_FILE` for a rig:
+A dev server without `@scout/vite` injects `window.__SCOUT__={port,token,projectRoot}` and a small inline loader using `sdkURL`. The loader retries dynamic import at 1–2 second intervals until Scout starts, and retries immediately on focus or becoming visible. A new fragment on each attempt bypasses cached module failures without changing the HTTP request path. It stops and removes listeners after success; the SDK's WebSocket reconnect handles later Scout restarts. A collision can move the HTTP port within the range; reload the dev page to read the new `sdkURL` in that case.
+
+This dependency-free Vite plugin injects only when `bridge.json` exists and parses; use the test app's data root or `SCOUT_BRIDGE_FILE` for a rig. No bridge file means no injection; after the first Scout launch creates it, reload the dev page once.
 
 ```js
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-const scoutLocal = {
+function loadScout(url) {
+  let done = false, busy = false, timer, attempt = 0
+  const wake = () => {
+    if (done || busy) return
+    clearTimeout(timer); busy = true
+    import(`${url}#scout-retry-${attempt++}`).then(() => {
+      done = true
+      removeEventListener('focus', wake)
+      document.removeEventListener('visibilitychange', visible)
+    }).catch(() => { timer = setTimeout(wake, Math.min(1000 * 2 ** (attempt - 1), 2000)) })
+      .finally(() => { busy = false })
+  }
+  const visible = () => { if (document.visibilityState === 'visible') wake() }
+  addEventListener('focus', wake)
+  document.addEventListener('visibilitychange', visible)
+  wake()
+}
+export default { plugins: [{
   name: 'scout-local', apply: 'serve',
   transformIndexHtml() {
     try {
       const file = process.env.SCOUT_BRIDGE_FILE ?? join(homedir(), 'Library/Application Support/Scout/bridge.json')
       const { port, token, sdkURL } = JSON.parse(readFileSync(file, 'utf8'))
       const config = JSON.stringify({ port, token, projectRoot: process.cwd() }).replace(/</g, '\\u003c')
+      const url = JSON.stringify(sdkURL ?? `http://127.0.0.1:${port}/sdk/v1/scout.js`).replace(/</g, '\\u003c')
       return [
         { tag: 'script', children: `window.__SCOUT__=${config}`, injectTo: 'head-prepend' },
-        { tag: 'script', attrs: { type: 'module', src: sdkURL ?? `http://127.0.0.1:${port}/sdk/v1/scout.js` }, injectTo: 'head' },
+        { tag: 'script', children: `(${loadScout})(${url})`, injectTo: 'head' },
       ]
     } catch { return [] }
   },
-}
-export default { plugins: [scoutLocal] }
+}] }
 ```

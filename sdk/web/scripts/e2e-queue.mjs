@@ -20,10 +20,14 @@ const http = createServer((req, res) => {
   res.end(readFileSync(join(root, 'packages/web/dist/index.js')))
 })
 await new Promise(r => http.listen(0, '127.0.0.1', r))
+const httpPort = http.address().port
+await new Promise(r => http.close(r))
+const localSDKURL = process.env.SCOUT_SDK_HARNESS ? (process.env.SCOUT_SDK_URL ?? 'http://127.0.0.1:47911/sdk/v1/scout.js') : `http://127.0.0.1:${httpPort}/sdk/v1/scout.js`
+let nativeSDK
 const bridge = await startMockBridge({ port: 47818, token: 'queue-e2e-token' })
-const sdkURL = process.env.SCOUT_SDK_URL ?? `http://127.0.0.1:${http.address().port}/sdk/v1/scout.js`
+const sdkURL = process.env.SCOUT_SDK_URL ?? localSDKURL
 const bridgeFile = join(scratch, 'bridge.json')
-writeFileSync(bridgeFile, JSON.stringify({port:47818,token:'queue-e2e-token',sdkURL}))
+writeFileSync(bridgeFile, JSON.stringify({port:47818,token:'queue-e2e-token',sdkURL:localSDKURL}))
 const vite = spawn(join(root, 'fixtures/react-vite/node_modules/.bin/vite'), [fixture, '--host', '127.0.0.1', '--port', '5178', '--strictPort'], {env:{...process.env,SCOUT_BRIDGE_FILE:bridgeFile},stdio:['ignore','pipe','pipe']})
 let output = ''
 const ready = new Promise((resolve, reject) => {
@@ -34,6 +38,8 @@ const ready = new Promise((resolve, reject) => {
 const browser = await chromium.launch({headless:true})
 const page = await browser.newPage({viewport:{width:1200,height:850}})
 const results = []
+let sdkRequests = 0
+page.on('request', req => { if (req.url().startsWith(localSDKURL)) sdkRequests++ })
 const assert = (ok, msg) => { if (!ok) throw new Error(msg) }
 const incoming = (type, id) => e => e.dir === 'in' && e.msg.type === type && (id === undefined || e.msg.id === id)
 async function step(name, fn) {
@@ -53,7 +59,39 @@ async function aim() {
 try {
   await ready
   bridge.setSession(true)
-  await page.goto('http://127.0.0.1:5178')
+  await step('cold page loads SDK after server starts without reload', async () => {
+    await page.goto('http://127.0.0.1:5178')
+    await page.evaluate(() => { window.coldPageIdentity = 'same-page' })
+    await page.waitForTimeout(2300)
+    assert(await page.evaluate(() => typeof preGame.unregister === 'undefined'), 'SDK loaded while HTTP server down')
+    if (process.env.SCOUT_SDK_HARNESS) {
+      nativeSDK = spawn(process.env.SCOUT_SDK_HARNESS, [], {stdio:['ignore','pipe','pipe']})
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Native SDK server did not become ready')), 10000)
+        nativeSDK.stdout.once('data', bytes => {
+          clearTimeout(timeout)
+          if (String(bytes).trim() === localSDKURL) resolve()
+          else reject(new Error(`Native SDK address changed: ${bytes}`))
+        })
+      })
+    } else {
+      await new Promise(r => http.listen(httpPort, '127.0.0.1', r))
+    }
+    await page.waitForFunction(() => typeof preGame.unregister === 'function', {timeout:10000})
+    await aim()
+    const pin = await bridge.pin()
+    assert(pin.reply?.element?.label === 'Asteroid A-17', JSON.stringify(pin))
+    assert(await page.evaluate(() => coldPageIdentity === 'same-page'), 'page reloaded')
+    const loadedRequests = sdkRequests
+    await page.evaluate(() => { dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')) })
+    await page.waitForTimeout(2100)
+    assert(sdkRequests === loadedRequests, 'loader kept importing after success')
+    await page.screenshot({path:join(evidence,'queue-cold-start.png')})
+  })
+  if (process.env.SCOUT_SDK_URL) {
+    writeFileSync(bridgeFile, JSON.stringify({port:47818,token:'queue-e2e-token',sdkURL}))
+    await page.goto('http://127.0.0.1:5178')
+  }
   await page.waitForFunction(() => typeof window.preGame.unregister === 'function')
   await step('pre-SDK queue push names pinned entity and captures save', async () => {
     await aim()
@@ -130,7 +168,7 @@ try {
 } finally {
   writeFileSync(join(evidence,'queue-bridge.json'),JSON.stringify(bridge.records,null,2))
   writeFileSync(join(evidence,'queue-results.json'),JSON.stringify({sdkURL,results},null,2))
-  await browser.close(); vite.kill(); await bridge.close(); await new Promise(r => http.close(r))
+  await browser.close(); vite.kill(); nativeSDK?.kill(); await bridge.close(); await new Promise(r => http.close(r))
 }
 console.log(`${results.filter(r=>r.pass).length}/${results.length} queue checks passed`)
 if (results.some(r=>!r.pass)) process.exitCode = 1

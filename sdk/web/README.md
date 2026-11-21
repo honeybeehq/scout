@@ -124,7 +124,7 @@ This produces `.audit/game/session/snippets/game-pin/{game-state.json,save.json,
 
 ### Dependency-free queue fixture
 
-`pnpm run e2e` also drives `fixtures/queue-vite` with its inline dependency-free plugin: pre/post SDK queue pushes, unregister, malformed entries, callback failures, highlight/clear, session privacy and adapter save omission reasons. Evidence is written to `.audit/g3`. See [the protocol](../../docs/sdk-protocol.md#games-without-an-npm-dependency-on-scout) for the loading contract.
+`pnpm run e2e` also drives `fixtures/queue-vite` with its inline dependency-free plugin: pre/post SDK queue pushes, unregister, malformed entries, callback failures, highlight/clear, session privacy, adapter save omission reasons and a page opened before the SDK server starts. Evidence is written to `.audit/g3`. See [the protocol](../../docs/sdk-protocol.md#games-without-an-npm-dependency-on-scout) for the loading contract.
 
 For a headless run of the production native HTTP server on a Mac mini (without launching Scout), create a small bundle containing the browser entry:
 
@@ -137,4 +137,4 @@ swiftc -swift-version 6 -default-isolation MainActor \
 .audit/SDKHTTPProof.app/Contents/MacOS/SDKHTTPProof
 ```
 
-It prints its loopback SDK URL. Curl that URL to check the bundle and headers, or run `SCOUT_SDK_URL=<printed-url> node sdk/web/scripts/e2e-queue.mjs` to load the fixture through the native server. The latter uses a mock WebSocket bridge and writes a browser screenshot and message trace; a running-app rig must still verify recording and delivery.
+It prints its loopback SDK URL. Curl that URL to check the bundle and headers, or run `SCOUT_SDK_URL=<printed-url> node sdk/web/scripts/e2e-queue.mjs` to load the fixture through the native server. Set `SCOUT_SDK_HARNESS` to the executable instead (with no existing SDK server running) to exercise cold loading through the native server at `SCOUT_SDK_URL`, defaulting to port 47911. The latter uses a mock WebSocket bridge and writes a browser screenshot and message trace; a running-app rig must still verify recording and delivery.

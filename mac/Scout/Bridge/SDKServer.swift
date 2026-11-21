@@ -10,18 +10,37 @@ final class SDKServer {
     func start() {
         guard listener == nil else { return }
         bundle = Bundle.main.url(forResource: "scout", withExtension: "js").flatMap { try? Data(contentsOf: $0) }
+        listen(on: 47911)
+    }
+
+    private func listen(on candidate: UInt16) {
+        guard candidate <= 47920, let port = NWEndpoint.Port(rawValue: candidate) else { return }
         let parameters = NWParameters.tcp
         parameters.requiredInterfaceType = .loopback
-        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
-        guard let listener = try? NWListener(using: parameters) else { return }
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port)
+        parameters.allowLocalEndpointReuse = true
+        guard let listener = try? NWListener(using: parameters) else {
+            listen(on: candidate + 1)
+            return
+        }
         self.listener = listener
         listener.newConnectionHandler = { [weak self] connection in
             MainActor.assumeIsolated { self?.accept(connection) }
         }
         listener.stateUpdateHandler = { [weak self, weak listener] state in
             MainActor.assumeIsolated {
-                if case .ready = state, let port = listener?.port {
-                    self?.onReady?("http://127.0.0.1:\(port.rawValue)/sdk/v1/scout.js")
+                guard let self, let listener, self.listener === listener else { return }
+                switch state {
+                case .ready:
+                    self.onReady?("http://127.0.0.1:\(candidate)/sdk/v1/scout.js")
+                case .failed(let error):
+                    listener.cancel()
+                    self.listener = nil
+                    if case .posix(let code) = error, code == .EADDRINUSE {
+                        self.listen(on: candidate + 1)
+                    }
+                default:
+                    break
                 }
             }
         }
