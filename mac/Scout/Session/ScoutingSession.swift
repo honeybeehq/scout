@@ -82,6 +82,7 @@ final class ScoutingSession {
     private var stopRequestedAt: SessionTime?
     private var gameSnapshots: [String: Task<Void, Never>] = [:]
     private var webProjects: [String: String] = [:]
+    private var gameOwners: [String: String] = [:]
     private var stopGameState: (data: Data, clientID: String, projectRoot: String?)?
     private let bridge: BridgeServer
     private var webDwell: (target: Target, since: SessionTime)?
@@ -175,6 +176,7 @@ final class ScoutingSession {
             guard var state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             state["_scoutProjectRoot"] = client.hello?.project?.root
             state["_scoutClientID"] = client.id
+            if let taskID { state["_scoutTargetClientID"] = gameOwners[taskID] }
             guard let scoped = try? JSONSerialization.data(withJSONObject: state) else { return }
             if stopRequested && date == nil {
                 stopGameState = (scoped, client.id, client.hello?.project?.root)
@@ -317,18 +319,24 @@ final class ScoutingSession {
 
     private func captureGameState(for snippet: Snippet) {
         guard gameSnapshots[snippet.id] == nil else { return }
-        let target = snippet.targets.first { $0.provider == .web }
-        let clientID = target?.id.split(separator: ":", maxSplits: 2).dropFirst().first.map(String.init)
+        let target = snippet.webTarget
+        let clientID = snippet.webClientID
         let projectRoot = clientID.flatMap { webProjects[$0] }
             ?? target.flatMap { bridge.project(forTarget: $0) }?.rootPath
             ?? bridge.project(forLocation: snippet.primaryContext?.location)?.rootPath
         if stopRequested, let state = stopGameState {
-            guard clientID == state.clientID || (projectRoot != nil && projectRoot == state.projectRoot) else { return }
+            let ownerDisconnected = clientID.map { id in !bridge.clients.contains { $0.id == id } } ?? true
+            let sameProject = projectRoot != nil && projectRoot == state.projectRoot
+            guard clientID == state.clientID || (ownerDisconnected && sameProject) else { return }
             let file = directory.appendingPathComponent("game-snapshots/\(snippet.id).json")
-            try? state.data.write(to: file, options: .atomic)
+            if var payload = try? JSONSerialization.jsonObject(with: state.data) as? [String: Any] {
+                payload["_scoutTargetClientID"] = clientID
+                try? JSONSerialization.data(withJSONObject: payload).write(to: file, options: .atomic)
+            }
             return
         }
         guard clientID != nil || projectRoot != nil else { return }
+        gameOwners[snippet.id] = clientID
         gameSnapshots[snippet.id] = Task { [bridge] in
             await bridge.requestGameState(taskID: snippet.id, projectRoot: projectRoot, clientID: clientID)
         }

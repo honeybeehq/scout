@@ -138,3 +138,5 @@ swiftc -swift-version 6 -default-isolation MainActor \
 ```
 
 It prints its loopback SDK URL. Curl that URL to check the bundle and headers, or run `SCOUT_SDK_URL=<printed-url> node sdk/web/scripts/e2e-queue.mjs` to load the fixture through the native server. Set `SCOUT_SDK_HARNESS` to the executable instead (with no existing SDK server running) to exercise cold loading through the native server at `SCOUT_SDK_URL`, defaulting to port 47911. The latter uses a mock WebSocket bridge and writes a browser screenshot and message trace; a running-app rig must still verify recording and delivery.
+
+`pnpm run e2e` also runs `e2e-game-owner.mjs` on macOS. It compiles the production native bridge and task composer into a headless service fixture, connects two real WebSocket clients with the same origin/game and different roots, pins the new client, and verifies its project, task state and save. Results and protocol traffic are written under `.audit/g3/owner`. This needs Swift and launches no Scout UI.

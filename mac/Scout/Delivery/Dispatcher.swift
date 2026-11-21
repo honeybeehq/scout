@@ -191,7 +191,7 @@ final class Dispatcher {
     private func resolve(_ card: SnippetCard) async {
         let snippet = card.snippet
         if card.project == nil {
-            card.project = bridge.project(forLocation: snippet.primaryContext?.location) ?? snippet.targets.lazy.compactMap(bridge.project(forTarget:)).first
+            card.project = bridge.project(for: snippet)
         }
         if card.project == nil {
             card.project = await resolver.resolve(snippet.primaryContext)

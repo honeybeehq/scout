@@ -33,6 +33,7 @@ final class BridgeServer {
 
     private let sdkServer = SDKServer()
     private var sdkURL: String?
+    private var knownProjects: [String: ProjectReference] = [:]
     private var listeners: [Int: NWListener] = [:]
     private var readyListeners = Set<Int>()
     private var listenerGeneration = UUID()
@@ -143,12 +144,11 @@ final class BridgeServer {
 
     func requestGameState(taskID: String? = nil, projectRoot: String? = nil, clientID: String? = nil) async {
         guard sessionActive else { return }
-        let candidates = clients.filter { client in
-            client.hello?.capabilities?.contains("game") == true && (projectRoot == nil || client.hello?.project?.root == projectRoot)
-        }
-        let explicit = clientID.flatMap { id in candidates.first { $0.id == id } }
-        let fallback = candidates.filter { projectRoot != nil || (clientID == nil && $0.lastHoverAt != nil) }
-            .max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
+        let games = clients.filter { $0.hello?.capabilities?.contains("game") == true }
+        let explicit = clientID.flatMap { id in games.first { $0.id == id } }
+        let fallback = games.filter { client in
+            client.lastHoverAt != nil && (projectRoot == nil || client.hello?.project?.root == projectRoot)
+        }.max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
         guard let client = explicit ?? fallback else { return }
         let id = UUID().uuidString
         await withCheckedContinuation { continuation in
@@ -197,15 +197,19 @@ final class BridgeServer {
     func project(forTarget target: Target) -> ProjectReference? {
         guard target.provider == .web else { return nil }
         let parts = target.id.split(separator: ":", maxSplits: 2)
-        guard parts.count == 3, let client = clients.first(where: { $0.id == parts[1] }), let root = client.hello?.project?.root else { return nil }
-        return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: client.hello?.project?.gitBranch)
+        guard parts.count == 3 else { return nil }
+        return knownProjects[String(parts[1])]
+    }
+
+    func project(for snippet: Snippet) -> ProjectReference? {
+        snippet.webTarget.flatMap(project(forTarget:)) ?? project(forLocation: snippet.primaryContext?.location)
     }
 
     func project(forLocation location: String?) -> ProjectReference? {
         guard let location, let origin = Self.origin(of: location) else { return nil }
-        let client = clients.first { $0.origin == origin && $0.hello?.project?.root != nil }
-        guard let root = client?.hello?.project?.root else { return nil }
-        return ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: client?.hello?.project?.gitBranch)
+        let client = clients.filter { $0.origin == origin && $0.lastHoverAt != nil && knownProjects[$0.id] != nil }
+            .max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
+        return client.flatMap { knownProjects[$0.id] }
     }
 
     private func resolvePin(_ id: String, with result: PinReply?) {
@@ -325,6 +329,9 @@ final class BridgeServer {
                 return
             }
             clients[index].hello = hello
+            if let root = hello.project?.root {
+                knownProjects[id] = ProjectReference(rootPath: root, name: URL(fileURLWithPath: root).lastPathComponent, gitBranch: hello.project?.gitBranch)
+            }
             send([
                 "type": "welcome",
                 "scout": ["version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"],

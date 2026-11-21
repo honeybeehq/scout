@@ -93,9 +93,18 @@ enum TaskComposer {
         var gameAttachments: [ComposedTask.Attachment] = []
         let snapshots = sessionDirectory.appendingPathComponent("game-snapshots")
         let candidates = (try? FileManager.default.contentsOfDirectory(at: snapshots, includingPropertiesForKeys: nil)) ?? []
-        let scoped = candidates.filter { url in
+        let owner = snippet.webClientID
+        let owned = candidates.filter { url in
+            guard let owner, let data = try? Data(contentsOf: url), let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+            return (state["_scoutTargetClientID"] as? String ?? state["_scoutClientID"] as? String) == owner
+        }
+        let scoped = (owned.isEmpty ? candidates : owned).filter { url in
             guard let data = try? Data(contentsOf: url), let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
-            if let project { return state["_scoutProjectRoot"] as? String == project.rootPath }
+            if !owned.isEmpty { return true }
+            if let project {
+                return state["_scoutProjectRoot"] as? String == project.rootPath
+                    && (owner == nil || url.deletingPathExtension().lastPathComponent == snippet.id)
+            }
             guard let clientID = state["_scoutClientID"] as? String else { return false }
             return snippet.targets.contains { $0.id.hasPrefix("web:\(clientID):") }
         }
@@ -138,6 +147,7 @@ enum TaskComposer {
         guard var state = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
         state.removeValue(forKey: "_scoutProjectRoot")
         state.removeValue(forKey: "_scoutClientID")
+        state.removeValue(forKey: "_scoutTargetClientID")
         var attachments: [ComposedTask.Attachment] = []
         if let save = state.removeValue(forKey: "save") {
             let saveData = try JSONSerialization.data(withJSONObject: save, options: [.fragmentsAllowed, .sortedKeys, .withoutEscapingSlashes])

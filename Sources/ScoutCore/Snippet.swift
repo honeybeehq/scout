@@ -84,6 +84,17 @@ public struct Snippet: Codable, Hashable, Sendable, Identifiable {
         return contexts.last { $0.at <= spokenAt }?.context ?? openingContext ?? contexts.first?.context
     }
 
+    public var webTarget: Target? {
+        marks.compactMap(\.target).first { $0.provider == .web }
+            ?? focuses.filter { $0.target.provider == .web }.max { $0.range.end < $1.range.end }?.target
+    }
+
+    public var webClientID: String? {
+        guard let target = webTarget else { return nil }
+        let parts = target.id.split(separator: ":", maxSplits: 2)
+        return parts.count == 3 ? String(parts[1]) : nil
+    }
+
     public var targets: [Target] {
         var seen = Set<String>()
         let pinned = marks.compactMap(\.target)
