@@ -146,7 +146,7 @@ enum OptimiseGallery {
         review.optimise.start()
         await hold(2.4, "running (agent never answers): \(review.optimise.state)")
         review.optimise.cancel()
-        await hold(1.2, "cancelled: \(review.optimise.state) tasks unchanged")
+        await hold(1.2, "cancelled: \(review.optimise.state) stopping=\(review.optimise.isStopping) tasks unchanged")
         if let socket = argument("--optimise-success-socket=") { setenv("HIVE_V2_SOCKET_PATH", socket, 1) }
         review.optimise.start()
         await hold(0.6, "start pressed: \(review.optimise.state)")
@@ -167,6 +167,22 @@ enum OptimiseGallery {
         select("task-5")
         withAnimation(Motion.smooth) { review.undo() }
         await hold(2.2, "undo: merge")
+        if let socket = argument("--optimise-cleanup-socket=") {
+            setenv("HIVE_V2_SOCKET_PATH", socket, 1)
+            select("task-3")
+            review.optimise.start()
+            await hold(1.0, "optimise again (agent will not confirm stop): \(review.optimise.state)")
+            var waited = 0.0
+            while review.optimise.cleanupError == nil && waited < 26 {
+                await hold(1.0, "waiting for stop confirmation: \(review.optimise.state) stopping=\(review.optimise.isStopping)")
+                waited += 1
+            }
+            await hold(2.0, "cleanup error shown: \(review.optimise.cleanupError ?? "none")")
+            withAnimation(Motion.smooth) { review.optimise.accept("p2") }
+            await hold(1.6, "accepted title p2 with cleanup error: \(review.optimise.cleanupError != nil)")
+            withAnimation(Motion.smooth) { review.undo() }
+            await hold(2.0, "undo: title, cleanup error still shown: \(review.optimise.cleanupError != nil)")
+        }
         try? log.joined(separator: "\n").write(to: directory.appendingPathComponent("live-log.txt"), atomically: true, encoding: .utf8)
         window.close()
     }
