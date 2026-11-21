@@ -270,6 +270,7 @@ nonisolated struct LinearCandidate: Codable, Hashable, Identifiable, Sendable {
     var title: String
     var url: URL
     var state: String?
+    var marker: String?
 
     var ref: LinearIssueRef {
         LinearIssueRef(id: id, identifier: identifier, url: url)
@@ -292,10 +293,16 @@ nonisolated struct LinearCandidateNode: Decodable, Sendable {
         let archived = ((try? container.decodeIfPresent(String.self, forKey: .archivedAt)) ?? nil) != nil
         guard !trashed, !archived else { return }
         let state = ((try? container.decodeIfPresent(State.self, forKey: .state)) ?? nil)?.name.map { RemoteText.clean($0, limit: 32) }
-        candidate = LinearCandidate(id: id, identifier: identifier, title: title, url: url, state: state)
+        let description = ((try? container.decodeIfPresent(String.self, forKey: .description)) ?? nil) ?? ""
+        candidate = LinearCandidate(id: id, identifier: identifier, title: title, url: url, state: state, marker: Self.marker(in: String(description.suffix(4000))))
     }
 
-    private enum CodingKeys: String, CodingKey { case id, identifier, title, url, trashed, archivedAt, state }
+    static func marker(in description: String) -> String? {
+        guard let range = description.range(of: #"Filed from Scout · `scout:[^`\s]{1,200}`"#, options: [.regularExpression, .backwards]) else { return nil }
+        return String(description[range].drop { $0 != "`" }.dropFirst().dropLast())
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, identifier, title, url, trashed, archivedAt, state, description }
 }
 
 nonisolated struct LinearCommentRef: Codable, Hashable, Sendable {
@@ -361,7 +368,7 @@ nonisolated extension LinearOperations {
     static func duplicates(term: String, team: String) -> LinearOperation<DuplicatesData> {
         LinearOperation(
             name: "duplicates",
-            document: "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 6, filter: { team: { id: { eq: $team } }, state: { type: { nin: [\"completed\", \"canceled\"] } } }) { nodes { id identifier title url trashed archivedAt state { name } } } }",
+            document: "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 6, filter: { team: { id: { eq: $team } }, state: { type: { nin: [\"completed\", \"canceled\"] } } }) { nodes { id identifier title url trashed archivedAt state { name } description } } }",
             variables: ["term": .string(term), "team": .string(team)]
         )
     }

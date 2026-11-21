@@ -31,7 +31,7 @@ def main():
     elif command == "dupe-seed":
         dupe_seed(key, team_id, out, sys.argv[4])
     elif command == "dupe-wait":
-        dupe_wait(key, team_id, out, sys.argv[4])
+        dupe_wait(key, team_id, out, sys.argv[4], sys.argv[5])
     elif command == "dupe-verify":
         dupe_verify(key, team_id, out)
     elif command == "cleanup":
@@ -372,21 +372,43 @@ def dupe_seed(key, team_id, out, title):
     print(issue["id"])
 
 
-def dupe_wait(key, team_id, out, term):
+def dupe_wait(key, team_id, out, title, term):
     say = logger(os.path.join(out, "dupe.log"))
     gql = client(key, team_id)
     seeded_id, identifier, url, created = open(os.path.join(out, "dupe-seeded.txt")).read().split("\t")
+    created = float(created)
+    token = next((w for w in title.split() if w.startswith("dupe")), title)
+    no_state = "query($term: String!, $team: ID!) { searchIssues(term: $term, first: 6, filter: { team: { id: { eq: $team } } }) { nodes { id identifier } } }"
+    legacy = "query($term: String!, $team: ID!) { issueSearch(query: $term, first: 6, filter: { team: { id: { eq: $team } } }) { nodes { id identifier } } }"
+    variants = [
+        ("scout term", DUPLICATES, term, "searchIssues"),
+        ("full title", DUPLICATES, title, "searchIssues"),
+        ("token alone", DUPLICATES, token, "searchIssues"),
+        ("scout term, no state filter", no_state, term, "searchIssues"),
+        ("issueSearch, scout term", legacy, term, "issueSearch"),
+    ]
+    first_hit = {}
     started = time.time()
-    found, errors = [], []
     while True:
-        _, data, errors = gql(DUPLICATES, {"term": term, "team": team_id})
-        nodes = (((data or {}).get("searchIssues") or {}).get("nodes")) or []
-        found = [n.get("identifier") for n in nodes]
-        if seeded_id in [n.get("id") for n in nodes] or time.time() - started > 300:
+        for name, query, term, field in variants:
+            if name in first_hit:
+                continue
+            _, data, errors = gql(query, {"term": term, "team": team_id})
+            nodes = (((data or {}).get(field) or {}).get("nodes")) or []
+            if seeded_id in [n.get("id") for n in nodes]:
+                first_hit[name] = int(time.time() - created)
+                say(f"   probe: {name!r} returns {identifier} {first_hit[name]} s after seeding")
+            elif errors:
+                first_hit[name] = None
+                say(f"   probe: {name!r} errors={errors}")
+        if "scout term" in first_hit or time.time() - started > 600:
             break
-        time.sleep(10)
-    hit = identifier in found
-    say(f"22 Scout's duplicate query (term={term!r}) finds {identifier}: {hit}, {int(time.time() - float(created))} s after seeding, results={found} errors={errors}")
+        time.sleep(20)
+    for name, _, term, _ in variants:
+        if name not in first_hit:
+            say(f"   probe: {name!r} (term={term!r}) never returned {identifier} within {int(time.time() - created)} s of seeding")
+    hit = first_hit.get("scout term") is not None
+    say(f"22 Scout's duplicate query (term={term!r}) finds {identifier}: {hit}")
     with open(os.path.join(out, "dupe-search.txt"), "w") as handle:
         handle.write(("found" if hit else "missed") + "\n")
     print(f"{seeded_id} {identifier} {url}")

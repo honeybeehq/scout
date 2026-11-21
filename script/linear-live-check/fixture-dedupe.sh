@@ -81,6 +81,14 @@ SCOUT_LINEAR_FIXTURE_REFUSE_IDS=1 scout m1-add first --linear-demo-add-to=first;
 rm $SESSION/review.json
 SCOUT_LINEAR_FIXTURE_REFUSE_IDS=1 scout m2-add-again first --linear-demo-add-to=first; summary m2-add-again; workspace m; requests m
 
+section "S1 this session's own filings are never offered: task 1 files TST-2, then task 2's check shows TST-1 only"
+fresh s; seed "Pay now button looks disabled on checkout"
+scout s1-file-task1 first; summary s1-file-task1
+scout s2-task2-check none --linear-demo-task=1 --linear-demo-duplicates; summary s2-task2-check
+section "S3 the same after review.json is deleted (excluded by the footer marker and derived ids)"
+rm $SESSION/review.json
+scout s3-no-review-json none --linear-demo-task=1 --linear-demo-duplicates; summary s3-no-review-json; requests s
+
 section "R1 Add to it chosen, nothing sent yet (the choice is saved in review.json)"
 fresh r; seed "Pay now button looks disabled on checkout" "Cookie banner sits under the footer"
 scout r1-choose none --linear-demo-add-to=first; summary r1-choose

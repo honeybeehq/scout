@@ -207,7 +207,7 @@ enum LinearDemo {
         var waited = 0.0
         while true {
             card.duplicates = .idle
-            await model.dispatcher.checkDuplicates(for: card, in: target, debounce: false)
+            await model.dispatcher.checkDuplicates(for: card, in: target, excluding: review.ownLinearIssueIDs, debounce: false)
             let ids = card.duplicates.candidates.map(\.id)
             if wanted == nil || wanted == "first" ? !ids.isEmpty : ids.contains(wanted ?? "") { break }
             if waited >= 45 { break }
@@ -220,7 +220,7 @@ enum LinearDemo {
             "term": Dispatcher.duplicateTerm(for: card),
             "result": String(describing: card.duplicates).prefix(60).description,
             "waitedSeconds": waited,
-            "candidates": candidates.map { candidate -> [String: Any] in ["identifier": candidate.identifier, "id": candidate.id, "renderedTitle": RemoteText.clean(candidate.title), "renderedLength": RemoteText.clean(candidate.title).count, "state": candidate.state ?? ""] },
+            "candidates": candidates.map { candidate -> [String: Any] in ["marker": candidate.marker ?? "", "identifier": candidate.identifier, "id": candidate.id, "renderedTitle": RemoteText.clean(candidate.title), "renderedLength": RemoteText.clean(candidate.title).count, "state": candidate.state ?? ""] },
         ])
         try? await Task.sleep(for: .seconds(1.5))
         draw(review, model: model, name: "\(label)-1-candidate", into: output)

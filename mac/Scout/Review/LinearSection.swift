@@ -43,7 +43,7 @@ struct LinearSection: View {
         }
         .task(id: duplicateKey) {
             guard !still, !card.isLocked else { return }
-            await model.dispatcher.checkDuplicates(for: card, in: target, debounce: card.duplicates != .idle)
+            await model.dispatcher.checkDuplicates(for: card, in: target, excluding: review.ownLinearIssueIDs, debounce: card.duplicates != .idle)
         }
         .task(id: videoKey) {
             guard !still, !card.isLocked, includesVideo else { return }

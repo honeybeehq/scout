@@ -55,8 +55,9 @@ ddemo() {
     --linear-demo-output="$OUT" --linear-demo-label="$label" --linear-demo-send="$send" "$@" > "$OUT/$label.stdout" 2>&1
 }
 echo "== Scout dedupe flow, part 1: open the task and seed a similar open issue now, so Linear's search has the whole run to index it"
-ddemo live-9-dupe-open none
+ddemo live-9-dupe-open none --linear-demo-duplicates
 SEED_TITLE=$(python3 -I -c 'import json,sys; s=json.load(open(sys.argv[1])); print([x for x in s if "tasks" in x][0]["tasks"][0]["title"])' "$OUT/live-9-dupe-open.json" 2>/dev/null)
+SEED_TERM=$(python3 -I -c 'import json,sys; s=json.load(open(sys.argv[1])); print([x for x in s if x.get("step") == "duplicate check"][0]["term"])' "$OUT/live-9-dupe-open.json" 2>/dev/null)
 SEEDED=
 if [ -n "$SEED_TITLE" ]; then SEEDED=$(feed | python3 -I "$HERE/live.py" dupe-seed "$TEAM" "$OUT" "$SEED_TITLE" | tail -1); fi
 demo() {
@@ -154,7 +155,7 @@ if [ "$FLOW" -eq 0 ] && [ "$PFLOW" -ne 0 ]; then FLOW=$PFLOW; fi
 echo "== Scout dedupe flow, part 2: wait for search, Add to it with video on, then two resends"
 DFLOW=7
 if [ -n "$SEEDED" ]; then
-  read -r SEED_ID SEED_IDENTIFIER SEED_URL < <(feed | python3 -I "$HERE/live.py" dupe-wait "$TEAM" "$OUT" "$SEED_TITLE" | tail -1)
+  read -r SEED_ID SEED_IDENTIFIER SEED_URL < <(feed | python3 -I "$HERE/live.py" dupe-wait "$TEAM" "$OUT" "$SEED_TITLE" "${SEED_TERM:-$SEED_TITLE}" | tail -1)
   CHOOSE=(--linear-demo-add-to="$SEED_ID" --linear-demo-add-to-identifier="$SEED_IDENTIFIER" --linear-demo-add-to-url="$SEED_URL" --linear-demo-include-video)
   ddemo live-10-dupe-add first "${CHOOSE[@]}" --linear-demo-menubar
   ADDED=$(python3 -I -c 'import json,sys; s=json.load(open(sys.argv[1])); print([x for x in s if "tasks" in x][-1]["tasks"][0]["addedToIssueID"])' "$OUT/live-10-dupe-add.json" 2>/dev/null)

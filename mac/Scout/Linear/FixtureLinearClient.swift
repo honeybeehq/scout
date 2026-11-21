@@ -162,7 +162,7 @@ nonisolated struct FixtureLinearClient: LinearAPI {
                 .prefix(environment["SCOUT_LINEAR_FIXTURE_SEARCH_EMPTY"] == "1" ? 0 : 6)
             log(state, "searchIssues(duplicates, team: \(teamKey(team)), term: \(term)) → \(open.map { $0["identifier"] as? String ?? "?" }.joined(separator: ", "))")
             let nodes = open.map { issue -> [String: Any] in
-                ["id": issue["id"] ?? "", "identifier": issue["identifier"] ?? "", "title": issue["title"] ?? "", "url": issue["url"] ?? "", "trashed": false, "state": ["name": issue["state"] ?? "Backlog"]]
+                ["id": issue["id"] ?? "", "identifier": issue["identifier"] ?? "", "title": issue["title"] ?? "", "url": issue["url"] ?? "", "trashed": false, "state": ["name": issue["state"] ?? "Backlog"], "description": issue["description"] ?? ""]
             }
             return reply(["searchIssues": ["nodes": nodes]])
         case "commentTarget":
