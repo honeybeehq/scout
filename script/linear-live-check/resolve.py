@@ -17,11 +17,22 @@ def query(key, document):
         return {"errors": [{"message": "unreachable"}]}
 
 
+def read_key(text):
+    for line in text.splitlines():
+        if "key=" in line:
+            value = line.split("key=", 1)[1].strip()
+            for stop in (" ", "\t", "|", "\u2502"):
+                value = value.split(stop, 1)[0]
+            return value.strip()
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines[0] if lines else ""
+
+
 def main():
     if len(sys.argv) != 4:
         sys.exit("usage: <key on stdin> resolve.py <secret name> <expected urlKey> <team key>")
     name, expected, team_key = sys.argv[1:]
-    key = sys.stdin.readline().strip()
+    key = read_key(sys.stdin.read())
     if not key:
         print(f"{name} urlKey=none match=no {team_key}=none error=empty-key")
         return

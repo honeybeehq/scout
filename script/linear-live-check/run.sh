@@ -6,9 +6,16 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=${SCOUT_LIVE_OUT:-$PWD/linear-live-out}
 APP=${SCOUT_APP:?set SCOUT_APP to the Debug Scout.app/Contents/MacOS/Scout}
 VIDEO=${SCOUT_DEMO_VIDEO:?set SCOUT_DEMO_VIDEO to any short mp4}
-KEY=${SCOUT_LINEAR_KEY:-}
+INPUT=${SCOUT_LINEAR_KEY:-}
 unset SCOUT_LINEAR_KEY
-if [ -z "$KEY" ]; then IFS= read -r KEY; fi
+if [ -z "$INPUT" ]; then INPUT=$(cat); fi
+if [[ "$INPUT" == *key=* ]]; then
+  KEY=${INPUT#*key=}
+  KEY=${KEY%%[[:space:]|│]*}
+else
+  KEY=$(printf '%s\n' "$INPUT" | while IFS= read -r line; do line=${line//[[:space:]]/}; if [ -n "$line" ]; then printf '%s' "$line"; break; fi; done)
+fi
+unset INPUT
 if [ -z "$KEY" ]; then echo "no key" >&2; exit 2; fi
 if [ -e "$OUT" ] && [ -n "$(ls -A "$OUT" 2>/dev/null)" ]; then echo "$OUT is not empty; use a fresh SCOUT_LIVE_OUT" >&2; exit 2; fi
 mkdir -p "$OUT"
