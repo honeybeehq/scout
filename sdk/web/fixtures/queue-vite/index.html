@@ -6,7 +6,7 @@
 <h1>Scout dependency-free queue fixture</h1>
 <p>Amber asteroid: Asteroid A-17. Registration uses only window.__scoutGames.</p>
 <canvas id="world" width="800" height="400" style="display:block;background:#202838"></canvas>
-<pre id="status"></pre><pre id="geometry"></pre>
+<pre id="status"></pre><pre id="geometry" style="position:fixed;top:8px;right:8px;width:420px;white-space:pre-wrap;font:11px/1.2 monospace;pointer-events:none;background:#0b1020ed"></pre>
 <script>
 const canvas = document.querySelector('canvas')
 const context = canvas.getContext('2d')
@@ -28,10 +28,30 @@ window.makeGame = (name = 'Queue fixture') => ({
 window.__scoutGames = window.__scoutGames || []
 window.preGame = makeGame()
 window.__scoutGames.push(preGame)
-addEventListener('pointermove', e => {
+let screenOrigin = null
+let pointSamples = 0
+const geometry = () => {
   const b = canvas.getBoundingClientRect()
-  const point = {x:e.screenX-e.clientX+b.x+260,y:e.screenY-e.clientY+b.y+180}
-  document.querySelector('#geometry').textContent = JSON.stringify({asteroidScreenCentre:point})
+  const x = b.x + 260 * b.width / canvas.width, y = b.y + 180 * b.height / canvas.height
+  const estimatedOrigin = {x:screenX+(outerWidth-innerWidth)/2,y:screenY+outerHeight-innerHeight}
+  const origin = screenOrigin ?? estimatedOrigin
+  const data = {canvasLocalCentre:{x:260,y:180},viewportCentre:{x,y},estimatedScreenCentre:{x:estimatedOrigin.x+x,y:estimatedOrigin.y+y},calibratedScreenCentre:screenOrigin?{x:screenOrigin.x+x,y:screenOrigin.y+y}:null,pointSamples,timing:window.__SCOUT_LOADER_TIMING__ ?? null}
+  document.querySelector('#geometry').textContent = JSON.stringify(data,null,2)
+  window.__SCOUT_QUEUE_FIXTURE__ = data
+  return {x,y,screenX:origin.x+x,screenY:origin.y+y}
+}
+addEventListener('pointermove', e => {
+  if (e.isTrusted) screenOrigin = {x:e.screenX-e.clientX,y:e.screenY-e.clientY}
+  geometry()
 })
+if (new URLSearchParams(location.search).get('pointAt') === 'asteroid') {
+  setInterval(() => {
+    const p = geometry()
+    canvas.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',pointerId:1,isPrimary:true,clientX:p.x,clientY:p.y,screenX:p.screenX,screenY:p.screenY}))
+    pointSamples++
+  },200)
+}
+setInterval(geometry,100)
+geometry()
 </script>
 </body></html>

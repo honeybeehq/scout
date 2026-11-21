@@ -3,16 +3,23 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 function loadScout(url) {
+  const timing = window.__SCOUT_LOADER_TIMING__ = { loaderAttemptAt: [], sdkLoadedAt: null, wsConnectedAt: null }
   let done = false, busy = false, timer, attempt = 0
   const wake = () => {
     if (done || busy) return
     clearTimeout(timer)
     busy = true
-    import(`${url}#scout-retry-${attempt++}`).then(() => {
+    timing.loaderAttemptAt.push(performance.now())
+    import(`${url}#scout-retry-${attempt++}`).then(sdk => {
       done = true
+      timing.sdkLoadedAt = performance.now()
+      const handle = sdk.startScout()
+      const connected = setInterval(() => {
+        if (handle.connected) { timing.wsConnectedAt = performance.now(); clearInterval(connected) }
+      }, 25)
       removeEventListener('focus', wake)
       document.removeEventListener('visibilitychange', visible)
-    }).catch(() => { timer = setTimeout(wake, Math.min(1000 * 2 ** (attempt - 1), 2000)) })
+    }).catch(() => { timer = setTimeout(wake, Math.min(250 * 2 ** (attempt - 1), 750)) })
       .finally(() => { busy = false })
   }
   const visible = () => { if (document.visibilityState === 'visible') wake() }

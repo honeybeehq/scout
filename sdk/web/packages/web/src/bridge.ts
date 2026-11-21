@@ -14,8 +14,8 @@ export interface Bridge {
   close(): void
 }
 
-const MIN_DELAY_MS = 1000
-const MAX_DELAY_MS = 1500
+const MIN_DELAY_MS = 250
+const MAX_DELAY_MS = 750
 const MAX_BUFFERED = 4_000_000
 
 function decode(data: unknown): Incoming | null {

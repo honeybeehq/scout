@@ -203,7 +203,7 @@ A snapshot without `save` can supply a string `saveStatus` of at most 200 charac
 
 Scout bundles the built `@scout/web` browser entry with the installed app. A second loopback-only HTTP listener tries ports 47911–47920 in order, starting at 47911 on each launch, and serves just `GET /sdk/v1/scout.js`; all other requests return 404, including HTTP/1.0 and query-string variants. `bridge.json` advertises its full `sdkURL`. The `v1` URL versions the loading contract, while the bundled SDK version follows the installed Scout build. The WebSocket port and protocol stay unchanged and still require the token in `window.__SCOUT__`. The public script response uses `Content-Type: text/javascript`, `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin`, and `Cache-Control: no-store`.
 
-A dev server without `@scout/vite` injects `window.__SCOUT__={port,token,projectRoot}` and a small inline loader using `sdkURL`. The loader retries dynamic import at 1–2 second intervals until Scout starts, and retries immediately on focus or becoming visible. A new fragment on each attempt bypasses cached module failures without changing the HTTP request path. It stops and removes listeners after success; the SDK's WebSocket reconnect handles later Scout restarts. A collision can move the HTTP port within the range; reload the dev page to read the new `sdkURL` in that case.
+A dev server without `@scout/vite` injects `window.__SCOUT__={port,token,projectRoot}` and a small inline loader using `sdkURL`. The loader retries dynamic import at 250–750 ms intervals until Scout starts, and retries immediately on focus or becoming visible. A new fragment on each attempt bypasses cached module failures without changing the HTTP request path. It stops and removes listeners after success; the SDK's WebSocket reconnect handles later Scout restarts. A collision can move the HTTP port within the range; reload the dev page to read the new `sdkURL` in that case.
 
 This dependency-free Vite plugin injects only when `bridge.json` exists and parses; use the test app's data root or `SCOUT_BRIDGE_FILE` for a rig. No bridge file means no injection; after the first Scout launch creates it, reload the dev page once.
 
@@ -220,7 +220,7 @@ function loadScout(url) {
       done = true
       removeEventListener('focus', wake)
       document.removeEventListener('visibilitychange', visible)
-    }).catch(() => { timer = setTimeout(wake, Math.min(1000 * 2 ** (attempt - 1), 2000)) })
+    }).catch(() => { timer = setTimeout(wake, Math.min(250 * 2 ** (attempt - 1), 750)) })
       .finally(() => { busy = false })
   }
   const visible = () => { if (document.visibilityState === 'visible') wake() }
@@ -244,3 +244,5 @@ export default { plugins: [{
   },
 }] }
 ```
+
+The WebSocket retry starts at 250 ms and caps at 750 ms (with 20% jitter), so an HTTP load just before WS startup does not add a multi-second wait. `fixtures/queue-vite/?pointAt=asteroid` reports loader attempt, module-loaded and WS-connected times relative to page load, and samples an in-page pointer event at canvas-local `(260,180)` every 200 ms for the no-input rig. These synthetic samples do not calibrate screen geometry; trusted pointer events provide calibration when available.

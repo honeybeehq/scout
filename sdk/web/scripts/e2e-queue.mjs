@@ -24,7 +24,7 @@ const httpPort = http.address().port
 await new Promise(r => http.close(r))
 const localSDKURL = process.env.SCOUT_SDK_HARNESS ? (process.env.SCOUT_SDK_URL ?? 'http://127.0.0.1:47911/sdk/v1/scout.js') : `http://127.0.0.1:${httpPort}/sdk/v1/scout.js`
 let nativeSDK
-const bridge = await startMockBridge({ port: 47818, token: 'queue-e2e-token' })
+let bridge
 const sdkURL = process.env.SCOUT_SDK_URL ?? localSDKURL
 const bridgeFile = join(scratch, 'bridge.json')
 writeFileSync(bridgeFile, JSON.stringify({port:47818,token:'queue-e2e-token',sdkURL:localSDKURL}))
@@ -58,12 +58,12 @@ async function aim() {
 }
 try {
   await ready
-  bridge.setSession(true)
   await step('cold page loads SDK after server starts without reload', async () => {
-    await page.goto('http://127.0.0.1:5178')
+    await page.goto('http://127.0.0.1:5178/?pointAt=asteroid')
     await page.evaluate(() => { window.coldPageIdentity = 'same-page' })
     await page.waitForTimeout(2300)
     assert(await page.evaluate(() => typeof preGame.unregister === 'undefined'), 'SDK loaded while HTTP server down')
+    const serverStartAt = await page.evaluate(() => performance.now())
     if (process.env.SCOUT_SDK_HARNESS) {
       nativeSDK = spawn(process.env.SCOUT_SDK_HARNESS, [], {stdio:['ignore','pipe','pipe']})
       await new Promise((resolve, reject) => {
@@ -77,8 +77,16 @@ try {
     } else {
       await new Promise(r => http.listen(httpPort, '127.0.0.1', r))
     }
-    await page.waitForFunction(() => typeof preGame.unregister === 'function', {timeout:10000})
-    await aim()
+    await new Promise(r => setTimeout(r, 850))
+    bridge = await startMockBridge({ port: 47818, token: 'queue-e2e-token' })
+    bridge.setSession(true)
+    await page.waitForFunction(() => window.__SCOUT_LOADER_TIMING__?.wsConnectedAt !== null && window.__SCOUT_LOADER_TIMING__?.wsConnectedAt !== undefined)
+    const timing = await page.evaluate(() => window.__SCOUT_LOADER_TIMING__)
+    const connectedMs = timing.wsConnectedAt - serverStartAt
+    writeFileSync(join(evidence,'cold-connect-timing.json'), JSON.stringify({serverStartAt,...timing,connectedMs},null,2))
+    assert(connectedMs < 2000, `cold connect took ${connectedMs} ms`)
+    console.log(`Cold native/server start to WS welcome: ${Math.round(connectedMs)} ms`)
+    await page.waitForTimeout(350)
     const pin = await bridge.pin()
     assert(pin.reply?.element?.label === 'Asteroid A-17', JSON.stringify(pin))
     assert(await page.evaluate(() => coldPageIdentity === 'same-page'), 'page reloaded')
@@ -90,7 +98,7 @@ try {
   })
   if (process.env.SCOUT_SDK_URL) {
     writeFileSync(bridgeFile, JSON.stringify({port:47818,token:'queue-e2e-token',sdkURL}))
-    await page.goto('http://127.0.0.1:5178')
+    await page.goto('http://127.0.0.1:5178/?pointAt=asteroid')
   }
   await page.waitForFunction(() => typeof window.preGame.unregister === 'function')
   await step('pre-SDK queue push names pinned entity and captures save', async () => {
@@ -166,9 +174,9 @@ try {
     assert(!bridge.records.slice(from).some(incoming('gameState')),'idle snapshot leaked')
   })
 } finally {
-  writeFileSync(join(evidence,'queue-bridge.json'),JSON.stringify(bridge.records,null,2))
+  writeFileSync(join(evidence,'queue-bridge.json'),JSON.stringify(bridge?.records ?? [],null,2))
   writeFileSync(join(evidence,'queue-results.json'),JSON.stringify({sdkURL,results},null,2))
-  await browser.close(); vite.kill(); nativeSDK?.kill(); await bridge.close(); await new Promise(r => http.close(r))
+  await browser.close(); vite.kill(); nativeSDK?.kill(); await bridge?.close(); await new Promise(r => http.close(r))
 }
 console.log(`${results.filter(r=>r.pass).length}/${results.length} queue checks passed`)
 if (results.some(r=>!r.pass)) process.exitCode = 1
