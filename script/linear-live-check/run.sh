@@ -44,7 +44,7 @@ trap finish EXIT
 
 defaults delete "$BUNDLE.linear-demo" >/dev/null 2>&1 || true
 echo "== API checks"
-feed | python3 -I "$HERE/live.py" check "$TEAM" "$OUT" || echo "API checks stopped early (see api.log)"
+feed | python3 -I "$HERE/live.py" check "$TEAM" "$OUT" "${SCOUT_LIVE_CLIP:-}" || echo "API checks stopped early (see api.log)"
 
 export SCOUT_LINEAR_TEST_TEAM=$TEAM
 demo() {
@@ -77,3 +77,40 @@ if failed or len(ids) != 1:
 print("Scout flow: one issue across file, resend and resend without review.json")
 PY
 FLOW=$?
+
+echo "== Scout video flow ($RUN): video off, then a redacted clip, then a resend"
+T4VIDEO=${SCOUT_T4_VIDEO:-}
+if [ -z "$T4VIDEO" ]; then
+  MADE=$(mktemp -d)
+  T4VIDEO=$MADE/demo-screen.mp4
+  perl -e 'alarm shift; exec @ARGV' 300 "$APP" --linear-demo="$MADE/unused" --linear-demo-make-video="$T4VIDEO" --linear-demo-output="$MADE" --linear-demo-label=make-video > /dev/null 2>&1
+fi
+vdemo() {
+  local session=$1 run=$2 label=$3 send=$4; shift 4
+  feed | perl -e 'alarm shift; exec @ARGV' 300 "$APP" --linear-demo="$session" --linear-demo-key-stdin \
+    --linear-demo-session="$run" --linear-demo-title-prefix="[scout-test] " --live-delivery --linear-demo-video="$T4VIDEO" \
+    --linear-demo-output="$OUT" --linear-demo-label="$label" --linear-demo-send="$send" "$@" > "$OUT/$label.stdout" 2>&1
+}
+vdemo "$OUT/session-video-off" "$RUN-off" live-video-off first
+vdemo "$OUT/session-video" "$RUN-video" live-video-redacted first --linear-demo-include-video --linear-demo-redact
+vdemo "$OUT/session-video" "$RUN-video" live-video-resend first --linear-demo-include-video --linear-demo-redact
+feed | python3 -I "$HERE/live.py" video-verify "$TEAM" "$OUT"
+python3 -I - "$OUT" <<'PY'
+import json, os, sys
+out = sys.argv[1]
+def task(label):
+    path = os.path.join(out, label + ".json")
+    steps = json.load(open(path)) if os.path.exists(path) else []
+    return ((steps[-1].get("tasks") or [{}])[0]) if steps else {}
+off, red, again = task("live-video-off"), task("live-video-redacted"), task("live-video-resend")
+videos = lambda t: [a for a in t.get("uploadedAssets") or [] if " video " in a]
+problems = []
+if not off.get("identifier") or videos(off) or off.get("includeVideo"): problems.append("video off: expected an issue and no video asset")
+if not red.get("identifier") or len(videos(red)) != 1 or red.get("clipAttachment") in (None, "none"): problems.append("redacted: expected one video asset and a clip attachment")
+if again.get("issueID") != red.get("issueID") or again.get("clipAttachment") != red.get("clipAttachment") or videos(again) != videos(red): problems.append("resend: expected the same issue, video and attachment")
+print("\n".join(problems) if problems else "Scout video flow: off files no video; redacted uploads one clip and one card; resend changes nothing")
+sys.exit(5 if problems else 0)
+PY
+VFLOW=$?
+[ -n "${MADE:-}" ] && rm -rf "$MADE"
+if [ "$FLOW" -eq 0 ] && [ "$VFLOW" -ne 0 ]; then FLOW=$VFLOW; fi

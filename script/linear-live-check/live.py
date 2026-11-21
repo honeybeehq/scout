@@ -22,11 +22,13 @@ def main():
     if not key:
         sys.exit("no key on stdin")
     if command == "check":
-        check(key, team_id, out)
+        check(key, team_id, out, sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None)
+    elif command == "video-verify":
+        video_verify(key, team_id, out)
     elif command == "cleanup":
         cleanup(key, team_id, out)
     else:
-        sys.exit("usage: <key on stdin> live.py check|cleanup <team id> <out dir>")
+        sys.exit("usage: <key on stdin> live.py check|video-verify|cleanup <team id> <out dir> [clip.mp4]")
 
 
 def client(key, team_id):
@@ -56,7 +58,7 @@ def logger(path):
     return say
 
 
-def check(key, team_id, out):
+def check(key, team_id, out, clip_path=None):
     say = logger(os.path.join(out, "api.log"))
     gql = client(key, team_id)
     created_file = open(os.path.join(out, "created-ids.txt"), "a")
@@ -132,6 +134,92 @@ def check(key, team_id, out):
 
     _, data, errors = gql("query($term: String!, $team: ID!) { searchIssues(term: $term, first: 5, filter: { team: { id: { eq: $team } } }) { nodes { identifier } } }", {"term": run_key, "team": team_id})
     say(f"8 searchIssues for the marker: {data} errors={errors} (expect exactly one issue; search may lag a few seconds)")
+
+    if target:
+        check_video(gql, say, team_id, workspace, run_key, target, clip_path)
+
+
+def check_video(gql, say, team_id, workspace, run_key, issue_id_value, clip_path):
+    upload = "mutation($ct: String!, $name: String!, $size: Int!) { fileUpload(contentType: $ct, filename: $name, size: $size) { success uploadFile { uploadUrl assetUrl headers { key value } } } }"
+    say("9 video size limit: fileUpload requests only, no bytes are sent")
+    for megabytes in [10, 50, 100, 200, 500, 1024, 2048, 4096]:
+        size = megabytes * 1024 * 1024
+        _, data, errors = gql(upload, {"ct": "video/mp4", "name": "clip.mp4", "size": size}, mutation_team=team_id)
+        reply = (data or {}).get("fileUpload") or {}
+        headers = {h["key"]: h["value"] for h in ((reply.get("uploadFile") or {}).get("headers") or [])}
+        ranges = {k: v for k, v in headers.items() if "length" in k.lower() or "range" in k.lower()}
+        say(f"   {megabytes:>5} MB: success={reply.get('success')} errors={errors} length headers={ranges}")
+        if errors or not reply.get("success"):
+            say(f"   first refused size: {megabytes} MB (Scout maps this to 'The video is too big for Linear')")
+            break
+
+    if not clip_path:
+        say("10 attachment shape: skipped, no clip path given")
+        return
+    clip = open(clip_path, "rb").read()
+    _, data, errors = gql(upload, {"ct": "video/mp4", "name": "clip.mp4", "size": len(clip)}, mutation_team=team_id)
+    if errors or not data:
+        say(f"10 clip fileUpload errors={errors}")
+        return
+    target = data["fileUpload"]["uploadFile"]
+    headers = {h["key"]: h["value"] for h in target["headers"]}
+    headers["Content-Type"] = "video/mp4"
+    request = urllib.request.Request(target["uploadUrl"], data=clip, method="PUT", headers=headers)
+    with urllib.request.urlopen(request, timeout=300) as response:
+        put_status = response.status
+    asset_url = target["assetUrl"]
+    say(f"10 clip PUT status={put_status} bytes={len(clip)} asset host={urllib.parse.urlparse(asset_url).hostname}")
+
+    digest = bytearray(hashlib.sha256((workspace + "\n" + run_key + ":clip:" + hashlib.sha256(clip).hexdigest()).encode()).digest()[:16])
+    digest[6] = (digest[6] & 0x0F) | 0x40
+    digest[8] = (digest[8] & 0x3F) | 0x80
+    attachment_id = str(uuid.UUID(bytes=bytes(digest)))
+    attach = "mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { success attachment { id url } } }"
+    attach_input = {"id": attachment_id, "issueId": issue_id_value, "url": asset_url, "title": "Scout clip · live check", "subtitle": "Recorded with Scout"}
+    status, data, errors = gql(attach, {"input": attach_input}, mutation_team=team_id)
+    created = (data or {}).get("attachmentCreate") or {}
+    say(f"11 attachmentCreate with client id: status={status} success={created.get('success')} id_kept={(created.get('attachment') or {}).get('id') == attachment_id} errors={errors}")
+    if errors:
+        status, data, errors = gql("mutation($issue: String!, $url: String!, $title: String!) { attachmentLinkURL(issueId: $issue, url: $url, title: $title) { success attachment { id url } } }",
+                                   {"issue": issue_id_value, "url": asset_url, "title": "Scout clip · live check"}, mutation_team=team_id)
+        say(f"   attachmentLinkURL fallback: status={status} data={data} errors={errors}")
+
+    status, data, errors = gql(attach, {"input": attach_input}, mutation_team=team_id)
+    say(f"12 resend the same attachment id: status={status} data={data} errors={errors} (Scout treats 'already exists' or 'conflict' as done)")
+    without_id = {k: v for k, v in attach_input.items() if k != "id"}
+    status, data, errors = gql(attach, {"input": without_id}, mutation_team=team_id)
+    say(f"13 same url without an id (marker mode): status={status} data={data} errors={errors}")
+
+    _, data, errors = gql("query($id: String!) { issue(id: $id) { attachments { nodes { id url title subtitle sourceType } } } }", {"id": issue_id_value})
+    nodes = (((data or {}).get("issue") or {}).get("attachments") or {}).get("nodes") or []
+    say(f"14 read back attachments: count={len(nodes)} shapes={[{k: (v if k != 'url' else urllib.parse.urlparse(v).hostname) for k, v in n.items()} for n in nodes]} errors={errors}")
+    say("   expect one attachment for the clip url; open the issue in the test team to confirm the clip plays (manual)")
+
+
+def video_verify(key, team_id, out):
+    say = logger(os.path.join(out, "video.log"))
+    gql = client(key, team_id)
+    for label in ["live-video-off", "live-video-redacted", "live-video-resend"]:
+        path = os.path.join(out, label + ".json")
+        steps = json.load(open(path)) if os.path.exists(path) else []
+        prepared = [s for s in steps if s.get("step") == "video prepared"]
+        task = ((steps[-1].get("tasks") or [{}])[0]) if steps else {}
+        assets = task.get("uploadedAssets") or []
+        videos = [a for a in assets if " video " in a]
+        say(f"{label}: identifier={task.get('identifier') or '-'} state={task.get('state')} includeVideo={task.get('includeVideo')} redaction={task.get('redaction')} video assets={len(videos)} clipAttachment={task.get('clipAttachment')}")
+        if prepared:
+            p = prepared[-1]
+            say(f"   prepared upload={p.get('uploadFile')} redacted={p.get('redacted')} upload={p.get('upload')} original={p.get('originalClip')}")
+        issue_id = task.get("issueID")
+        if not issue_id:
+            continue
+        _, data, errors = gql("query($id: String!) { issue(id: $id) { identifier title team { key } description attachments { nodes { id title subtitle url sourceType } } } }", {"id": issue_id})
+        issue = (data or {}).get("issue") or {}
+        lines = [l for l in (issue.get("description") or "").split("\n") if "clip.mp4" in l or "Video not included" in l]
+        nodes = ((issue.get("attachments") or {}).get("nodes")) or []
+        shapes = [{"title": n.get("title"), "subtitle": n.get("subtitle"), "host": urllib.parse.urlparse(n.get("url") or "").hostname, "sourceType": n.get("sourceType"), "id_matches_scout": n.get("id") == task.get("clipAttachment")} for n in nodes]
+        clip_lines = [urllib.parse.urlparse(l.split("](")[1].split(")")[0]).hostname if "](" in l else l for l in lines]
+        say(f"   read back {issue.get('identifier')} team={(issue.get('team') or {}).get('key')} title_prefixed={(issue.get('title') or '').startswith(TITLE_PREFIX)} clip line={clip_lines} attachments={shapes} errors={errors}")
 
 
 def cleanup(key, team_id, out):
