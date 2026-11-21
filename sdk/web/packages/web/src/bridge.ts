@@ -15,7 +15,9 @@ export interface Bridge {
 }
 
 const MIN_DELAY_MS = 250
-const MAX_DELAY_MS = 750
+const FAST_MAX_DELAY_MS = 750
+const SLOW_MAX_DELAY_MS = 2000
+const FAST_WINDOW_MS = 30_000
 const MAX_BUFFERED = 4_000_000
 
 function decode(data: unknown): Incoming | null {
@@ -34,6 +36,7 @@ export function connectBridge(options: BridgeOptions): Bridge {
   let ready = false
   let stopped = false
   let index = 0
+  let fastUntil = FAST_WINDOW_MS
   let delay = MIN_DELAY_MS
   let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -45,8 +48,9 @@ export function connectBridge(options: BridgeOptions): Bridge {
       return
     }
     index = 0
-    timer = setTimeout(open, delay * (0.8 + Math.random() * 0.4))
-    delay = Math.min(delay * 2, MAX_DELAY_MS)
+    const cap = performance.now() < fastUntil ? FAST_MAX_DELAY_MS : SLOW_MAX_DELAY_MS
+    timer = setTimeout(open, Math.min(delay, cap) * (0.8 + Math.random() * 0.4))
+    delay = Math.min(delay * 2, cap)
   }
 
   function open() {
@@ -89,6 +93,7 @@ export function connectBridge(options: BridgeOptions): Bridge {
   }
 
   const wake = () => {
+    fastUntil = performance.now() + FAST_WINDOW_MS
     if (stopped || ready || socket) return
     clearTimeout(timer)
     timer = undefined

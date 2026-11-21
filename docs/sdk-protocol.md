@@ -203,7 +203,7 @@ A snapshot without `save` can supply a string `saveStatus` of at most 200 charac
 
 Scout bundles the built `@scout/web` browser entry with the installed app. A second loopback-only HTTP listener tries ports 47911–47920 in order, starting at 47911 on each launch, and serves just `GET /sdk/v1/scout.js`; all other requests return 404, including HTTP/1.0 and query-string variants. `bridge.json` advertises its full `sdkURL`. The `v1` URL versions the loading contract, while the bundled SDK version follows the installed Scout build. The WebSocket port and protocol stay unchanged and still require the token in `window.__SCOUT__`. The public script response uses `Content-Type: text/javascript`, `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin`, and `Cache-Control: no-store`.
 
-A dev server without `@scout/vite` injects `window.__SCOUT__={port,token,projectRoot}` and a small inline loader using `sdkURL`. The loader retries dynamic import at 250–750 ms intervals until Scout starts, and retries immediately on focus or becoming visible. A new fragment on each attempt bypasses cached module failures without changing the HTTP request path. It stops and removes listeners after success; the SDK's WebSocket reconnect handles later Scout restarts. A collision can move the HTTP port within the range; reload the dev page to read the new `sdkURL` in that case.
+A dev server without `@scout/vite` injects `window.__SCOUT__={port,token,projectRoot}` and a small inline loader using `sdkURL`. The loader retries dynamic import at 250–750 ms intervals for the first 30 seconds after page load and for 30 seconds after focus or becoming visible, then at roughly two-second intervals until Scout starts, and retries immediately on focus or becoming visible. A new fragment on each attempt bypasses cached module failures without changing the HTTP request path. It stops and removes listeners after success; the SDK's WebSocket reconnect handles later Scout restarts. A collision can move the HTTP port within the range; reload the dev page to read the new `sdkURL` in that case.
 
 This dependency-free Vite plugin injects only when `bridge.json` exists and parses; use the test app's data root or `SCOUT_BRIDGE_FILE` for a rig. No bridge file means no injection; after the first Scout launch creates it, reload the dev page once.
 
@@ -212,19 +212,23 @@ import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 function loadScout(url) {
-  let done = false, busy = false, timer, attempt = 0
+  let done = false, busy = false, timer, attempt = 0, fastUntil = 30000
   const wake = () => {
     if (done || busy) return
     clearTimeout(timer); busy = true
     import(`${url}#scout-retry-${attempt++}`).then(() => {
       done = true
-      removeEventListener('focus', wake)
+      removeEventListener('focus', focus)
       document.removeEventListener('visibilitychange', visible)
-    }).catch(() => { timer = setTimeout(wake, Math.min(250 * 2 ** (attempt - 1), 750)) })
+    }).catch(() => {
+      const cap = performance.now() < fastUntil ? 750 : 2000
+      timer = setTimeout(wake, Math.min(250 * 2 ** (attempt - 1), cap) * (0.9 + Math.random() * 0.2))
+    })
       .finally(() => { busy = false })
   }
-  const visible = () => { if (document.visibilityState === 'visible') wake() }
-  addEventListener('focus', wake)
+  const focus = () => { fastUntil = performance.now() + 30000; wake() }
+  const visible = () => { if (document.visibilityState === 'visible') focus() }
+  addEventListener('focus', focus)
   document.addEventListener('visibilitychange', visible)
   wake()
 }
@@ -245,4 +249,4 @@ export default { plugins: [{
 }] }
 ```
 
-The WebSocket retry starts at 250 ms and caps at 750 ms (with 20% jitter), so an HTTP load just before WS startup does not add a multi-second wait. `fixtures/queue-vite/?pointAt=asteroid` reports loader attempt, module-loaded and WS-connected times relative to page load, and samples an in-page pointer event at canvas-local `(260,180)` every 200 ms for the no-input rig. These synthetic samples do not calibrate screen geometry; trusted pointer events provide calibration when available.
+The WebSocket first connection is immediate. Retry starts at 250 ms and caps at 750 ms during the first 30 seconds of page load and for 30 seconds after focus or becoming visible; afterward it grows to a two-second cap (with 20% jitter). The loader uses 10% jitter. This keeps startup responsive and limits repeated connection errors on unattended dev pages. `fixtures/queue-vite/?pointAt=asteroid` reports loader attempt, module-loaded and WS-connected times relative to page load, and samples an in-page pointer event at canvas-local `(260,180)` every 200 ms for the no-input rig. These synthetic samples do not calibrate screen geometry; trusted pointer events provide calibration when available.

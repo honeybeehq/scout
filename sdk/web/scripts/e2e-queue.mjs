@@ -58,10 +58,10 @@ async function aim() {
 }
 try {
   await ready
-  await step('cold page loads SDK after server starts without reload', async () => {
+  await step('idle cold page connects within 2.5s after server starts without reload', async () => {
     await page.goto('http://127.0.0.1:5178/?pointAt=asteroid')
     await page.evaluate(() => { window.coldPageIdentity = 'same-page' })
-    await page.waitForTimeout(2300)
+    await page.waitForTimeout(31000)
     assert(await page.evaluate(() => typeof preGame.unregister === 'undefined'), 'SDK loaded while HTTP server down')
     const serverStartAt = await page.evaluate(() => performance.now())
     if (process.env.SCOUT_SDK_HARNESS) {
@@ -83,8 +83,8 @@ try {
     await page.waitForFunction(() => window.__SCOUT_LOADER_TIMING__?.wsConnectedAt !== null && window.__SCOUT_LOADER_TIMING__?.wsConnectedAt !== undefined)
     const timing = await page.evaluate(() => window.__SCOUT_LOADER_TIMING__)
     const connectedMs = timing.wsConnectedAt - serverStartAt
-    writeFileSync(join(evidence,'cold-connect-timing.json'), JSON.stringify({serverStartAt,...timing,connectedMs},null,2))
-    assert(connectedMs < 2000, `cold connect took ${connectedMs} ms`)
+    writeFileSync(join(evidence,'cold-connect-timing.json'), JSON.stringify({serverStartAt,phase:"idle over 30s",...timing,connectedMs},null,2))
+    assert(connectedMs < 2500, `cold connect took ${connectedMs} ms`)
     console.log(`Cold native/server start to WS welcome: ${Math.round(connectedMs)} ms`)
     await page.waitForTimeout(350)
     const pin = await bridge.pin()

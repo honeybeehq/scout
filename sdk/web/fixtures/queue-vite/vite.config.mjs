@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 function loadScout(url) {
   const timing = window.__SCOUT_LOADER_TIMING__ = { loaderAttemptAt: [], sdkLoadedAt: null, wsConnectedAt: null }
-  let done = false, busy = false, timer, attempt = 0
+  let done = false, busy = false, timer, attempt = 0, fastUntil = 30000
   const wake = () => {
     if (done || busy) return
     clearTimeout(timer)
@@ -17,13 +17,17 @@ function loadScout(url) {
       const connected = setInterval(() => {
         if (handle.connected) { timing.wsConnectedAt = performance.now(); clearInterval(connected) }
       }, 25)
-      removeEventListener('focus', wake)
+      removeEventListener('focus', focus)
       document.removeEventListener('visibilitychange', visible)
-    }).catch(() => { timer = setTimeout(wake, Math.min(250 * 2 ** (attempt - 1), 750)) })
+    }).catch(() => {
+      const cap = performance.now() < fastUntil ? 750 : 2000
+      timer = setTimeout(wake, Math.min(250 * 2 ** (attempt - 1), cap) * (0.9 + Math.random() * 0.2))
+    })
       .finally(() => { busy = false })
   }
-  const visible = () => { if (document.visibilityState === 'visible') wake() }
-  addEventListener('focus', wake)
+  const focus = () => { fastUntil = performance.now() + 30000; wake() }
+  const visible = () => { if (document.visibilityState === 'visible') focus() }
+  addEventListener('focus', focus)
   document.addEventListener('visibilitychange', visible)
   wake()
 }

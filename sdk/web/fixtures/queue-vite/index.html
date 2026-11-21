@@ -35,7 +35,7 @@ const geometry = () => {
   const x = b.x + 260 * b.width / canvas.width, y = b.y + 180 * b.height / canvas.height
   const estimatedOrigin = {x:screenX+(outerWidth-innerWidth)/2,y:screenY+outerHeight-innerHeight}
   const origin = screenOrigin ?? estimatedOrigin
-  const data = {canvasLocalCentre:{x:260,y:180},viewportCentre:{x,y},estimatedScreenCentre:{x:estimatedOrigin.x+x,y:estimatedOrigin.y+y},calibratedScreenCentre:screenOrigin?{x:screenOrigin.x+x,y:screenOrigin.y+y}:null,pointSamples,timing:window.__SCOUT_LOADER_TIMING__ ?? null}
+  const data = {canvasLocalCentre:{x:260,y:180},viewportCentre:{x,y},estimatedScreenCentre:{x:estimatedOrigin.x+x,y:estimatedOrigin.y+y},calibratedScreenCentre:screenOrigin?{x:screenOrigin.x+x,y:screenOrigin.y+y}:null,pointSamples,timing:window.__SCOUT_LOADER_TIMING__ ? {...window.__SCOUT_LOADER_TIMING__,loaderAttemptAt:window.__SCOUT_LOADER_TIMING__.loaderAttemptAt.slice(-5),loaderAttempts:window.__SCOUT_LOADER_TIMING__.loaderAttemptAt.length} : null}
   document.querySelector('#geometry').textContent = JSON.stringify(data,null,2)
   window.__SCOUT_QUEUE_FIXTURE__ = data
   return {x,y,screenX:origin.x+x,screenY:origin.y+y}
