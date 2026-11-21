@@ -14,7 +14,7 @@ Status: draft for M4. Nothing here is implemented yet.
 ## Transport
 
 - **Desktop and simulator:** WebSocket at `ws://127.0.0.1:47811/v1`. Port 47811 is new, chosen so Syn's 47845 stays free and both can run. If 47811 is busy, Scout tries 47812–47819 and writes the chosen port to `<ScoutDataRoot>/bridge.json`. The release root defaults to `~/Library/Application Support/Scout`; a test bundle such as `com.trmdy.scout.test` defaults to `~/Library/Application Support/Scout-com.trmdy.scout.test`. An absolute `--data-root=` or `SCOUT_DATA_ROOT` override also applies to the bridge file.
-- **Physical devices (LAN):** Scout advertises Bonjour `_scout._tcp`. Devices connect over TLS using a certificate pinned during pairing. Pairing is a QR code in Scout's SDK settings.
+- **Loopback only:** The bridge binds explicitly to both `127.0.0.1` and `::1` on the selected port. Web SDK clients on `http://localhost` and `http://127.0.0.1` can connect; other hosts cannot reach it over LAN or tailnet. Physical-device LAN pairing is planned and is not served by this listener.
 - **Android emulator:** `adb reverse tcp:47811 tcp:47811`, which Scout sets up when an emulator is detected.
 
 Frames are JSON text. Every message is `{"v":1,"type":"<type>", …}`. Requests carry a string `id`; responses repeat it.

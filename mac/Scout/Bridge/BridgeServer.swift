@@ -31,7 +31,9 @@ final class BridgeServer {
     var onGameState: ((Client, Data, String?, Date?) -> Void)?
     var onSignal: ((Client, BridgeSignalMessage) -> Void)?
 
-    private var listener: NWListener?
+    private var listeners: [NWListener] = []
+    private var readyListeners = Set<Int>()
+    private var listenerGeneration = UUID()
     private var connections: [String: NWConnection] = [:]
     private struct GameRequest {
         var clientID: String
@@ -55,7 +57,7 @@ final class BridgeServer {
     static var configurationURL: URL { ScoutPaths.support.appendingPathComponent("bridge.json") }
 
     func start() {
-        guard listener == nil else { return }
+        guard listeners.isEmpty else { return }
         listen(on: BridgeProtocol.ports.lowerBound)
     }
 
@@ -64,23 +66,55 @@ final class BridgeServer {
             failure = "No free port between \(BridgeProtocol.ports.lowerBound) and \(BridgeProtocol.ports.upperBound)."
             return
         }
-        guard let port = NWEndpoint.Port(rawValue: candidate), let listener = try? NWListener(using: parameters(), on: port) else {
-            listen(on: candidate + 1)
+        let generation = UUID()
+        listenerGeneration = generation
+        readyListeners = []
+        guard let port = NWEndpoint.Port(rawValue: candidate) else { return }
+        do {
+            listeners = try [NWEndpoint.Host.ipv4(.loopback), .ipv6(.loopback)].map { host in
+                let parameters = parameters()
+                parameters.requiredLocalEndpoint = .hostPort(host: host, port: port)
+                return try NWListener(using: parameters)
+            }
+        } catch {
+            if let error = error as? NWError, case .posix(let code) = error, code == .EADDRINUSE {
+                listen(on: candidate + 1)
+            } else {
+                failure = error.localizedDescription
+            }
             return
         }
-        listener.newConnectionHandler = { [weak self] connection in
-            MainActor.assumeIsolated { self?.accept(connection) }
+        for (index, listener) in listeners.enumerated() {
+            listener.newConnectionHandler = { [weak self] connection in
+                MainActor.assumeIsolated {
+                    guard let self, self.listenerGeneration == generation,
+                          self.readyListeners.count == self.listeners.count else {
+                        connection.cancel()
+                        return
+                    }
+                    self.accept(connection)
+                }
+            }
+            listener.stateUpdateHandler = { [weak self] state in
+                MainActor.assumeIsolated {
+                    guard let self, self.listenerGeneration == generation else { return }
+                    self.listenerChanged(state, port: candidate, index: index)
+                }
+            }
+            listener.start(queue: .main)
         }
-        listener.stateUpdateHandler = { [weak self] state in
-            MainActor.assumeIsolated { self?.listenerChanged(state, port: candidate) }
-        }
-        listener.start(queue: .main)
-        self.listener = listener
+    }
+
+    private func stopListeners() {
+        listenerGeneration = UUID()
+        listeners.forEach { $0.cancel() }
+        listeners = []
+        readyListeners = []
+        port = nil
     }
 
     func stop() {
-        listener?.cancel()
-        listener = nil
+        stopListeners()
         connections.values.forEach { $0.cancel() }
         connections = [:]
         clients = []
@@ -195,15 +229,16 @@ final class BridgeServer {
         return "\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? "")
     }
 
-    private func listenerChanged(_ state: NWListener.State, port candidate: UInt16) {
+    private func listenerChanged(_ state: NWListener.State, port candidate: UInt16, index: Int) {
         switch state {
         case .ready:
+            readyListeners.insert(index)
+            guard readyListeners.count == listeners.count else { return }
             port = candidate
             failure = nil
             writeConfiguration()
         case .failed(let error):
-            listener?.cancel()
-            listener = nil
+            stopListeners()
             if case .posix(let code) = error, code == .EADDRINUSE {
                 listen(on: candidate + 1)
             } else {
