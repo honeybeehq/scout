@@ -202,7 +202,8 @@ final class BridgeServer {
     }
 
     func project(for snippet: Snippet) -> ProjectReference? {
-        snippet.webTarget.flatMap(project(forTarget:)) ?? project(forLocation: snippet.primaryContext?.location)
+        if let target = snippet.webTarget { return project(forTarget: target) }
+        return project(forLocation: snippet.primaryContext?.location)
     }
 
     func project(forLocation location: String?) -> ProjectReference? {

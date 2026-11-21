@@ -323,7 +323,7 @@ final class ScoutingSession {
         let clientID = snippet.webClientID
         let projectRoot = clientID.flatMap { webProjects[$0] }
             ?? target.flatMap { bridge.project(forTarget: $0) }?.rootPath
-            ?? bridge.project(forLocation: snippet.primaryContext?.location)?.rootPath
+            ?? (clientID == nil ? bridge.project(forLocation: snippet.primaryContext?.location)?.rootPath : nil)
         if stopRequested, let state = stopGameState {
             let ownerDisconnected = clientID.map { id in !bridge.clients.contains { $0.id == id } } ?? true
             let sameProject = projectRoot != nil && projectRoot == state.projectRoot
