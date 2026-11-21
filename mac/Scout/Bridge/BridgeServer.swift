@@ -147,7 +147,8 @@ final class BridgeServer {
         let games = clients.filter { $0.hello?.capabilities?.contains("game") == true }
         let explicit = clientID.flatMap { id in games.first { $0.id == id } }
         let fallback = games.filter { client in
-            client.lastHoverAt != nil && (projectRoot == nil || client.hello?.project?.root == projectRoot)
+            (clientID == nil || projectRoot != nil) && client.lastHoverAt != nil
+                && (projectRoot == nil || client.hello?.project?.root == projectRoot)
         }.max { ($0.lastHoverAt ?? .distantPast) < ($1.lastHoverAt ?? .distantPast) }
         guard let client = explicit ?? fallback else { return }
         let id = UUID().uuidString

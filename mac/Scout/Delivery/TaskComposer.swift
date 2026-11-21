@@ -101,6 +101,7 @@ enum TaskComposer {
         let scoped = (owned.isEmpty ? candidates : owned).filter { url in
             guard let data = try? Data(contentsOf: url), let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
             if !owned.isEmpty { return true }
+            if let owner, let bound = state["_scoutTargetClientID"] as? String, bound != owner { return false }
             if let project {
                 return state["_scoutProjectRoot"] as? String == project.rootPath
                     && (owner == nil || url.deletingPathExtension().lastPathComponent == snippet.id)

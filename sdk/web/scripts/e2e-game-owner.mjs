@@ -66,6 +66,7 @@ try {
   const result=JSON.parse(output.trim().split('\n').at(-1))
   if(result.projectRoot!=='/fixture/current'||result.locationProjectRoot!=='/fixture/current'||result.state.scene!=='/fixture/current'||result.save.owner!=='/fixture/current')throw Error(JSON.stringify(result))
   if(records.some(r=>r.projectRoot==='/fixture/stale'&&r.msg.type==='snapshot'))throw Error('stale client received snapshot')
+  if(records.filter(r=>r.msg.type==='snapshot').length!==1)throw Error('unknown owner borrowed an unrelated client')
   writeFileSync(join(proof,'result.json'),JSON.stringify(result,null,2))
   console.log('PASS two same-origin game clients: new pin owns project, snapshot, task state and save')
   console.log(readFileSync(join(proof,'message.txt'),'utf8'))

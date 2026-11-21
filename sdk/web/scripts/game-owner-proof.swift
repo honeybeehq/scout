@@ -38,6 +38,7 @@ nonisolated enum ScoutPaths {
             try! JSONSerialization.data(withJSONObject: state).write(to: folder.appendingPathComponent("\(taskID ?? "0.5").json"))
         }
         await bridge.requestGameState(taskID: snippet.id, projectRoot: "/fixture/stale", clientID: snippet.webClientID)
+        await bridge.requestGameState(taskID: "unknown-owner", clientID: "disconnected-owner")
         let task = try TaskComposer.compose(snippet, title: "Game owner", project: project, sessionDirectory: output)
         try task.message.write(to: output.appendingPathComponent("message.txt"), atomically: true, encoding: .utf8)
         let state = try JSONSerialization.jsonObject(with: Data(contentsOf: task.directory.appendingPathComponent("game-state.json"))) as! [String: Any]
