@@ -159,7 +159,7 @@ nonisolated struct FixtureLinearClient: LinearAPI {
             let open = files.compactMap { stored($0.deletingPathExtension().lastPathComponent, in: issues) }
                 .filter { $0["teamId"] as? String == team && $0["trashed"] as? Bool != true && $0["archivedAt"] == nil && $0["state"] as? String != "Done" }
                 .sorted { number($0) < number($1) }
-                .prefix(6)
+                .prefix(environment["SCOUT_LINEAR_FIXTURE_SEARCH_EMPTY"] == "1" ? 0 : 6)
             log(state, "searchIssues(duplicates, team: \(teamKey(team)), term: \(term)) → \(open.map { $0["identifier"] as? String ?? "?" }.joined(separator: ", "))")
             let nodes = open.map { issue -> [String: Any] in
                 ["id": issue["id"] ?? "", "identifier": issue["identifier"] ?? "", "title": issue["title"] ?? "", "url": issue["url"] ?? "", "trashed": false, "state": ["name": issue["state"] ?? "Backlog"]]

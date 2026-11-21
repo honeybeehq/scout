@@ -97,6 +97,7 @@ final class SnippetCard: Identifiable {
     var linearGeneration = 0
     var linearStep: LinearFiler.Step?
     var duplicates: DuplicateCheck = .idle
+    var addToFailed = false
     var preparedVideo: RenderedMedia?
     var videoPreparation: (key: String, task: Task<RenderedMedia?, Never>)?
     var isPreparingVideo = false

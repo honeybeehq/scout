@@ -499,7 +499,30 @@ private struct HandoffBar: View {
                     }
                 }
             } else {
-                if let message = card.state.problem {
+                if let message = card.state.problem, card.addToFailed, !card.isLocked {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            StatusDot(tone: .negative, size: 6)
+                            Text(verbatim: message).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                        }
+                        HStack(spacing: 4) {
+                            Button("File as new issue") {
+                                Task {
+                                    await model.dispatcher.fileAsNewIssue(card)
+                                    await review.finishSending()
+                                }
+                            }
+                            Button("Choose another") {
+                                model.dispatcher.chooseAnotherIssue(card)
+                                review.edited(card)
+                            }
+                        }
+                        .buttonStyle(QuietButtonStyle())
+                        .padding(.leading, 4)
+                    }
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                } else if let message = card.state.problem {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         StatusDot(tone: .negative, size: 6)
                         Text(message).lineLimit(2)

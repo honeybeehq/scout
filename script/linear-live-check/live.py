@@ -30,12 +30,14 @@ def main():
         parent_verify(key, team_id, out)
     elif command == "dupe-seed":
         dupe_seed(key, team_id, out, sys.argv[4])
+    elif command == "dupe-wait":
+        dupe_wait(key, team_id, out, sys.argv[4])
     elif command == "dupe-verify":
         dupe_verify(key, team_id, out)
     elif command == "cleanup":
         cleanup(key, team_id, out)
     else:
-        sys.exit("usage: <key on stdin> live.py check|video-verify|parent-verify|dupe-seed|dupe-verify|cleanup <team id> <out dir> [clip.mp4 | seed title]")
+        sys.exit("usage: <key on stdin> live.py check|video-verify|parent-verify|dupe-seed|dupe-wait|dupe-verify|cleanup <team id> <out dir> [clip.mp4 | seed title]")
 
 
 def client(key, team_id):
@@ -366,26 +368,38 @@ def dupe_seed(key, team_id, out, title):
     with open(os.path.join(out, "created-ids.txt"), "a") as handle:
         handle.write(issue["id"] + "\n")
     with open(os.path.join(out, "dupe-seeded.txt"), "w") as handle:
-        handle.write(issue["id"] + "\t" + issue["identifier"] + "\n")
+        handle.write(issue["id"] + "\t" + issue["identifier"] + "\t" + issue["url"] + "\t" + str(time.time()) + "\n")
+    print(issue["id"])
+
+
+def dupe_wait(key, team_id, out, term):
+    say = logger(os.path.join(out, "dupe.log"))
+    gql = client(key, team_id)
+    seeded_id, identifier, url, created = open(os.path.join(out, "dupe-seeded.txt")).read().split("\t")
     started = time.time()
-    found = []
-    while time.time() - started < 120:
-        _, data, errors = gql(DUPLICATES, {"term": title, "team": team_id})
+    found, errors = [], []
+    while True:
+        _, data, errors = gql(DUPLICATES, {"term": term, "team": team_id})
         nodes = (((data or {}).get("searchIssues") or {}).get("nodes")) or []
         found = [n.get("identifier") for n in nodes]
-        if issue["id"] in [n.get("id") for n in nodes]:
+        if seeded_id in [n.get("id") for n in nodes] or time.time() - started > 300:
             break
-        time.sleep(5)
-    say(f"22 Scout's duplicate query finds {issue['identifier']} after {int(time.time() - started)} s: {issue['identifier'] in found} results={found} errors={errors}")
-    print(issue["id"])
-    sys.exit(0 if issue["identifier"] in found else 7)
+        time.sleep(10)
+    hit = identifier in found
+    say(f"22 Scout's duplicate query (term={term!r}) finds {identifier}: {hit}, {int(time.time() - float(created))} s after seeding, results={found} errors={errors}")
+    with open(os.path.join(out, "dupe-search.txt"), "w") as handle:
+        handle.write(("found" if hit else "missed") + "\n")
+    print(f"{seeded_id} {identifier} {url}")
 
 
 def dupe_verify(key, team_id, out):
     say = logger(os.path.join(out, "dupe.log"))
     gql = client(key, team_id)
-    seeded_id, seeded_identifier = open(os.path.join(out, "dupe-seeded.txt")).read().split()
+    seeded_id, seeded_identifier = open(os.path.join(out, "dupe-seeded.txt")).read().split("\t")[:2]
     problems = []
+    search = open(os.path.join(out, "dupe-search.txt")).read().strip() if os.path.exists(os.path.join(out, "dupe-search.txt")) else "not run"
+    if search != "found":
+        problems.append(f"Linear's search did not return {seeded_identifier} within the poll ({search})")
     runs = ["live-10-dupe-add", "live-11-dupe-resend", "live-12-dupe-no-review-json"]
     comments = set()
     for label in runs:

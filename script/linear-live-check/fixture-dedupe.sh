@@ -81,7 +81,22 @@ SCOUT_LINEAR_FIXTURE_REFUSE_IDS=1 scout m1-add first --linear-demo-add-to=first;
 rm $SESSION/review.json
 SCOUT_LINEAR_FIXTURE_REFUSE_IDS=1 scout m2-add-again first --linear-demo-add-to=first; summary m2-add-again; workspace m; requests m
 
-section "G1 the chosen issue was archived in Linear before adding"
+section "R1 Add to it chosen, nothing sent yet (the choice is saved in review.json)"
+fresh r; seed "Pay now button looks disabled on checkout" "Cookie banner sits under the footer"
+scout r1-choose none --linear-demo-add-to=first; summary r1-choose
+say "-- review.json addTo: $(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["tasks"][0]["linear"]["addTo"]["identifier"])' $SESSION/review.json)"
+section "R2 send while search returns nothing: still comments on the chosen issue, never files new"
+SCOUT_LINEAR_FIXTURE_SEARCH_EMPTY=1 scout r2-send-search-empty first; summary r2-send-search-empty; workspace r2
+section "R3 resend in add-to mode with search returning nothing (the task marked unsent locally): the same comment, no new issue"
+python3 - $SESSION/review.json <<'PY'
+import json,sys
+p=sys.argv[1]; r=json.load(open(p)); t=r["tasks"][0]; t.pop("sentTo",None); t["linearReceipt"]["status"]={"pending":{}}; json.dump(r,open(p,"w"),indent=2)
+PY
+SCOUT_LINEAR_FIXTURE_SEARCH_EMPTY=1 scout r3-resend-search-empty first; summary r3-resend-search-empty; workspace r3
+say "-- issueCreate calls in R: $(grep -c 'issueCreate(' $STATE/requests.log) · commentCreate calls: $(grep -c 'commentCreate(' $STATE/requests.log) · duplicate searches: $(grep -c 'duplicates' $STATE/requests.log)"
+requests r
+
+section "G1 the chosen issue was archived in Linear before adding: error with File as new issue / Choose another, the choice kept"
 fresh g; seed "Pay now button looks disabled on checkout"
 scout g1-open none --linear-demo-add-to=first
 python3 - $STATE/issues <<'PY'
@@ -91,6 +106,9 @@ for f in os.listdir(d):
     p=os.path.join(d,f); i=json.load(open(p)); i["archivedAt"]="2026-11-21T12:00:00Z"; json.dump(i,open(p,"w"),indent=2)
 PY
 scout g2-add-archived first; summary g2-add-archived; workspace g
+say "-- review.json still holds the choice: $(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["tasks"][0].get("linear",{}).get("addTo",{}).get("identifier"))' $SESSION/review.json)"
+section "G3 the user presses File as new issue"
+scout g3-file-new first-then-new; summary g3-file-new; workspace g3
 
 LONG=$(python3 -c 'print("[scout-test] " + "Very long title " * 31 + "END-OF-500")')
 section "H1 hostile title: markdown"

@@ -9,6 +9,7 @@ extension Dispatcher {
         await linear.loadTeamDetails(target.team.id)
         await ensureBrief(for: card)
         card.videoFailed = false
+        card.addToFailed = false
         let includeVideo = includesVideo(card)
         let video = includeVideo ? await preparedVideo(for: card) : nil
         if includeVideo, video == nil {
@@ -95,9 +96,11 @@ extension Dispatcher {
             card.linearReceipt = receipt
             card.state = .sent(receipt.issue?.identifier ?? target.label)
         } catch LinearError.targetGone(let identifier) {
-            card.linearOptions.addTo = nil
-            card.duplicates = .idle
-            card.state = .failed(LinearError.targetGone(identifier).message + " File it as a new issue instead.")
+            card.addToFailed = true
+            card.state = .failed(LinearError.targetGone(identifier).message)
+        } catch LinearError.forbidden where addTo != nil {
+            card.addToFailed = true
+            card.state = .failed("Scout can't add to \(addTo?.identifier ?? "that issue"): it isn't in \(target.team.key) or this key can't see it.")
         } catch LinearError.deletedRemotely {
             card.linearReceipt = LinearReceipt(key: card.linearKey, status: .deletedRemotely, assets: card.linearReceipt?.assets ?? [])
             card.state = .failed(LinearError.deletedRemotely.message)
@@ -164,11 +167,29 @@ extension Dispatcher {
     }
 
     func fileAsNewIssue(_ card: SnippetCard) async {
+        if card.addToFailed, !card.isLocked {
+            card.linearOptions.addTo = nil
+            card.linearOptions.fileNew = true
+            card.addToFailed = false
+            card.state = .held
+            await send(card)
+            return
+        }
         guard card.linearReceipt?.status == .deletedRemotely, !card.isLocked else { return }
         card.linearGeneration += 1
         card.linearReceipt = nil
         card.state = .held
         await send(card)
+    }
+
+    func chooseAnotherIssue(_ card: SnippetCard) {
+        guard card.addToFailed, !card.isLocked else { return }
+        card.linearOptions.addTo = nil
+        card.linearOptions.fileNew = nil
+        card.addToFailed = false
+        card.duplicates = .idle
+        card.state = .held
+        onCardChanged?(card)
     }
 
     func ensureBrief(for card: SnippetCard, regenerate: Bool = false) async {

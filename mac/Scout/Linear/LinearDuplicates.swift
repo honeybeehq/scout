@@ -28,7 +28,7 @@ extension Dispatcher {
     }
 
     func checkDuplicates(for card: SnippetCard, in target: LinearTarget, debounce: Bool) async {
-        guard !card.isLocked, linear.isConnected else { return }
+        guard !card.isLocked, !card.addToFailed, linear.isConnected else { return }
         let term = Self.duplicateTerm(for: card)
         guard term.count >= 3 else {
             card.duplicates = .idle

@@ -131,6 +131,15 @@ enum LinearDemo {
             async let first: Void = model.sendAll(in: review)
             async let second: Void = model.sendAll(in: review)
             _ = await (first, second)
+        } else if send == "first-then-new", let card = focus {
+            await model.dispatcher.send(card)
+            try? await Task.sleep(for: .seconds(1))
+            steps.append(describe(review, model: model, step: "after the first send"))
+            draw(review, model: model, name: "\(label)-2-target-gone", into: output)
+            if card.addToFailed {
+                await model.dispatcher.fileAsNewIssue(card)
+                await review.finishSending()
+            }
         } else if send == "first", let card = focus {
             await model.dispatcher.send(card)
             await review.finishSending()
@@ -217,7 +226,12 @@ enum LinearDemo {
         draw(review, model: model, name: "\(label)-1-candidate", into: output)
         renderRow(card, review: review, target: target, name: "\(label)-1-candidate-row", into: output)
         guard let wanted else { return nil }
-        guard let chosen = wanted == "first" ? candidates.first : candidates.first(where: { $0.id == wanted }) else {
+        var picked = wanted == "first" ? candidates.first : candidates.first(where: { $0.id == wanted })
+        if picked == nil, let identifier = argument("linear-demo-add-to-identifier"), let url = argument("linear-demo-add-to-url").flatMap(RemoteURL.issue) {
+            picked = LinearCandidate(id: wanted, identifier: identifier, title: "(chosen by the live check: search had not returned it)", url: url, state: nil)
+            steps.append(["step": "search did not return \(identifier); the live check chose it by id"])
+        }
+        guard let chosen = picked else {
             return "the duplicate check did not return the wanted issue \(wanted) (got \(candidates.map(\.identifier)))"
         }
         card.linearOptions.addTo = chosen
@@ -451,6 +465,7 @@ enum LinearDemo {
                     "addedToIssueID": card.linearReceipt?.addedTo?.id ?? "",
                     "commentID": card.linearReceipt?.comment?.id ?? "",
                     "addToChoice": card.linearOptions.addTo?.identifier ?? "none",
+                    "addToFailed": card.addToFailed,
                     "sentText": card.linearReceipt?.sentText ?? "",
                     "uploadedAssets": card.linearReceipt?.assets.map { "\($0.name) \($0.kind?.rawValue ?? "image") \($0.byteCount.map { "\($0) bytes" } ?? "") → \($0.url.absoluteString)" } ?? [],
                     "clipAttachment": card.linearReceipt?.clipAttachmentID ?? "none",
