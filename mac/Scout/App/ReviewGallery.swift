@@ -157,13 +157,13 @@ enum ReviewGallery {
         }
 
         @MainActor
-        func make(_ dispatcher: Dispatcher, directory chosen: URL? = nil) -> SessionReview? {
+        func make(_ dispatcher: Dispatcher, directory chosen: URL? = nil, sessionID chosenID: String? = nil) -> SessionReview? {
             guard !empty else { return nil }
             var ledger = SessionLedger(replaying: signals)
             ledger.extend(to: duration)
             let directory = chosen ?? FileManager.default.temporaryDirectory.appendingPathComponent("scout-review-gallery/\(name)", isDirectory: true)
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let sessionID = "gallery-\(name)"
+            let sessionID = chosenID ?? "gallery-\(name)"
             let cards = tasks.enumerated().map { index, task -> SnippetCard in
                 let card = SnippetCard(snippet: ledger.snippet(id: "task-\(index)", range: TimeRange(start: task.start, end: task.end)), sessionID: sessionID, sessionDirectory: directory)
                 card.restoreTitle(task.title, custom: false)

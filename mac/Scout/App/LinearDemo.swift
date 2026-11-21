@@ -79,8 +79,11 @@ enum LinearDemo {
             try? FileManager.default.removeItem(at: target)
             try? FileManager.default.copyItem(at: URL(fileURLWithPath: video), to: target)
         }
-        guard let review = ReviewGallery.demo.make(model.dispatcher, directory: directory) else { return }
-        for card in review.tasks { card.destination = .linear(LinearTarget(team: team, project: nil, reason: .defaultTeam)) }
+        guard let review = ReviewGallery.demo.make(model.dispatcher, directory: directory, sessionID: argument("linear-demo-session")) else { return }
+        for card in review.tasks {
+            card.destination = .linear(LinearTarget(team: team, project: nil, reason: .defaultTeam))
+            if let prefix = argument("linear-demo-title-prefix"), !card.title.hasPrefix(prefix) { card.restoreTitle(prefix + card.title, custom: true) }
+        }
         review.tasks.first?.runtimeNotes = [
             "network: GET http://localhost:3000/api/cart?session=8812&token=tok_demo_should_not_leave failed with 500 (acme-web)",
             "TypeError: total is undefined — at Summary (\(NSHomeDirectory())/Code/acme-web/src/checkout/Summary.tsx:41) (acme-web)",
@@ -95,6 +98,8 @@ enum LinearDemo {
             "tasks": review.tasks.map { card -> [String: Any] in
                 [
                     "task": card.snippet.id,
+                    "issueID": card.linearReceipt?.issue?.id ?? "",
+                    "identifier": card.linearReceipt?.issue?.identifier ?? "",
                     "title": card.title,
                     "key": card.linearKey,
                     "destination": card.destination?.label ?? "none",

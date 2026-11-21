@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import struct
 import sys
 import time
@@ -12,19 +13,23 @@ import zlib
 ENDPOINT = "https://api.linear.app/graphql"
 
 
+TITLE_PREFIX = "[scout-test] "
+
+
 def main():
-    team_id = sys.argv[1]
-    log_path = sys.argv[2]
+    command, team_id, out = sys.argv[1], sys.argv[2], sys.argv[3]
     key = sys.stdin.readline().strip()
     if not key:
         sys.exit("no key on stdin")
-    log = open(log_path, "a")
+    if command == "check":
+        check(key, team_id, out)
+    elif command == "cleanup":
+        cleanup(key, team_id, out)
+    else:
+        sys.exit("usage: <key on stdin> live.py check|cleanup <team id> <out dir>")
 
-    def say(line):
-        print(line)
-        log.write(line + "\n")
-        log.flush()
 
+def client(key, team_id):
     def gql(query, variables=None, mutation_team=None):
         if mutation_team is not None and mutation_team != team_id:
             sys.exit("refusing a mutation outside the test team")
@@ -38,6 +43,23 @@ def main():
         reply = json.loads(data or b"{}")
         errors = [{"message": str(e.get("message", ""))[:200], "code": (e.get("extensions") or {}).get("code")} for e in reply.get("errors") or []]
         return status, reply.get("data"), errors
+    return gql
+
+
+def logger(path):
+    log = open(path, "a")
+
+    def say(line):
+        print(line)
+        log.write(line + "\n")
+        log.flush()
+    return say
+
+
+def check(key, team_id, out):
+    say = logger(os.path.join(out, "api.log"))
+    gql = client(key, team_id)
+    created_file = open(os.path.join(out, "created-ids.txt"), "a")
 
     def issue_id(workspace, key_text):
         digest = bytearray(hashlib.sha256((workspace + "\n" + key_text).encode()).digest()[:16])
@@ -84,7 +106,7 @@ def main():
 
     description = "Live check from Scout's T3 slice.\n\n" + (f"![Pin 1](" + asset_url + ")\n\n" if asset_url else "") + f"---\nFiled from Scout · `{run_key}`"
     create = "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }"
-    issue_input = {"id": wanted, "teamId": team_id, "title": "Scout live check (safe to delete)", "description": description, "labelIds": [], "priority": 0}
+    issue_input = {"id": wanted, "teamId": team_id, "title": TITLE_PREFIX + "Scout live check", "description": description, "labelIds": [], "priority": 0}
     status, data, errors = gql(create, {"input": issue_input}, mutation_team=team_id)
     created = (data or {}).get("issueCreate") or {}
     accepted = bool(created.get("success")) and (created.get("issue") or {}).get("id") == wanted
@@ -94,15 +116,63 @@ def main():
 
     target = wanted if accepted else (created.get("issue") or {}).get("id")
     if target:
+        created_file.write(target + "\n")
+        created_file.flush()
         _, data, errors = gql("query($id: String!) { issue(id: $id) { id identifier url title priority trashed archivedAt state { name type } labels { nodes { name } } team { key } description } }", {"id": target})
         issue = (data or {}).get("issue") or {}
         say(f"6 read back: identifier={issue.get('identifier')} url={issue.get('url')} team={(issue.get('team') or {}).get('key')} state={issue.get('state')} priority={issue.get('priority')} trashed={issue.get('trashed')} marker_in_description={run_key in (issue.get('description') or '')} image_in_description={bool(asset_url) and asset_url in (issue.get('description') or '')} errors={errors}")
 
         status, data, errors = gql(create, {"input": issue_input}, mutation_team=team_id)
         say(f"7 resend the same id: status={status} data={data} errors={errors}")
+        duplicate = (((data or {}).get("issueCreate") or {}).get("issue") or {}).get("id")
+        if duplicate and duplicate != target:
+            created_file.write(duplicate + "\n")
+            created_file.flush()
+            say(f"   DUPLICATE created by the resend: {duplicate}")
 
     _, data, errors = gql("query($term: String!, $team: ID!) { searchIssues(term: $term, first: 5, filter: { team: { id: { eq: $team } } }) { nodes { identifier } } }", {"term": run_key, "team": team_id})
     say(f"8 searchIssues for the marker: {data} errors={errors} (expect exactly one issue; search may lag a few seconds)")
+
+
+def cleanup(key, team_id, out):
+    say = logger(os.path.join(out, "cleanup.log"))
+    gql = client(key, team_id)
+    ids = []
+    path = os.path.join(out, "created-ids.txt")
+    if os.path.exists(path):
+        ids += [line.strip() for line in open(path) if line.strip()]
+    for name in sorted(os.listdir(out)):
+        if name.startswith("live-") and name.endswith(".json"):
+            for step in json.load(open(os.path.join(out, name))):
+                for task in step.get("tasks") or []:
+                    if task.get("issueID"):
+                        ids.append(task["issueID"])
+    seen = []
+    for issue_id in ids:
+        if issue_id not in seen:
+            seen.append(issue_id)
+    identifiers = []
+    for issue_id in seen:
+        _, data, errors = gql("query($id: String!) { issue(id: $id) { id identifier title archivedAt trashed team { id } } }", {"id": issue_id})
+        issue = (data or {}).get("issue")
+        if not issue:
+            say(f"skip {issue_id}: not readable {errors}")
+            continue
+        if (issue.get("team") or {}).get("id") != team_id or not issue.get("title", "").startswith(TITLE_PREFIX):
+            say(f"skip {issue['identifier']}: not a {TITLE_PREFIX.strip()} issue in the test team")
+            continue
+        if not issue.get("archivedAt"):
+            _, data, errors = gql("mutation($id: String!) { issueArchive(id: $id) { success } }", {"id": issue_id}, mutation_team=team_id)
+            ok = bool(((data or {}).get("issueArchive") or {}).get("success"))
+            say(f"archive {issue['identifier']}: success={ok} errors={errors}")
+        else:
+            say(f"archive {issue['identifier']}: already archived")
+        _, data, _ = gql("query($id: String!) { issue(id: $id) { identifier archivedAt } }", {"id": issue_id})
+        after = (data or {}).get("issue") or {}
+        identifiers.append(f"{issue['identifier']}\t{issue_id}\tarchivedAt={after.get('archivedAt')}")
+    with open(os.path.join(out, "created-issues.txt"), "w") as handle:
+        handle.write("\n".join(identifiers) + ("\n" if identifiers else ""))
+    say(f"cleanup done: {len(identifiers)} issue(s) archived, listed in created-issues.txt")
 
 
 def png_bytes():
