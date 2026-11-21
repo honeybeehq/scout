@@ -218,6 +218,7 @@ enum LinearDemo {
         steps.append([
             "step": "duplicate check",
             "term": Dispatcher.duplicateTerm(for: card),
+            "titleTerm": Dispatcher.duplicateTitle(for: card),
             "result": String(describing: card.duplicates).prefix(60).description,
             "waitedSeconds": waited,
             "candidates": candidates.map { candidate -> [String: Any] in ["marker": candidate.marker ?? "", "identifier": candidate.identifier, "id": candidate.id, "renderedTitle": RemoteText.clean(candidate.title), "renderedLength": RemoteText.clean(candidate.title).count, "state": candidate.state ?? ""] },

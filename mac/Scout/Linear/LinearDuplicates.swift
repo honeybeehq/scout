@@ -42,6 +42,11 @@ extension Dispatcher {
         return String((term.isEmpty ? IssueComposer.title(card.title) : term).prefix(200))
     }
 
+    static func duplicateTitle(for card: SnippetCard) -> String {
+        let title = IssueComposer.title(card.title).replacingOccurrences(of: #"\[[^\]]{1,40}\]"#, with: " ", options: .regularExpression)
+        return String(title.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(200))
+    }
+
     func checkDuplicates(for card: SnippetCard, in target: LinearTarget, excluding own: Set<String>, debounce: Bool) async {
         guard !card.isLocked, !card.addToFailed, linear.isConnected else { return }
         let term = Self.duplicateTerm(for: card)
@@ -57,7 +62,8 @@ extension Dispatcher {
         card.duplicates = .checking(term: term)
         let session = "scout:\(card.sessionID):"
         do {
-            let found = try await linear.duplicates(term: term, team: target.team.id)
+            let title = Self.duplicateTitle(for: card)
+            let found = try await linear.duplicates(terms: title.count >= 3 && title != term ? [title, term] : [term], team: target.team.id)
             guard card.duplicates == .checking(term: term) else { return }
             card.duplicates = .found(term: term, found.filter { !own.contains($0.id) && $0.marker?.hasPrefix(session) != true })
         } catch {

@@ -135,8 +135,35 @@ final class LinearAccount {
         teams.value?.first { $0.id == id }
     }
 
-    func duplicates(term: String, team: String) async throws(LinearError) -> [LinearCandidate] {
-        try await perform(LinearOperations.duplicates(term: term, team: team)).searchIssues.nodes.compactMap(\.candidate)
+    func duplicates(terms: [String], team: String) async throws(LinearError) -> [LinearCandidate] {
+        guard let credential = try credentials.current() else { throw .unauthorized }
+        let api = api
+        let results = await withTaskGroup(of: (Int, Result<[LinearCandidate], LinearError>).self) { group in
+            for (index, term) in terms.enumerated() {
+                group.addTask {
+                    do throws(LinearError) {
+                        return (index, .success(try await api.perform(LinearOperations.duplicates(term: term, team: team), credential: credential).searchIssues.nodes.compactMap(\.candidate)))
+                    } catch {
+                        return (index, .failure(error))
+                    }
+                }
+            }
+            var results: [(Int, Result<[LinearCandidate], LinearError>)] = []
+            for await result in group { results.append(result) }
+            return results.sorted { $0.0 < $1.0 }.map(\.1)
+        }
+        var merged: [LinearCandidate] = []
+        var failure: LinearError?
+        for result in results {
+            switch result {
+            case .success(let found):
+                for candidate in found where !merged.contains(where: { $0.id == candidate.id }) { merged.append(candidate) }
+            case .failure(let error):
+                failure = error
+            }
+        }
+        if merged.isEmpty, let failure, results.allSatisfy({ if case .failure = $0 { true } else { false } }) { throw failure }
+        return Array(merged.prefix(6))
     }
 
     func credential() throws(LinearError) -> LinearCredential {
