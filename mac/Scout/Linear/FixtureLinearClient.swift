@@ -88,16 +88,6 @@ nonisolated struct FixtureLinearClient: LinearAPI {
                 try? await Task.sleep(for: .seconds(delay))
             }
             return reply(["issueCreate": ["success": true, "issue": issue]])
-        case "issueUpdate":
-            let id = operation.variables["id"]?.string ?? ""
-            guard var issue = stored(id, in: issues), let input = operation.variables["input"]?.object else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
-            if let description = input["description"]?.string { issue["description"] = description }
-            issue["updatedCount"] = (issue["updatedCount"] as? Int ?? 0) + 1
-            if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
-                try? data.write(to: issues.appendingPathComponent("\(id).json"))
-            }
-            log(state, "issueUpdate(\(issue["identifier"] ?? id), description: \((input["description"]?.string ?? "").count) chars)")
-            return reply(["issueUpdate": ["success": true]])
         case "fileUpload":
             let name = operation.variables["filename"]?.string ?? "file"
             let contentType = operation.variables["contentType"]?.string ?? "?"
@@ -122,8 +112,9 @@ nonisolated struct FixtureLinearClient: LinearAPI {
             let id = operation.variables["id"]?.string ?? ""
             guard var issue = stored(id, in: issues), let description = operation.variables["input"]?.object?["description"]?.string else { return reply(errors: "Entity not found: Issue", code: "INVALID_INPUT") }
             let clipLine = description.split(separator: "\n").first { $0.contains("clip.mp4") || $0.contains("Video not included") } ?? ""
-            log(state, "issueUpdate(id: \(id), clip line: \(clipLine))")
+            log(state, "issueUpdate(id: \(id), \(issue["identifier"] ?? "?"), clip line: \(clipLine), description: \(description.count) chars)")
             issue["description"] = description
+            issue["updatedCount"] = (issue["updatedCount"] as? Int ?? 0) + 1
             if let data = try? JSONSerialization.data(withJSONObject: issue, options: [.prettyPrinted, .sortedKeys]) {
                 try? data.write(to: issues.appendingPathComponent("\(id).json"))
             }

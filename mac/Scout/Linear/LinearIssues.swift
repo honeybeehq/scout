@@ -111,10 +111,6 @@ nonisolated extension LinearOperations {
         }
         var issueCreate: Payload
     }
-    struct IssueUpdateData: Decodable, Sendable {
-        struct Payload: Decodable, Sendable { var success: Bool }
-        var issueUpdate: Payload
-    }
     struct FileUploadData: Decodable, Sendable {
         struct Payload: Decodable, Sendable {
             var success: Bool
@@ -154,15 +150,6 @@ nonisolated extension LinearOperations {
             kind: .mutation(teamID: input.teamID),
             document: "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
             variables: ["input": input.value]
-        )
-    }
-
-    static func updateDescription(issueID: String, teamID: String, description: String) -> LinearOperation<IssueUpdateData> {
-        LinearOperation(
-            name: "issueUpdate",
-            kind: .mutation(teamID: teamID),
-            document: "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }",
-            variables: ["id": .string(issueID), "input": .object(["description": .string(description)])]
         )
     }
 
