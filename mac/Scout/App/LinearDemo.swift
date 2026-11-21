@@ -56,6 +56,11 @@ enum LinearDemo {
         steps.append(describe(review, model: model, step: "opened"))
         draw(review, model: model, name: "\(label)-1-opened", into: output)
         let send = argument("linear-demo-send") ?? "none"
+        if send != "none", model.dispatcher.dryRun, !SimulationMode.asksDryRun {
+            steps.append(["error": "this build delivers as a dry run; pass --live-delivery (or --dry-run-delivery to ask for one)"])
+            finish(steps, output: output, label: label)
+            return
+        }
         if send == "file-new", let card = review.tasks.first {
             await model.dispatcher.fileAsNewIssue(card)
             review.save()

@@ -14,7 +14,7 @@ scout() {
   local label=$1 send=$2; shift 2
   perl -e 'alarm shift; exec @ARGV' 90 "$APP" --linear-fixture=$FIXTURES --linear-fixture-state=$STATE \
     --linear-demo=$SESSION --linear-demo-video=$VIDEO --linear-demo-output=$OUT \
-    --linear-demo-label=$label --linear-demo-send=$send "$@" > "$OUT/$label.stdout" 2>&1
+    --linear-demo-label=$label --linear-demo-send=$send --live-delivery "$@" > "$OUT/$label.stdout" 2>&1
 }
 
 receipts() {

@@ -38,6 +38,7 @@ finish() {
     exit 3
   fi
   echo "no key material in $OUT"
+  if [ "${FLOW:-4}" -ne 0 ]; then exit 4; fi
 }
 trap finish EXIT
 
@@ -48,7 +49,7 @@ feed | python3 -I "$HERE/live.py" check "$TEAM" "$OUT" || echo "API checks stopp
 export SCOUT_LINEAR_TEST_TEAM=$TEAM
 demo() {
   feed | perl -e 'alarm shift; exec @ARGV' 120 "$APP" --linear-demo="$SESSION" --linear-demo-key-stdin \
-    --linear-demo-session="$RUN" --linear-demo-title-prefix="[scout-test] " --linear-demo-video="$VIDEO" \
+    --linear-demo-session="$RUN" --linear-demo-title-prefix="[scout-test] " --live-delivery --linear-demo-video="$VIDEO" \
     --linear-demo-output="$OUT" --linear-demo-label="$1" --linear-demo-send="$2" > "$OUT/$1.stdout" 2>&1
 }
 echo "== Scout filing flow ($RUN)"
@@ -59,12 +60,20 @@ demo live-3-no-review-json first
 python3 -I - "$OUT" <<'PY'
 import json, os, sys
 out = sys.argv[1]
+ids = set()
+failed = False
 for label in ["live-1-file", "live-2-resend", "live-3-no-review-json"]:
     path = os.path.join(out, label + ".json")
-    if not os.path.exists(path):
-        print(label, "no log")
-        continue
-    steps = json.load(open(path))
+    steps = json.load(open(path)) if os.path.exists(path) else []
     task = ((steps[-1].get("tasks") or [{}])[0]) if steps else {}
-    print(label, task.get("identifier") or "-", task.get("issueID") or "-", task.get("state", steps[-1] if steps else ""))
+    identifier, issue_id = task.get("identifier"), task.get("issueID")
+    print(label, identifier or "-", issue_id or "-", task.get("state", steps[-1] if steps else "no log"))
+    if not identifier:
+        failed = True
+    ids.add(issue_id)
+if failed or len(ids) != 1:
+    print("SCOUT FLOW FAILED: every run must file or adopt one and the same issue")
+    sys.exit(4)
+print("Scout flow: one issue across file, resend and resend without review.json")
 PY
+FLOW=$?
