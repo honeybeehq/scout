@@ -54,13 +54,7 @@ targets:
       - name: Bundle the matching browser SDK
         basedOnDependencyAnalysis: false
         script: |
-          set -eu
-          cd "$SRCROOT/../sdk/web"
-          export PATH="$HOME/Library/pnpm:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
-          pnpm install --frozen-lockfile
-          pnpm build
-          mkdir -p "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
-          cp packages/web/dist/index.js "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/scout.js"
+          /bin/bash "$SRCROOT/../script/bundle-browser-sdk.sh" "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/scout.js"
     postBuildScripts:
       - name: Register the scout URL scheme only in the release bundle
         basedOnDependencyAnalysis: false
