@@ -31,7 +31,7 @@ final class BridgeServer {
     var onGameState: ((Client, Data, String?, Date?) -> Void)?
     var onSignal: ((Client, BridgeSignalMessage) -> Void)?
 
-    private var listeners: [NWListener] = []
+    private var listeners: [Int: NWListener] = [:]
     private var readyListeners = Set<Int>()
     private var listenerGeneration = UUID()
     private var connections: [String: NWConnection] = [:]
@@ -70,24 +70,25 @@ final class BridgeServer {
         listenerGeneration = generation
         readyListeners = []
         guard let port = NWEndpoint.Port(rawValue: candidate) else { return }
-        do {
-            listeners = try [NWEndpoint.Host.ipv4(.loopback), .ipv6(.loopback)].map { host in
+        for (index, host) in [NWEndpoint.Host.ipv4(.loopback), .ipv6(.loopback)].enumerated() {
+            do {
                 let parameters = parameters()
                 parameters.requiredLocalEndpoint = .hostPort(host: host, port: port)
-                return try NWListener(using: parameters)
-            }
-        } catch {
-            if let error = error as? NWError, case .posix(let code) = error, code == .EADDRINUSE {
-                listen(on: candidate + 1)
-            } else {
+                listeners[index] = try NWListener(using: parameters)
+            } catch {
+                if let error = error as? NWError, case .posix(let code) = error, code == .EADDRINUSE {
+                    stopListeners()
+                    listen(on: candidate + 1)
+                    return
+                }
                 failure = error.localizedDescription
             }
-            return
         }
-        for (index, listener) in listeners.enumerated() {
+        guard !listeners.isEmpty else { return }
+        for (index, listener) in listeners {
             listener.newConnectionHandler = { [weak self] connection in
                 MainActor.assumeIsolated {
-                    guard let self, self.listenerGeneration == generation,
+                    guard let self, self.listenerGeneration == generation, self.listeners[index] != nil,
                           self.readyListeners.count == self.listeners.count else {
                         connection.cancel()
                         return
@@ -97,7 +98,7 @@ final class BridgeServer {
             }
             listener.stateUpdateHandler = { [weak self] state in
                 MainActor.assumeIsolated {
-                    guard let self, self.listenerGeneration == generation else { return }
+                    guard let self, self.listenerGeneration == generation, self.listeners[index] != nil else { return }
                     self.listenerChanged(state, port: candidate, index: index)
                 }
             }
@@ -107,8 +108,8 @@ final class BridgeServer {
 
     private func stopListeners() {
         listenerGeneration = UUID()
-        listeners.forEach { $0.cancel() }
-        listeners = []
+        listeners.values.forEach { $0.cancel() }
+        listeners = [:]
         readyListeners = []
         port = nil
     }
@@ -233,20 +234,29 @@ final class BridgeServer {
         switch state {
         case .ready:
             readyListeners.insert(index)
-            guard readyListeners.count == listeners.count else { return }
-            port = candidate
-            failure = nil
-            writeConfiguration()
         case .failed(let error):
-            stopListeners()
             if case .posix(let code) = error, code == .EADDRINUSE {
+                stopListeners()
                 listen(on: candidate + 1)
-            } else {
+                return
+            }
+            listeners.removeValue(forKey: index)?.cancel()
+            readyListeners.remove(index)
+            guard !listeners.isEmpty else {
+                stopListeners()
                 failure = error.localizedDescription
+                return
             }
         default:
-            break
+            return
         }
+        guard readyListeners.count == listeners.count else { return }
+        port = candidate
+        failure = nil
+        if listeners.count == 1 {
+            NSLog("[scout-bridge] Listening on %@ only; the other loopback address is unavailable.", listeners[0] != nil ? "127.0.0.1" : "::1")
+        }
+        writeConfiguration()
     }
 
     private func accept(_ connection: NWConnection) {
