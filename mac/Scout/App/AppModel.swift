@@ -65,7 +65,7 @@ final class AppModel {
     private var hotkey: GlobalHotkey?
 
     static var rendersOnly: Bool {
-        OptimiseReplay.output != nil || PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil
+        OptimiseReplay.output != nil || PanelGallery.directory != nil || PickerGallery.requested || ReviewGallery.directory != nil || EngineGallery.directory != nil
     }
 
     private static let shortcutKey = "shortcut.startScouting"
@@ -88,6 +88,10 @@ final class AppModel {
         }
         if let directory = PanelGallery.directory {
             Task { await PanelGallery.run(model: self, into: directory) }
+            return
+        }
+        if PickerGallery.requested {
+            PickerGallery.start()
             return
         }
         if let directory = EngineGallery.directory {
