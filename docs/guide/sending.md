@@ -30,7 +30,7 @@ If a send fails, for example because hive stopped or the session is gone, Scout 
 
 Apiary is a desktop workspace for hive sessions, and Apiary panes are hive sessions, so tasks reach them through hive. Clips and images in a task show up in the Apiary conversation.
 
-When you finish a walkthrough, the destination sheet lists Apiary chats and active hive sessions. `Enter` pastes the walkthrough into the chosen chat and `⌘↩` sends it. If you choose before the walkthrough is ready, the sheet shows "Sends when ready".
+When you finish a walkthrough, the destination sheet lists Apiary chats and active hive sessions, grouped as the focused chat, Champions, Project orchestrators, sessions and *Clipboard only*. Type to filter every group at once; `Tab` jumps to the next group. `Enter` pastes the walkthrough into the chosen chat and `⌘↩` sends it. If you choose before the walkthrough is ready, the sheet shows "Sends when ready".
 
 Apiary's *Record feedback* on a proof starts a Scout recording tied to that proof. When you finish, the walkthrough goes into that proof's review, and a line says "In the review: …". If Apiary refuses or isn't reachable, the walkthrough stays on the clipboard and the line says why.
 

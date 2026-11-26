@@ -18,7 +18,25 @@ The socket carries newline-delimited JSON. Scout sends `{"id":1,"verb":"<verb>",
 
 ## Requests and responses
 
-The table describes fields consumed or sent by the current client. A target reference is `{kind,id}`. Target rows require string `kind` and `id`; optional strings include `sessionId`, `title`, `handle`, `subtitle`, `name`, `displayName`, `sessionTitle`, `championName`, `championId`, `workspaceId` and `workspaceName`, with optional boolean `focused` and `open`.
+The table describes fields consumed or sent by the current client. A target reference is `{kind,id}`. Target rows require string `kind` and `id`; optional strings include `sessionId`, `title`, `handle`, `subtitle`, `name`, `displayName`, `sessionTitle`, `championName`, `championId`, `workspaceId` and `workspaceName`, with optional boolean `focused` and `open`, and an optional `look` object.
+
+Kinds Scout groups are `champion` (or any row with `championName`), `project` and everything else as a session. A `project` row has `id` = the Project ID, `sessionId` = its orchestrator bee and `title` = the Project name. Scout delivers it with the reference `{kind:"project", id}`, which Apiary sends to the orchestrator; hive fallback sends to `sessionId`. Any other row with the same `sessionId`, from the bridge or hive, folds into the project row, so the orchestrator is listed once, under Project orchestrators.
+
+`look` tells Scout how Apiary draws the row. Apiary is its only source; Scout never derives an avatar or a Project colour itself.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `key` | string, required | Cache key. It must change when the look changes |
+| `image` | string | `data:image/png;base64,…` Champion avatar, 32 pt @2x (96 px), the full canvas with the overhang (ears, wings, ring, antennae) and the body centred |
+| `tint` | string | `#rrggbb` for the light appearance |
+| `tintDark` | string | `#rrggbb` for the dark appearance; `tint` is used when it is missing |
+| `glyph` | string | Fallback initial, drawn in the tint when there is no image or icon |
+| `iconSvg` | string | Project icon SVG drawn with `stroke="currentColor"` |
+| `recipe` | object | Ignored by Scout |
+
+Scout keeps decoded looks in memory by `key` and writes `image` and `iconSvg` to `<data root>/Looks/<hash of key>.png|.svg`, so a later row may send the `key` alone. Avatars are drawn 24 pt without a mask: Scout measures the opaque pixels, centres the canvas on the body and scales it so the body fills about 80 % of the frame unless the overhang would cross the frame edge. Icons are tinted per appearance by replacing `currentColor`, drawn 16 pt in a 24 pt tile with a stroke of at least 1.5 pt, and the tint is darkened (light) or lightened (dark) in small steps until it has 3:1 contrast with its tile. A row without a look gets a neutral monogram tile.
+
+`hello` lists `listTargets.look` in `capabilities` when Apiary sends looks. The protocol stays `apiary-scout/1`; rows without `look` keep working.
 
 | Verb | Parameters | Result used by Scout |
 |---|---|---|
@@ -32,4 +50,4 @@ The table describes fields consumed or sent by the current client. A target refe
 
 For delivery, `bundlePath` is the walkthrough directory. The delivery ID is `scout:<walkthrough>:<kind>:<id>:<mode>`. Scout derives the message ID using UUID v5 with namespace `e0aaba76-1ff7-5558-a034-b585db29a50a`; if Apiary returns a different message ID, Scout rejects it. This keeps retries and hive fallback from creating duplicate messages.
 
-Scout uses a 2-second initial handshake timeout, 30 ms for pointing (one 100 ms retry for a pin), 500 ms for focused-chat lookup, 800 ms for target listing and 3 seconds for delivery. The connection closes after 30 seconds idle. A missing or dead discovery process leaves the clipboard path available. For `noRenderer`, `notReady`, timeout or an unreachable bridge, send mode falls back to hive when a session ID is available; paste mode keeps the bundle on the clipboard. Other delivery refusals are shown to the user.
+Scout uses a 2-second initial handshake timeout, 30 ms for pointing (one 100 ms retry for a pin), 500 ms for focused-chat lookup, 1.5 seconds for target listing (Apiary answers within 1 second, or with `notReady` or `timeout`; Scout then lists hive sessions alone) and 3 seconds for delivery. The connection closes after 30 seconds idle. A missing or dead discovery process leaves the clipboard path available. For `noRenderer`, `notReady`, timeout or an unreachable bridge, send mode falls back to hive when a session ID is available; paste mode keeps the bundle on the clipboard. Other delivery refusals are shown to the user.

@@ -71,6 +71,33 @@ nonisolated struct ApiaryPoint: Sendable {
     var staleWindows: Bool
 }
 
+nonisolated struct ApiaryLook: Hashable, Sendable {
+    var key: String
+    var image: String?
+    var tint: String?
+    var tintDark: String?
+    var glyph: String?
+    var iconSvg: String?
+
+    init(key: String, image: String? = nil, tint: String? = nil, tintDark: String? = nil, glyph: String? = nil, iconSvg: String? = nil) {
+        self.key = key
+        self.image = image
+        self.tint = tint
+        self.tintDark = tintDark
+        self.glyph = glyph
+        self.iconSvg = iconSvg
+    }
+
+    init?(_ value: JSONValue?) {
+        guard case .object(let fields)? = value, case .string(let key)? = fields["key"], !key.isEmpty else { return nil }
+        func text(_ name: String) -> String? {
+            if case .string(let value)? = fields[name], !value.isEmpty { return value }
+            return nil
+        }
+        self.init(key: key, image: text("image"), tint: text("tint"), tintDark: text("tintDark"), glyph: text("glyph"), iconSvg: text("iconSvg"))
+    }
+}
+
 nonisolated struct ApiaryTarget: Hashable, Sendable {
     var kind: String
     var id: String
@@ -87,6 +114,8 @@ nonisolated struct ApiaryTarget: Hashable, Sendable {
     var championID: String?
     var workspaceID: String?
     var workspaceName: String?
+    var state: String?
+    var look: ApiaryLook?
     var viaApiary = true
 
     init(kind: String, id: String, sessionID: String?, title: String, handle: String? = nil, subtitle: String? = nil, focused: Bool = false, open: Bool = false) {
@@ -130,10 +159,15 @@ nonisolated struct ApiaryTarget: Hashable, Sendable {
         championID = text("championId") ?? (kind == "champion" ? id : nil)
         workspaceID = text("workspaceId")
         workspaceName = text("workspaceName")
+        look = ApiaryLook(fields["look"])
     }
 
+    var isProject: Bool { kind == "project" }
+
+    var isChampion: Bool { kind == "champion" || championName != nil }
+
     var searchText: String {
-        [title, name, displayName, sessionTitle, championName, championID, id, sessionID, handle, subtitle, kind, workspaceID, workspaceName]
+        [title, name, displayName, sessionTitle, championName, championID, id, sessionID, handle, subtitle, kind, isProject ? "orchestrator" : nil, workspaceID, workspaceName]
             .compactMap { $0 }.joined(separator: " ").lowercased()
     }
 
@@ -202,7 +236,7 @@ actor ApiaryBridge {
     }
 
     func listTargets(limit: Int = 500) async throws -> [ApiaryTarget] {
-        let answer = try await call("listTargets", .object(["limit": .number(Double(limit))]), timeout: .milliseconds(800))
+        let answer = try await call("listTargets", .object(["limit": .number(Double(limit))]), timeout: .milliseconds(1500))
         guard case .object(let fields) = answer, case .array(let rows)? = fields["targets"] else { return [] }
         return rows.compactMap(ApiaryTarget.init)
     }

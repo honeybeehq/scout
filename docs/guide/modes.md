@@ -14,7 +14,7 @@ A recording started with the shortcut ends as one walkthrough. It holds the tran
 
 Scout splits what you said into asks by itself: requests, problems and pauses start a new one. Press `⌃⌥B` to start a new ask yourself. The bar shows "New ask", and what you say next begins the new ask.
 
-When you finish, a sheet opens near the pointer with chats and agent sessions you can send to. Search it by name. Press `Enter` to paste into the chosen chat, `⌘↩` to send, or `Esc` to leave the walkthrough on the clipboard only. The menu bar panel keeps the last walkthrough with *Send…*, *Copy* and *Show in Finder*.
+When you finish, a sheet opens near the pointer with chats and agent sessions you can send to. Search it by name; `Tab` jumps between the groups (focused chat, Champions, Project orchestrators, sessions, clipboard). Press `Enter` to paste into the chosen chat, `⌘↩` to send, or `Esc` to leave the walkthrough on the clipboard only. The menu bar panel keeps the last walkthrough with *Send…*, *Copy* and *Show in Finder*.
 
 ## Tasks
 

@@ -164,7 +164,7 @@ enum SimulationMode {
     }
 
     static var panelSharing: NSWindow.SharingType {
-        isRunning ? .readOnly : .none
+        isRunning || PickerGallery.directory != nil ? .readOnly : .none
     }
 
     static var deliveryCheck: URL? {

@@ -3,6 +3,32 @@ import Observation
 import ScoutCore
 import SwiftUI
 
+struct TargetSection: Identifiable, Equatable {
+    enum Group: String, CaseIterable {
+        case focused
+        case champions
+        case projects
+        case sessions
+        case other
+
+        var title: String {
+            switch self {
+            case .focused: "Focused chat"
+            case .champions: "Champions"
+            case .projects: "Project orchestrators"
+            case .sessions: "Sessions"
+            case .other: "Other"
+            }
+        }
+    }
+
+    var group: Group
+    var rows: [ApiaryTarget]
+    var start: Int
+
+    var id: String { group.rawValue }
+}
+
 @Observable
 final class TargetPickerModel {
     enum Phase: Equatable {
@@ -18,19 +44,32 @@ final class TargetPickerModel {
         case none
     }
 
+    static let clipboardKind = "clipboard"
+
+    static let clipboard: ApiaryTarget = {
+        var target = ApiaryTarget(kind: clipboardKind, id: clipboardKind, sessionID: nil, title: "Clipboard only", subtitle: "Copy the walkthrough and send nothing")
+        target.viaApiary = false
+        return target
+    }()
+
     private(set) var phase: Phase = .finishing
     private(set) var walkthrough: FinishedWalkthrough?
     private(set) var targets: [ApiaryTarget] = [] {
         didSet {
             searchIndex = targets.map(\.searchText)
-            filterTargets()
+            regroup()
         }
     }
     @ObservationIgnored private var searchIndex: [String] = []
+    private(set) var sections: [TargetSection] = []
     private(set) var filtered: [ApiaryTarget] = []
     private(set) var source: Source = .loading
     var query = "" {
-        didSet { selection = 0; filterTargets() }
+        didSet {
+            guard query != oldValue else { return }
+            selection = 0
+            regroup()
+        }
     }
     var selection = 0
     private(set) var queued: DeliveryMode?
@@ -45,23 +84,71 @@ final class TargetPickerModel {
     var onDismiss: (() -> Void)?
     var onRevealDebug: ((URL) -> Void)?
 
+    init() {
+        regroup()
+    }
+
     var debugDirectory: URL? {
         walkthrough?.debugDirectory.flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
     }
 
-    private func filterTargets() {
-        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
-        filtered = words.isEmpty ? targets : zip(targets, searchIndex).compactMap { target, text in
-            words.allSatisfy { text.contains($0) } ? target : nil
+    private static func section(of target: ApiaryTarget) -> TargetSection.Group {
+        if target.kind == clipboardKind { return .other }
+        if target.focused { return .focused }
+        if target.isProject { return .projects }
+        if target.isChampion { return .champions }
+        return .sessions
+    }
+
+    private static func score(_ target: ApiaryTarget, text: String, words: [Substring]) -> Int? {
+        let title = target.title.lowercased()
+        var total = 0
+        for word in words {
+            guard text.contains(word) else { return nil }
+            if title.hasPrefix(word) {
+                total += 0
+            } else if title.contains(" \(word)") || title.contains("(\(word)") {
+                total += 1
+            } else if title.contains(word) {
+                total += 2
+            } else {
+                total += 4
+            }
         }
+        return total
+    }
+
+    private func regroup() {
+        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
+        var buckets: [TargetSection.Group: [(Int, Int, ApiaryTarget)]] = [:]
+        let rows: [(ApiaryTarget, String)] = Array(zip(targets, searchIndex)) + [(Self.clipboard, Self.clipboard.searchText + " copy")]
+        for (index, row) in rows.enumerated() {
+            guard let score = words.isEmpty ? 0 : Self.score(row.0, text: row.1, words: words) else { continue }
+            buckets[Self.section(of: row.0), default: []].append((score, index, row.0))
+        }
+        var built: [TargetSection] = []
+        var start = 0
+        for kind in TargetSection.Group.allCases {
+            guard let bucket = buckets[kind], !bucket.isEmpty else { continue }
+            let sorted = bucket.sorted { $0.0 == $1.0 ? $0.1 < $1.1 : $0.0 < $1.0 }.map(\.2)
+            built.append(TargetSection(group: kind, rows: sorted, start: start))
+            start += sorted.count
+        }
+        sections = built
+        filtered = built.flatMap(\.rows)
     }
 
     var selected: ApiaryTarget? {
-        let rows = filtered
-        return rows.indices.contains(selection) ? rows[selection] : nil
+        filtered.indices.contains(selection) ? filtered[selection] : nil
+    }
+
+    var matchCount: Int {
+        filtered.filter { $0.kind != Self.clipboardKind }.count
     }
 
     var canPaste: Bool { source == .apiary && selected?.viaApiary == true }
+
+    var choosesClipboard: Bool { selected?.kind == Self.clipboardKind }
 
     var isCompact: Bool { confirmation != nil || progress != nil }
 
@@ -102,10 +189,10 @@ final class TargetPickerModel {
 
     func setTargets(_ targets: [ApiaryTarget], source: Source) {
         let keep = selected
+        let moved = selection != 0 || !query.isEmpty
         self.targets = targets
         self.source = source
-        let moved = selection != 0 || !query.isEmpty
-        if moved, let keep, let index = filtered.firstIndex(where: { $0.kind == keep.kind && $0.id == keep.id }) { selection = index } else { selection = 0 }
+        if moved, let keep, let index = filtered.firstIndex(where: { $0.key == keep.key }) { selection = index } else { selection = 0 }
     }
 
     func move(_ delta: Int) {
@@ -114,8 +201,23 @@ final class TargetPickerModel {
         selection = (selection + delta + count) % count
     }
 
+    func jump(_ delta: Int) {
+        let starts = sections.map(\.start)
+        guard !starts.isEmpty else { return }
+        if delta > 0 {
+            selection = starts.first { $0 > selection } ?? starts[0]
+        } else {
+            let current = starts.last { $0 <= selection } ?? 0
+            selection = current < selection ? current : (starts.last { $0 < current } ?? starts[starts.count - 1])
+        }
+    }
+
     func choose(_ mode: DeliveryMode) {
         guard !delivering, confirmation == nil, let target = selected else { return }
+        if target.kind == Self.clipboardKind {
+            onDismiss?()
+            return
+        }
         let mode = canPaste ? mode : .send
         if phase == .finishing {
             queued = mode
@@ -144,7 +246,7 @@ final class TargetPickerModel {
 }
 
 final class TargetPickerController {
-    static let size = CGSize(width: 460, height: 404)
+    static let size = CGSize(width: 460, height: 520)
 
     let model = TargetPickerModel()
     private var panel: PickerPanel?
@@ -225,6 +327,19 @@ final class TargetPickerController {
         panel.setFrame(frame, display: true)
     }
 
+    var windowState: [String: Any] {
+        guard let panel else { return ["panel": "none"] }
+        return [
+            "visible": panel.isVisible,
+            "alpha": panel.alphaValue,
+            "frame": [panel.frame.minX, panel.frame.minY, panel.frame.width, panel.frame.height],
+            "content": panel.contentView.map { [$0.frame.width, $0.frame.height] } ?? [],
+            "onScreen": panel.isOnActiveSpace,
+            "occlusionVisible": panel.occlusionState.contains(.visible),
+            "level": panel.level.rawValue,
+        ]
+    }
+
     func snapshot() -> NSBitmapImageRep? {
         if let panel, panel.isVisible, let image = SnapshotMode.windowImage(CGWindowID(panel.windowNumber)) {
             return NSBitmapImageRep(cgImage: image)
@@ -261,6 +376,8 @@ final class TargetPickerController {
                 model.move(1)
             case 126:
                 model.move(-1)
+            case 48:
+                model.jump(event.modifierFlags.contains(.shift) ? -1 : 1)
             case 36, 76:
                 model.choose(event.modifierFlags.contains(.command) ? .send : .paste)
             case 53:
@@ -288,6 +405,9 @@ struct PickerKey {
     static let enter = PickerKey(code: 36, characters: "\r")
     static let commandEnter = PickerKey(code: 36, characters: "\r", modifiers: .command)
     static let escape = PickerKey(code: 53, characters: "\u{1B}")
+    static let tab = PickerKey(code: 48, characters: "\t")
+    static let shiftTab = PickerKey(code: 48, characters: "\t", modifiers: .shift)
+    static let delete = PickerKey(code: 51, characters: "\u{7F}")
 
     static func character(_ value: Character) -> PickerKey {
         PickerKey(code: 0, characters: String(value))
@@ -310,232 +430,244 @@ struct TargetPickerView: View {
                 confirmed(line)
             } else {
                 header
-                asks
-                    .frame(height: 70, alignment: .topLeading)
-                Divider().overlay(Palette.hairline)
-                targetSection(query: $model.query)
-                Spacer(minLength: 0)
+                search(query: $model.query)
+                list
+                Rectangle().fill(Palette.hairline).frame(height: 1)
                 footer
             }
         }
         .frame(width: TargetPickerController.size.width, height: model.isCompact ? 52 : TargetPickerController.size.height, alignment: .topLeading)
         .background(Palette.hud, in: .rect(cornerRadius: Radius.panel, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous).strokeBorder(Palette.stroke, lineWidth: 1))
+        .clipShape(.rect(cornerRadius: Radius.panel, style: .continuous))
         .onChange(of: model.focusToken, initial: true) { fieldFocused = true }
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Text("Walkthrough")
-                .font(Typography.headline)
-            if let meta {
-                Text(meta)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
-            }
-            Spacer()
-            switch model.phase {
-            case .finishing:
-                HStack(spacing: 6) {
-                    ProgressView().controlSize(.mini)
-                    Text("Finishing")
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text("Send walkthrough")
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.text)
+                if let meta {
+                    Text(meta)
+                        .font(Typography.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.textTertiary)
+                        .lineLimit(1)
                 }
-                .font(Typography.caption)
+                Spacer(minLength: 8)
+                badge
+            }
+            summary
+                .font(Typography.callout)
                 .foregroundStyle(Palette.textSecondary)
-            case .ready:
-                if model.walkthrough?.walkthrough.transcript.failure != nil {
-                    StatusBadge(text: "No transcript", tone: .caution)
-                } else if model.walkthrough?.walkthrough.transcript.isIncomplete == true {
-                    StatusBadge(text: "Transcript gaps", tone: .caution)
-                } else {
-                    StatusBadge(text: "Ready", tone: .positive)
-                }
-            case .failed:
-                StatusBadge(text: "Not saved", tone: .negative)
-            }
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(height: 16, alignment: .leading)
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)
-        .padding(.bottom, 8)
+        .padding(.bottom, 10)
+    }
+
+    @ViewBuilder
+    private var badge: some View {
+        switch model.phase {
+        case .finishing:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text("Finishing")
+            }
+            .font(Typography.caption)
+            .foregroundStyle(Palette.textSecondary)
+        case .ready:
+            if model.walkthrough?.walkthrough.transcript.failure != nil {
+                StatusBadge(text: "No transcript", tone: .caution)
+            } else if model.walkthrough?.walkthrough.transcript.isIncomplete == true {
+                StatusBadge(text: "Transcript gaps", tone: .caution)
+            } else {
+                StatusBadge(text: "Ready", tone: .positive)
+            }
+        case .failed:
+            StatusBadge(text: "Not saved", tone: .negative)
+        }
     }
 
     private var meta: String? {
         guard let value = model.walkthrough?.walkthrough else { return nil }
         let pins = value.pointers.filter { $0.via == .pin }.count
+        let asks = value.asks.items.count
         var parts = [WalkthroughText.clock(value.duration)]
         if pins > 0 { parts.append("\(pins) \(pins == 1 ? "pin" : "pins")") }
-        let apiary = value.pointers.filter { $0.source == .apiary }.count
-        if apiary > 0 { parts.append("\(apiary) in Apiary") }
+        if asks > 0 { parts.append("\(asks) \(asks == 1 ? "ask" : "asks")") }
         return parts.joined(separator: " · ")
     }
 
-    @ViewBuilder
-    private var asks: some View {
+    private var summary: Text {
         switch model.phase {
         case .finishing:
-            Text("The asks appear here when the transcript is done.")
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textTertiary)
-                .padding(.horizontal, 16)
+            return Text("The asks appear here when the transcript is done.").foregroundStyle(Palette.textTertiary)
         case .failed(let message):
-            Text(message)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, 16)
+            return Text(message)
         case .ready:
-            let items = model.walkthrough?.walkthrough.asks.items ?? []
-            VStack(alignment: .leading, spacing: 3) {
-                if let failure = model.walkthrough?.walkthrough.transcript.failure {
-                    Text(TranscriptProblem.title(failure))
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundStyle(Palette.text)
-                    Text(TranscriptProblem.detail(failure))
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(2)
-                } else if let events = model.walkthrough?.walkthrough.transcript.events, !events.isEmpty {
-                    Text(TranscriptProblem.gapsTitle(events))
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundStyle(Palette.text)
-                    Text(TranscriptProblem.gapsDetail(events))
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(2)
-                }
-                if items.isEmpty, model.walkthrough?.walkthrough.transcript.isIncomplete != true {
-                    Text("No asks found. The agent reads the transcript.")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textTertiary)
-                }
-                ForEach(Array(items.prefix(3).enumerated()), id: \.offset) { index, ask in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(index + 1)")
-                            .font(Typography.mono)
-                            .foregroundStyle(Palette.textQuaternary)
-                        Text(ask.text)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(Palette.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-                if items.count > 3 {
-                    Text("+\(items.count - 3) more")
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textQuaternary)
-                }
+            guard let walkthrough = model.walkthrough?.walkthrough else { return Text("") }
+            if let failure = walkthrough.transcript.failure {
+                return Text("\(Text(TranscriptProblem.title(failure)).foregroundStyle(Palette.text)). \(TranscriptProblem.detail(failure))")
             }
-            .padding(.horizontal, 16)
-            .transition(.opacity)
+            if let events = walkthrough.transcript.events, !events.isEmpty {
+                return Text("\(Text(TranscriptProblem.gapsTitle(events)).foregroundStyle(Palette.text)). \(TranscriptProblem.gapsDetail(events))")
+            }
+            let items = walkthrough.asks.items
+            guard let first = items.first else { return Text("No asks found. The agent reads the transcript.").foregroundStyle(Palette.textTertiary) }
+            guard items.count > 1 else { return Text(first.text) }
+            return Text("\(first.text)  \(Text("+\(items.count - 1) more").foregroundStyle(Palette.textTertiary))")
         }
     }
 
-    private func targetSection(query: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(model.canPaste || model.source == .loading ? "Paste into" : "Send to")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
-                Spacer()
-                Text("↑↓ choose · type to filter")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textQuaternary)
-            }
-            TextField("Type a session or Champion", text: query)
+    private func search(query: Binding<String>) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Palette.textTertiary)
+            TextField("Find a Champion, Project or session", text: query)
                 .textFieldStyle(.plain)
-                .font(Typography.body)
+                .font(.system(size: 15))
+                .foregroundStyle(Palette.text)
                 .focused($fieldFocused)
-                .padding(.horizontal, 10)
-                .frame(height: 30)
-                .background(Palette.fill, in: .rect(cornerRadius: Radius.control, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.hairline))
-            rows
+            if !model.query.isEmpty {
+                Text("\(model.matchCount) \(model.matchCount == 1 ? "match" : "matches")")
+                    .font(Typography.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.textTertiary)
+            }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+        .frame(height: 44)
+        .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Palette.hairline).frame(height: 1) }
     }
 
-    @ViewBuilder
-    private var rows: some View {
-        let rows = model.filtered
-        if rows.isEmpty {
-            Text(emptyText)
-                .font(Typography.caption)
-                .foregroundStyle(Palette.textTertiary)
-                .padding(.vertical, 8)
-        } else {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(Array(rows.enumerated()), id: \.element.key) { index, target in
-                            row(target, selected: index == model.selection)
-                                .contentShape(.rect)
-                                .onTapGesture {
-                                    model.selection = index
-                                    model.choose(.paste)
-                                }
+    private var note: String? {
+        switch model.source {
+        case .loading where model.targets.isEmpty: return "Loading chats…"
+        case .none: return "Apiary and hive aren't running. The walkthrough is on the clipboard."
+        default: return !model.query.isEmpty && model.matchCount == 0 ? "Nothing matches “\(model.query)”." : nil
+        }
+    }
+
+    private var list: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if let note {
+                        Text(note)
+                            .font(Typography.callout)
+                            .foregroundStyle(Palette.textTertiary)
+                            .padding(.horizontal, 8)
+                            .padding(.top, 12)
+                            .padding(.bottom, 2)
+                    }
+                    ForEach(model.sections) { section in
+                        Section {
+                            ForEach(Array(section.rows.enumerated()), id: \.element.key) { offset, target in
+                                let index = section.start + offset
+                                row(target, focused: section.group == .focused, selected: index == model.selection)
+                                    .id(target.key)
+                                    .contentShape(.rect)
+                                    .onTapGesture {
+                                        model.selection = index
+                                        model.choose(.paste)
+                                    }
+                            }
+                        } header: {
+                            sectionHeader(section)
+                                .id("group:\(section.id)")
                         }
                     }
                 }
-                .scrollIndicators(.never)
-                .frame(maxHeight: 186)
-                .onChange(of: model.selection) {
-                    if let key = model.selected?.key { proxy.scrollTo(key) }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
+            }
+            .scrollIndicators(.never)
+            .frame(maxHeight: .infinity)
+            .onChange(of: model.selection) {
+                if let section = model.sections.first(where: { $0.start == model.selection }) {
+                    proxy.scrollTo("group:\(section.id)", anchor: .top)
+                } else if let key = model.selected?.key {
+                    proxy.scrollTo(key)
                 }
             }
         }
     }
 
-    private var emptyText: String {
-        switch model.source {
-        case .loading: "Loading chats…"
-        case .none: "Apiary and hive aren't running. The walkthrough is on the clipboard."
-        case .apiary, .hive: "Nothing matches “\(model.query)”."
-        }
-    }
-
-    private func row(_ target: ApiaryTarget, selected: Bool) -> some View {
-        HStack(spacing: 9) {
-            StatusDot(tone: target.focused ? .active : (target.open ? .neutral : .neutral), size: 5)
-                .opacity(target.focused || target.open ? 1 : 0.4)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(target.title)
-                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? Palette.text : Palette.textSecondary)
-                    .lineLimit(1)
-                if let workspace = target.workspaceLabel {
-                    Text(workspace)
-                        .font(Typography.caption)
-                        .foregroundStyle(Palette.textTertiary)
-                        .lineLimit(1)
-                        .help(workspace)
-                }
-            }
-            if target.focused {
-                Text("focused chat")
+    private func sectionHeader(_ section: TargetSection) -> some View {
+        HStack(spacing: 6) {
+            Text(section.group.title)
+                .font(Typography.label)
+                .tracking(0.9)
+                .textCase(.uppercase)
+                .foregroundStyle(Palette.textTertiary)
+            if section.group != .other {
+                Text("\(section.rows.count)")
                     .font(Typography.caption)
+                    .monospacedDigit()
                     .foregroundStyle(Palette.textTertiary)
             }
-            Spacer(minLength: 6)
-            Text(target.championName != nil || target.kind == "champion" ? "Champion" : (target.handle ?? target.kind))
-                .font(Typography.mono)
-                .foregroundStyle(Palette.textQuaternary)
-                .lineLimit(1)
+            Spacer()
         }
         .padding(.horizontal, 8)
-        .frame(height: target.workspaceLabel == nil ? 30 : 44)
-        .background(selected ? Palette.selection : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func subtitle(_ target: ApiaryTarget, focused: Bool) -> String {
+        if target.kind == TargetPickerModel.clipboardKind { return target.subtitle ?? "" }
+        var parts: [String] = []
+        if focused { parts.append(target.isProject ? "Orchestrator" : target.isChampion ? "Champion" : "Session") }
+        if !target.isProject, !target.isChampion, let detail = target.subtitle ?? target.handle { parts.append(detail) }
+        if let workspace = target.workspaceName { parts.append(workspace) }
+        if let state = target.state { parts.append(state) }
+        return parts.joined(separator: " · ")
+    }
+
+    private func row(_ target: ApiaryTarget, focused: Bool, selected: Bool) -> some View {
+        let detail = subtitle(target, focused: focused)
+        return HStack(spacing: 10) {
+            TargetIcon(target: target)
+            VStack(alignment: .leading, spacing: 1) {
+                HighlightText(
+                    text: target.title,
+                    query: model.query,
+                    color: selected ? Palette.onInk : Palette.text,
+                    dim: selected ? Palette.onInk.opacity(0.72) : Palette.textSecondary
+                )
+                .lineLimit(1)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(Typography.caption)
+                        .foregroundStyle(selected ? Palette.onInk.opacity(0.72) : Palette.textTertiary)
+                        .lineLimit(1)
+                        .help(detail)
+                }
+            }
+            Spacer(minLength: 6)
+            if selected {
+                KeyHint("↩", emphasized: true)
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 36)
+        .background(selected ? Palette.ink : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
     }
 
     private var footer: some View {
         HStack(spacing: 12) {
-            hint("esc", "clipboard only")
-            if model.canPaste { hint("⌘↩", "send now") }
-            Spacer()
-            if let debug = model.debugDirectory {
-                Button("Reveal debug data") { model.onRevealDebug?(debug) }
-                    .buttonStyle(QuietButtonStyle())
-                    .help("Open this walkthrough's debug folder in Finder")
-            }
+            hint("⇥", "Next group")
+            hint("esc", "Clipboard only")
+            if model.canPaste { hint("⌘↩", "Send now") }
+            Spacer(minLength: 6)
             if let problem = model.problem {
                 HStack(spacing: 6) {
                     StatusDot(tone: .negative)
@@ -543,30 +675,36 @@ struct TargetPickerView: View {
                 }
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textSecondary)
+                .help(problem)
             } else if model.queued != nil {
                 Text("Sends when ready")
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
+            } else if let debug = model.debugDirectory {
+                Button("Debug data") { model.onRevealDebug?(debug) }
+                    .buttonStyle(QuietButtonStyle())
+                    .help("Open this walkthrough's debug folder in Finder")
             }
-            Button(model.canPaste ? "Paste ↩" : "Send ↩") { model.choose(.paste) }
-                .buttonStyle(PrimaryButtonStyle(large: false))
-                .disabled(model.selected == nil || model.delivering || model.queued != nil)
+            Button { model.choose(.paste) } label: {
+                HStack(spacing: 6) {
+                    Text(model.choosesClipboard ? "Copy" : model.canPaste ? "Paste" : "Send")
+                    KeyHint("↩", emphasized: true)
+                }
+            }
+            .buttonStyle(PrimaryButtonStyle(large: false))
+            .disabled(model.selected == nil || model.delivering || model.queued != nil)
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 14)
+        .frame(height: 48)
     }
 
     private func hint(_ key: String, _ label: String) -> some View {
         HStack(spacing: 5) {
-            Text(key)
-                .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                .padding(.horizontal, 5)
-                .frame(height: 18)
-                .background(Palette.fillRaised, in: .rect(cornerRadius: 5, style: .continuous))
+            KeyHint(key)
             Text(label)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textTertiary)
         }
-        .font(Typography.caption)
-        .foregroundStyle(Palette.textTertiary)
     }
 
     private func confirmed(_ text: String) -> some View {
@@ -584,6 +722,56 @@ struct TargetPickerView: View {
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .transition(.opacity)
+    }
+}
+
+struct HighlightText: View {
+    var text: String
+    var query: String
+    var size: CGFloat = 13
+    var color: Color = Palette.text
+    var dim: Color = Palette.textSecondary
+
+    var body: some View {
+        let runs = Self.runs(text, query)
+        if runs.count == 1, !runs[0].1 {
+            Text(text).font(.system(size: size, weight: .medium)).foregroundStyle(color)
+        } else {
+            runs.reduce(Text("")) { result, run in
+                let piece = Text(run.0)
+                    .font(.system(size: size, weight: run.1 ? .bold : .medium))
+                    .foregroundStyle(run.1 ? color : dim)
+                return Text("\(result)\(piece)")
+            }
+        }
+    }
+
+    static func runs(_ text: String, _ query: String) -> [(String, Bool)] {
+        let words = query.lowercased().split(whereSeparator: \.isWhitespace).map { Array($0) }
+        let source = Array(text)
+        let lower = source.map { $0.lowercased().first ?? $0 }
+        guard !words.isEmpty else { return [(text, false)] }
+        var mask = Array(repeating: false, count: source.count)
+        for word in words where word.count <= lower.count {
+            var start = 0
+            while start + word.count <= lower.count {
+                if Array(lower[start..<(start + word.count)]) == word {
+                    for index in start..<(start + word.count) { mask[index] = true }
+                    start += word.count
+                } else {
+                    start += 1
+                }
+            }
+        }
+        var runs: [(String, Bool)] = []
+        for (index, character) in source.enumerated() {
+            if let last = runs.last, last.1 == mask[index] {
+                runs[runs.count - 1].0.append(character)
+            } else {
+                runs.append((String(character), mask[index]))
+            }
+        }
+        return runs.isEmpty ? [(text, false)] : runs
     }
 }
 

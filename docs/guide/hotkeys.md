@@ -48,6 +48,8 @@ You can change the start shortcut in the *Point* step of the setup guide (menu b
 
 | Keys | Action |
 |---|---|
+| `↑` `↓` | Move through the list |
+| `Tab` | Jump to the next group (`⇧Tab` goes back) |
 | `Enter` | Paste into the chosen chat |
 | `⌘↩` | Send to the chosen chat or session |
 | `Esc` | Leave the walkthrough on the clipboard only |
