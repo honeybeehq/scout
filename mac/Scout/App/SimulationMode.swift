@@ -160,7 +160,7 @@ enum SimulationMode {
     }
 
     static var isRunning: Bool {
-        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || CaptureUXDemo.outputDirectory != nil || ExpandKeyCheck.outputDirectory != nil || HeroDemo.outputDirectory != nil
+        audioFile != nil || reopensLatest || deliveryCheck != nil || walkthroughFixture != nil || QueuedSendDrill.fixture != nil || CaptureUXDemo.outputDirectory != nil || ExpandKeyCheck.outputDirectory != nil || HeroDemo.outputDirectory != nil
     }
 
     static var panelSharing: NSWindow.SharingType {
@@ -720,6 +720,11 @@ enum SimulationMode {
             try? data.write(to: output.appendingPathComponent("quick-stop.json"))
         }
         NSApp.terminate(nil)
+    }
+
+    static var walkthroughFinishDelay: Duration? {
+        guard !ScoutDataRoot.current.isRelease, let value = argument("walkthrough-finish-delay-ms").flatMap(Int.init), value > 0 else { return nil }
+        return .milliseconds(value)
     }
 
     static var asksDryRun: Bool {

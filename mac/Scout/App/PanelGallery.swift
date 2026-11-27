@@ -83,7 +83,7 @@ enum PanelGallery {
         NSApp.terminate(nil)
     }
 
-    private static func render(_ view: some View, scheme: ColorScheme, to url: URL) {
+    static func render(_ view: some View, scheme: ColorScheme, to url: URL) {
         let renderer = ImageRenderer(content: view.environment(\.stillRender, true).environment(\.colorScheme, scheme))
         renderer.scale = 2
         guard let image = renderer.cgImage else { return }

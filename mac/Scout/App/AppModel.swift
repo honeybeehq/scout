@@ -164,7 +164,9 @@ final class AppModel {
         if let flow = EngineFlowSimulation.requested {
             Task { await EngineFlowSimulation.run(flow, model: self) }
         }
-        if let fixture = SimulationMode.walkthroughFixture {
+        if let fixture = QueuedSendDrill.fixture {
+            Task { await QueuedSendDrill.run(model: self, fixtureURL: fixture) }
+        } else if let fixture = SimulationMode.walkthroughFixture {
             Task { await SimulationMode.runWalkthrough(model: self, fixtureURL: fixture) }
         } else if let audio = SimulationMode.audioFile {
             if SimulationMode.isQuickStop {
@@ -457,6 +459,7 @@ final class AppModel {
     private func finishWalkthrough(_ walkthrough: WalkthroughRecorder, of session: ScoutingSession, pressedAt: ContinuousClock.Instant, handedOff: (() -> Void)? = nil) async {
         await session.end()
         let ended = ContinuousClock.now
+        if let delay = SimulationMode.walkthroughFinishDelay { try? await Task.sleep(for: delay) }
         do {
             let outcome = try await walkthrough.finish(at: session.ledger.end, sources: walkthroughSources(of: session, recorder: walkthrough))
             if SimulationMode.writesPasteboard { WalkthroughPasteboard.put(outcome.directory) }
@@ -528,7 +531,7 @@ final class AppModel {
         openPicker(for: lastWalkthrough, expecting: lastWalkthrough.walkthrough.id, pressedAt: .now)
     }
 
-    @ObservationIgnored private var pickerWalkthroughID: String?
+    @ObservationIgnored private(set) var pickerWalkthroughID: String?
     @ObservationIgnored private var pickerOpenings = 0
     @ObservationIgnored private var deliveries: [Int: Task<Void, Never>] = [:]
     @ObservationIgnored private var deliveryCount = 0
