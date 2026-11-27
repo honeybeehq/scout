@@ -1,213 +1,1389 @@
 {
-  "cases": [
-    {"id": "pricing-copy", "tags": ["no-name", "recent-wrong"], "gold": "s:site-pricing",
-     "feedback": {"app": "Safari", "url": "https://scout.honeybee.dev/pricing", "pageTitle": "Pricing · Scout", "transcript": "Okay so on this page, the second paragraph still says it's per seat, but it's free, there's no seat thing at all. And down in the FAQ the Linux answer should just say macOS only for now, not 'coming soon'."},
-     "candidates": ["c:scout", "c:scout-site", "s:site-pricing", "s:scout-site-docs", "s:scout-hotkeys", "p:project-scout-jev", "c:apiary", "c:nectar"],
-     "recency": {"s:scout-hotkeys": 2, "c:scout": 9, "s:site-pricing": 300}},
-
-    {"id": "guide-hotkeys-page", "tags": ["similar-name", "no-name"], "gold": "s:scout-site-docs",
-     "feedback": {"app": "Safari", "url": "https://scout.honeybee.dev/guide/hotkeys", "pageTitle": "Hotkeys · Scout guide", "transcript": "The sidebar here has Hotkeys under Troubleshooting which makes no sense, move it up next to Modes. Also the table on this page is missing the aim key."},
-     "candidates": ["s:scout-hotkeys", "s:scout-site-docs", "c:scout-site", "c:scout", "s:site-pricing", "c:foundation", "s:foundation-tables"],
-     "recency": {"s:scout-hotkeys": 1, "s:scout-site-docs": 180}},
-
-    {"id": "record-hotkey-settings", "tags": ["similar-name", "no-name"], "gold": "s:scout-hotkeys",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Scout Settings", "transcript": "In the shortcuts tab, when I click the record shortcut field and press option-space it just beeps and keeps the old one. It should take the new combo, or tell me it conflicts with Spotlight or whatever."},
-     "candidates": ["s:scout-hotkeys", "s:scout-site-docs", "s:scout-transcriber", "c:scout", "c:scout-site", "p:project-scout-picker", "p:project-scout-jev", "c:apiary"],
-     "recency": {"s:scout-site-docs": 3, "s:scout-hotkeys": 95}},
-
-    {"id": "whisper-download", "tags": ["no-name"], "gold": "s:scout-transcriber",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Scout", "transcript": "First launch on the new machine and the transcription model download just freezes the whole menu, there's no progress at all, I thought it crashed. It needs a progress bar and it shouldn't block recording setup."},
-     "candidates": ["s:scout-transcriber", "s:scout-hotkeys", "c:scout", "p:project-scout-jev", "c:apiary", "c:honeybee", "s:hive-transcripts"],
-     "recency": {"c:scout": 1, "s:hive-transcripts": 4, "s:scout-transcriber": 600}},
-
-    {"id": "picker-misclick", "tags": ["no-name", "recent-wrong"], "gold": "p:project-scout-jev",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Send to", "transcript": "I just clicked a row by accident and it sent straight away to the wrong agent. One click shouldn't send, it should select and then I press return, or give me a couple of seconds to undo."},
-     "candidates": ["p:project-scout-jev", "p:project-scout-picker", "c:scout", "s:scout-hotkeys", "s:scout-transcriber", "c:apiary", "p:project-apiary-inbox", "c:honeybee"],
-     "recency": {"p:project-scout-picker": 2, "s:scout-hotkeys": 6, "p:project-scout-jev": 40}},
-
-    {"id": "picker-tab-groups", "tags": ["similar-name", "no-name"], "gold": "p:project-scout-picker",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Send to", "transcript": "Tab is supposed to jump to the next group, but from Champions it skips Project orchestrators and lands in Sessions. Shift-tab from Sessions goes back correctly though. And the counts next to the group headers are off by one when I filter."},
-     "candidates": ["p:project-scout-jev", "p:project-scout-picker", "c:scout", "s:scout-hotkeys", "c:apiary", "p:project-apiary-inbox"],
-     "recency": {"p:project-scout-jev": 1, "s:scout-hotkeys": 5, "p:project-scout-picker": 1500}},
-
-    {"id": "jev-suggestion-wrong", "tags": ["named"], "gold": "p:project-scout-jev",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Send to", "transcript": "The suggested target thing highlighted Ledger for feedback that was obviously about the bank site. If it's that unsure it should just not highlight anything. Also the via TypeSafe tag is cut off."},
-     "candidates": ["p:project-scout-jev", "p:project-scout-picker", "c:scout", "c:ledger", "c:fjordbank-web", "s:ledger-charts", "c:apiary"],
-     "recency": {"c:ledger": 3, "s:ledger-charts": 5, "p:project-scout-jev": 25}},
-
-    {"id": "apiary-chat-jump", "tags": ["no-name"], "gold": "s:apiary-chat-scroll",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Scout · Champion chat", "transcript": "Watch this, while the reply is coming in, the whole conversation scrolls back up to the top, every few seconds. I can't read anything until it's done. It should stay pinned to the bottom unless I scrolled up myself."},
-     "candidates": ["s:apiary-chat-scroll", "s:apiary-proof-cards", "s:apiary-forum-css", "c:apiary", "p:project-apiary-forum", "p:project-apiary-inbox", "c:scout", "c:honeybee", "s:hive-transcripts"],
-     "recency": {"s:apiary-proof-cards": 2, "c:scout": 1, "s:apiary-chat-scroll": 70}},
-
-    {"id": "proof-commit-count", "tags": ["no-name", "recent-wrong"], "gold": "s:apiary-proof-cards",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Inbox", "transcript": "This proof says three commits but if you open it there's only one. The number on the card is wrong. Happens on the other one too."},
-     "candidates": ["s:apiary-proof-cards", "p:project-apiary-inbox", "p:project-apiary-forum", "s:apiary-chat-scroll", "c:apiary", "s:apiary-forum-css", "c:pollinate", "p:project-pollinate-github"],
-     "recency": {"p:project-apiary-inbox": 1, "s:apiary-chat-scroll": 4, "s:apiary-proof-cards": 200}},
-
-    {"id": "inbox-snooze", "tags": ["no-name"], "gold": "p:project-apiary-inbox",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Inbox", "transcript": "When I snooze something until tomorrow it vanishes, fine, but there's no way to see what I've snoozed. Need a Snoozed filter up here next to Waiting. And J and K should move between items like everywhere else."},
-     "candidates": ["p:project-apiary-inbox", "p:project-apiary-forum", "s:apiary-proof-cards", "c:apiary", "s:apiary-chat-scroll", "c:scout", "c:hem"],
-     "recency": {"s:apiary-proof-cards": 2, "p:project-apiary-inbox": 30}},
-
-    {"id": "forum-header-spacing", "tags": ["no-name"], "gold": "s:apiary-forum-css",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Forum · Packet 214", "transcript": "The header on this packet is cramped, the title is touching the reviewer avatars and the avatars are overlapping each other. Give it some breathing room."},
-     "candidates": ["s:apiary-forum-css", "p:project-apiary-forum", "s:apiary-proof-cards", "c:apiary", "p:project-apiary-inbox", "c:foundation", "s:foundation-tables"],
-     "recency": {"p:project-apiary-forum": 3, "s:apiary-forum-css": 50}},
-
-    {"id": "forum-thread-layout", "tags": ["no-name"], "gold": "p:project-apiary-forum",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Forum · Packet 214", "transcript": "The review thread under the packet should be collapsed by default, and the proof card should sit above the thread, not at the bottom where nobody sees it. This is more about the whole packet layout than the header."},
-     "candidates": ["s:apiary-forum-css", "p:project-apiary-forum", "s:apiary-proof-cards", "c:apiary", "p:project-apiary-inbox", "s:apiary-chat-scroll"],
-     "recency": {"s:apiary-forum-css": 1, "s:apiary-proof-cards": 8, "p:project-apiary-forum": 400}},
-
-    {"id": "fjord-login-voiceover", "tags": ["no-name"], "gold": "s:fjord-login-a11y",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/logg-inn?ref=forside", "pageTitle": "Logg inn – Fjordbank", "transcript": "With VoiceOver on, the BankID button just reads 'button', no label. And tabbing goes from the logo straight to the footer, it skips the personal number field."},
-     "candidates": ["s:fjord-login-a11y", "s:fjord-payments-table", "c:fjordbank-web", "c:fjordbank-app", "p:project-fjordbank-onboarding", "p:project-fjordbank-payments", "s:fjord-app-cards", "c:scout", "s:scout-hotkeys"],
-     "recency": {"s:scout-hotkeys": 1, "s:fjord-payments-table": 6, "s:fjord-login-a11y": 900}},
-
-    {"id": "fjord-payment-history-sort", "tags": ["no-name", "recent-wrong"], "gold": "s:fjord-payments-table",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/betalinger/historikk", "pageTitle": "Betalingshistorikk – Fjordbank", "transcript": "Clicking the date header sorts it alphabetically, look, the 10th comes before the 2nd. And the date column wraps onto two lines on this width."},
-     "candidates": ["s:fjord-payments-table", "s:fjord-login-a11y", "c:fjordbank-web", "p:project-fjordbank-payments", "p:project-fjordbank-onboarding", "c:fjordbank-app", "c:ledger", "s:ledger-charts"],
-     "recency": {"s:fjord-login-a11y": 1, "p:project-fjordbank-payments": 4, "s:fjord-payments-table": 240}},
-
-    {"id": "fjord-recurring-payment", "tags": ["no-name"], "gold": "p:project-fjordbank-payments",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/betalinger/ny", "pageTitle": "Ny betaling – Fjordbank", "transcript": "When I tick repeat monthly there's no end date option, so it'd go forever. And the confirm step should show the first and last date before I sign with BankID."},
-     "candidates": ["s:fjord-payments-table", "p:project-fjordbank-payments", "c:fjordbank-web", "p:project-fjordbank-onboarding", "s:fjord-login-a11y", "c:fjordbank-app", "s:fjord-app-cards"],
-     "recency": {"s:fjord-payments-table": 2, "c:fjordbank-web": 10, "p:project-fjordbank-payments": 600}},
-
-    {"id": "fjord-onboarding-kyc", "tags": ["no-name"], "gold": "p:project-fjordbank-onboarding",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/bli-kunde/steg-3", "pageTitle": "Bli kunde – steg 3 av 5 – Fjordbank", "transcript": "This question about the source of funds has a dropdown with like thirty options, nobody will read that. Group them, and the back button here loses everything I typed in step two."},
-     "candidates": ["p:project-fjordbank-onboarding", "p:project-fjordbank-payments", "c:fjordbank-web", "s:fjord-login-a11y", "s:fjord-payments-table", "c:fjordbank-app", "c:apiary", "c:scout"],
-     "recency": {"s:fjord-login-a11y": 3, "p:project-fjordbank-onboarding": 120}},
-
-    {"id": "fjord-web-generic", "tags": ["no-name"], "gold": "c:fjordbank-web",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/konto/oversikt", "pageTitle": "Kontooversikt – Fjordbank", "transcript": "The account overview: the balances aren't right aligned so the decimals don't line up, and the savings account name gets cut off with no tooltip."},
-     "candidates": ["c:fjordbank-web", "c:fjordbank-app", "s:fjord-payments-table", "s:fjord-login-a11y", "p:project-fjordbank-onboarding", "p:project-fjordbank-payments", "c:ledger", "s:ledger-charts", "s:fjord-app-cards"],
-     "recency": {"c:fjordbank-app": 2, "s:fjord-app-cards": 5, "c:fjordbank-web": 1440}},
-
-    {"id": "fjord-app-freeze-card", "tags": ["similar-name", "no-name"], "gold": "s:fjord-app-cards",
-     "feedback": {"app": "Simulator", "url": "", "pageTitle": "iPhone 17 – iOS 26.1", "transcript": "When I flip freeze card the sheet asks 'are you sure' with OK and Cancel, it should say Freeze card and keep it. And after freezing the toggle flips back for a second before it settles."},
-     "candidates": ["s:fjord-app-cards", "c:fjordbank-app", "c:fjordbank-web", "s:fjord-login-a11y", "s:fjord-payments-table", "p:project-fjordbank-payments", "c:ledger"],
-     "recency": {"c:fjordbank-web": 1, "s:fjord-login-a11y": 3, "s:fjord-app-cards": 300}},
-
-    {"id": "fjord-app-push", "tags": ["similar-name", "no-name"], "gold": "c:fjordbank-app",
-     "feedback": {"app": "Simulator", "url": "", "pageTitle": "iPhone 17 – iOS 26.1", "transcript": "The push notification for an incoming payment shows the raw amount in øre, like 125000, it should say 1 250 kr. Tapping it opens the home screen not the transaction."},
-     "candidates": ["c:fjordbank-web", "c:fjordbank-app", "s:fjord-app-cards", "s:fjord-payments-table", "p:project-fjordbank-payments", "c:ledger", "s:ledger-charts", "c:pollinate"],
-     "recency": {"c:fjordbank-web": 2, "s:fjord-payments-table": 7, "c:fjordbank-app": 2000}},
-
-    {"id": "ledger-chart-colours", "tags": ["no-name"], "gold": "s:ledger-charts",
-     "feedback": {"app": "Ledger", "url": "", "pageTitle": "Spending – November", "transcript": "Groceries and dining are both orange here so I can't tell them apart, and the legend at the bottom doesn't match the order of the bars."},
-     "candidates": ["s:ledger-charts", "c:ledger", "p:project-ledger-sync", "c:fjordbank-app", "c:fjordbank-web", "s:fjord-payments-table", "c:kitchen", "c:scout"],
-     "recency": {"p:project-ledger-sync": 2, "c:fjordbank-web": 4, "s:ledger-charts": 1000}},
-
-    {"id": "ledger-sync-duplicate", "tags": ["no-name"], "gold": "p:project-ledger-sync",
-     "feedback": {"app": "Ledger", "url": "", "pageTitle": "Transactions", "transcript": "I added this coffee on my phone, and now on the Mac it's there twice. Editing one changes neither. Something in the syncing is creating duplicates."},
-     "candidates": ["s:ledger-charts", "c:ledger", "p:project-ledger-sync", "c:fjordbank-app", "c:kitchen", "c:honeybee", "c:apiary"],
-     "recency": {"s:ledger-charts": 1, "c:ledger": 30, "p:project-ledger-sync": 2880}},
-
-    {"id": "ledger-budget-generic", "tags": ["no-name"], "gold": "c:ledger",
-     "feedback": {"app": "Ledger", "url": "", "pageTitle": "Budgets", "transcript": "I want to be able to roll over what's left of a budget into next month. Right now December starts at zero again. Not urgent, just an idea."},
-     "candidates": ["s:ledger-charts", "c:ledger", "p:project-ledger-sync", "c:fjordbank-app", "c:fjordbank-web", "c:kitchen", "s:kitchen-search"],
-     "recency": {"s:ledger-charts": 2, "p:project-ledger-sync": 9, "c:ledger": 4000}},
-
-    {"id": "kitchen-search-aa", "tags": ["no-name"], "gold": "s:kitchen-search",
-     "feedback": {"app": "Safari", "url": "https://kokebok.thto.no/sok?q=bl%C3%A5b%C3%A6r", "pageTitle": "Søk – Kokebok", "transcript": "I searched for blåbær and got nothing, but there's a blueberry pie recipe that literally has blåbær in it. Searching bl works. So the special letters break it."},
-     "candidates": ["s:kitchen-search", "c:kitchen", "c:ledger", "s:ledger-charts", "c:scout-site", "c:nectar", "c:foundation"],
-     "recency": {"c:kitchen": 1, "c:nectar": 3, "s:kitchen-search": 500}},
-
-    {"id": "kitchen-meal-planner", "tags": ["no-name"], "gold": "c:kitchen",
-     "feedback": {"app": "Safari", "url": "https://kokebok.thto.no/ukemeny", "pageTitle": "Ukemeny – Kokebok", "transcript": "On the weekly menu, if I drag Tuesday's dinner onto Thursday it should swap them, right now it duplicates. And the shopping list should update after."},
-     "candidates": ["s:kitchen-search", "c:kitchen", "c:ledger", "p:project-ledger-sync", "c:scout", "c:apiary", "s:apiary-chat-scroll"],
-     "recency": {"s:kitchen-search": 1, "c:kitchen": 3000}},
-
-    {"id": "nectar-public-flag", "tags": ["no-name"], "gold": "s:nectar-cli",
-     "feedback": {"app": "Ghostty", "url": "", "pageTitle": "~/src/demo — nectar share --public", "transcript": "I ran share with dash dash public and it printed the tailnet address again, the ts.net one, not the nctr.site link. So I sent the wrong link to the client."},
-     "candidates": ["s:nectar-cli", "p:project-nectar-public", "c:nectar", "c:honeybee", "s:hive-transcripts", "c:pollinate", "c:hem", "c:scout"],
-     "recency": {"p:project-nectar-public": 1, "s:hive-transcripts": 4, "s:nectar-cli": 160}},
-
-    {"id": "nectar-link-expiry", "tags": ["no-name"], "gold": "p:project-nectar-public",
-     "feedback": {"app": "Safari", "url": "https://abc123.nctr.site/", "pageTitle": "Preview · checkout-demo", "transcript": "This public link from last week still works, I thought they expired after a day? There should be an expiry I can pick, and some way to see who opened it."},
-     "candidates": ["s:nectar-cli", "p:project-nectar-public", "c:nectar", "c:hem", "c:pollinate", "c:apiary", "c:scout-site"],
-     "recency": {"s:nectar-cli": 2, "c:nectar": 20, "p:project-nectar-public": 700}},
-
-    {"id": "hive-follow", "tags": ["no-name"], "gold": "s:hive-transcripts",
-     "feedback": {"app": "Ghostty", "url": "", "pageTitle": "hive transcript CL.31a2 --follow", "transcript": "Following this transcript, the last line of each message never shows until the next message comes in. It's always one line behind."},
-     "candidates": ["s:hive-transcripts", "c:honeybee", "s:nectar-cli", "c:apiary", "s:apiary-chat-scroll", "c:pollinate", "s:pollinate-webhooks"],
-     "recency": {"s:apiary-chat-scroll": 1, "c:honeybee": 15, "s:hive-transcripts": 360}},
-
-    {"id": "hive-cells-generic", "tags": ["no-name"], "gold": "c:honeybee",
-     "feedback": {"app": "Ghostty", "url": "", "pageTitle": "hive cells list", "transcript": "The cells list doesn't show which ones are dirty. I have like forty and no idea which have uncommitted work. Add a column or a flag to filter."},
-     "candidates": ["s:hive-transcripts", "c:honeybee", "c:apiary", "s:nectar-cli", "c:pollinate", "c:hem", "c:scout", "s:scout-hotkeys"],
-     "recency": {"s:hive-transcripts": 1, "s:scout-hotkeys": 2, "c:honeybee": 5000}},
-
-    {"id": "pollinate-signature", "tags": ["no-name"], "gold": "s:pollinate-webhooks",
-     "feedback": {"app": "Google Chrome", "url": "https://github.com/honeybeehq/apiary/settings/hooks/412", "pageTitle": "Webhooks · honeybeehq/apiary", "transcript": "Every delivery here is red since yesterday, 401 invalid signature. That's right after we rotated the webhook secret, so whatever checks it still has the old one."},
-     "candidates": ["s:pollinate-webhooks", "p:project-pollinate-github", "c:pollinate", "c:hem", "c:apiary", "s:apiary-proof-cards", "c:honeybee"],
-     "recency": {"c:apiary": 1, "p:project-pollinate-github": 5, "s:pollinate-webhooks": 1200}},
-
-    {"id": "pollinate-pr-routing", "tags": ["no-name"], "gold": "p:project-pollinate-github",
-     "feedback": {"app": "Google Chrome", "url": "https://github.com/honeybeehq/scout/pull/88", "pageTitle": "Picker tab order by trmdy · Pull Request #88", "transcript": "I left a review comment on this PR an hour ago and the bee that opened it never heard about it. Comments should get to the session that owns the PR, batched, not one ping per comment."},
-     "candidates": ["s:pollinate-webhooks", "p:project-pollinate-github", "c:pollinate", "c:scout", "p:project-scout-picker", "s:scout-hotkeys", "c:honeybee", "c:apiary"],
-     "recency": {"p:project-scout-picker": 2, "c:scout": 3, "p:project-pollinate-github": 800}},
-
-    {"id": "hem-approval-prompt", "tags": ["no-name"], "gold": "c:hem",
-     "feedback": {"app": "Hem", "url": "", "pageTitle": "Approve access", "transcript": "This approval prompt doesn't say which agent is asking, just a bee id. I can't approve something when I don't know who it is. Show the session name and what it's working on."},
-     "candidates": ["c:hem", "c:apiary", "c:honeybee", "p:project-apiary-inbox", "c:pollinate", "c:nectar", "c:scout"],
-     "recency": {"p:project-apiary-inbox": 1, "c:apiary": 4, "c:hem": 6000}},
-
-    {"id": "foundation-wide-tables", "tags": ["no-name"], "gold": "s:foundation-tables",
-     "feedback": {"app": "Safari", "url": "http://localhost:4173/handbook/onboarding", "pageTitle": "Onboarding handbook", "transcript": "The table with the tools runs off the right edge of the page here, on a narrow window. It should scroll sideways or wrap, not get clipped."},
-     "candidates": ["s:foundation-tables", "c:foundation", "s:apiary-forum-css", "c:scout-site", "s:scout-site-docs", "c:nectar", "c:apiary", "s:fjord-payments-table"],
-     "recency": {"s:scout-site-docs": 2, "s:fjord-payments-table": 5, "s:foundation-tables": 900}},
-
-    {"id": "named-apiary-champion", "tags": ["named", "recent-wrong"], "gold": "c:apiary",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Scout", "transcript": "This one's for the Apiary champion, not Scout. When Scout sends a project row, Apiary should show it in the orchestrator's chat with the Scout badge, right now it shows up as a plain message with no source."},
-     "candidates": ["c:scout", "c:apiary", "p:project-scout-jev", "p:project-scout-picker", "s:apiary-chat-scroll", "s:scout-hotkeys", "c:honeybee", "p:project-apiary-inbox"],
-     "recency": {"c:scout": 1, "p:project-scout-jev": 3, "c:apiary": 240}},
-
-    {"id": "named-session-handle", "tags": ["named", "recent-wrong"], "gold": "s:apiary-proof-cards",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Inbox", "transcript": "Send this to the proof cards session. Also the card's timestamp says 'in 3 minutes', so the clock is off somewhere."},
-     "candidates": ["s:apiary-proof-cards", "s:apiary-chat-scroll", "s:apiary-forum-css", "c:apiary", "p:project-apiary-inbox", "p:project-apiary-forum", "c:scout"],
-     "recency": {"s:apiary-chat-scroll": 1, "p:project-apiary-inbox": 2, "s:apiary-proof-cards": 30}},
-
-    {"id": "named-ledger-on-bank-page", "tags": ["named", "context-mismatch"], "gold": "c:ledger",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/konto/eksport", "pageTitle": "Eksporter transaksjoner – Fjordbank", "transcript": "Note for Ledger: this export gives a CSV with semicolons and comma decimals, so the Ledger importer should accept that format. Nothing wrong with the bank page itself."},
-     "candidates": ["c:fjordbank-web", "c:ledger", "s:fjord-payments-table", "p:project-fjordbank-payments", "s:ledger-charts", "p:project-ledger-sync", "c:fjordbank-app"],
-     "recency": {"c:fjordbank-web": 1, "s:fjord-payments-table": 2, "c:ledger": 3000}},
-
-    {"id": "named-nectar-from-scout-site", "tags": ["named", "context-mismatch"], "gold": "c:nectar",
-     "feedback": {"app": "Safari", "url": "https://scout.honeybee.dev/", "pageTitle": "Scout — talk to your screen", "transcript": "The site itself is fine. But the nectar preview of it I shared earlier showed a stale build, so nectar should bust the cache when the files change. That's for Nectar."},
-     "candidates": ["c:scout-site", "c:nectar", "s:site-pricing", "s:nectar-cli", "p:project-nectar-public", "c:scout", "s:scout-site-docs"],
-     "recency": {"c:scout-site": 1, "s:site-pricing": 3, "c:nectar": 700}},
-
-    {"id": "scout-site-download", "tags": ["similar-name", "no-name"], "gold": "c:scout-site",
-     "feedback": {"app": "Safari", "url": "https://scout.honeybee.dev/download", "pageTitle": "Download · Scout", "transcript": "The download button here still points at version 0.2.2, the release is 0.2.3. And the requirements line should say macOS 26."},
-     "candidates": ["c:scout", "c:scout-site", "s:site-pricing", "s:scout-site-docs", "s:scout-transcriber", "p:project-scout-jev", "c:nectar"],
-     "recency": {"c:scout": 1, "s:site-pricing": 10, "c:scout-site": 1800}},
-
-    {"id": "scout-app-generic", "tags": ["similar-name", "no-name"], "gold": "c:scout",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Scout", "transcript": "When I stop recording, the menu bar icon keeps pulsing for like ten seconds after. It should stop the moment I press stop."},
-     "candidates": ["c:scout", "c:scout-site", "s:scout-hotkeys", "s:scout-transcriber", "p:project-scout-jev", "p:project-scout-picker", "c:apiary", "s:scout-site-docs"],
-     "recency": {"c:scout-site": 1, "p:project-scout-jev": 2, "c:scout": 2000}},
-
-    {"id": "large-roster-chat", "tags": ["no-name", "large"], "gold": "s:apiary-chat-scroll",
-     "feedback": {"app": "Apiary", "url": "", "pageTitle": "Honeybee · Champion chat", "transcript": "Same scrolling bug, it's in this chat too, it snaps back up while the answer streams in. Pretty sure it's not specific to one champion."},
-     "candidates": ["c:scout", "c:apiary", "c:honeybee", "c:pollinate", "c:nectar", "c:hem", "c:foundation", "p:project-apiary-forum", "p:project-apiary-inbox", "s:apiary-chat-scroll", "s:apiary-proof-cards", "s:apiary-forum-css", "s:hive-transcripts", "s:scout-hotkeys", "s:nectar-cli"],
-     "recency": {"c:honeybee": 1, "s:hive-transcripts": 3, "s:apiary-chat-scroll": 120}},
-
-    {"id": "large-roster-bank", "tags": ["no-name", "large", "recent-wrong"], "gold": "p:project-fjordbank-onboarding",
-     "feedback": {"app": "Safari", "url": "https://nettbank.fjordbank.no/bli-kunde/steg-1", "pageTitle": "Bli kunde – steg 1 av 5 – Fjordbank", "transcript": "The very first step of becoming a customer asks for my phone number before it even explains what's coming. Show the five steps up front, then BankID."},
-     "candidates": ["c:fjordbank-web", "c:fjordbank-app", "p:project-fjordbank-onboarding", "p:project-fjordbank-payments", "s:fjord-login-a11y", "s:fjord-payments-table", "s:fjord-app-cards", "c:ledger", "c:kitchen", "c:scout", "c:apiary", "p:project-ledger-sync", "s:ledger-charts"],
-     "recency": {"s:fjord-login-a11y": 1, "c:fjordbank-web": 3, "p:project-fjordbank-onboarding": 2500}},
-
-    {"id": "vague-short", "tags": ["no-name", "vague"], "gold": "s:fjord-payments-table",
-     "feedback": {"app": "Google Chrome", "url": "https://nettbank.fjordbank.no/betalinger/historikk?side=2", "pageTitle": "Betalingshistorikk – Fjordbank", "transcript": "This is broken again."},
-     "candidates": ["s:fjord-payments-table", "c:fjordbank-web", "p:project-fjordbank-payments", "s:fjord-login-a11y", "c:ledger", "c:scout", "s:scout-hotkeys"],
-     "recency": {"s:scout-hotkeys": 1, "c:fjordbank-web": 60, "s:fjord-payments-table": 30}},
-
-    {"id": "transcript-names-wrong-thing", "tags": ["named", "decoy-word"], "gold": "s:scout-transcriber",
-     "feedback": {"app": "Scout", "url": "", "pageTitle": "Scout Settings", "transcript": "Model settings: I picked the large model and the download progress shows 100 percent but the status still says downloading. Nothing to do with the hotkeys or the picker, it's the transcription model."},
-     "candidates": ["s:scout-hotkeys", "s:scout-transcriber", "p:project-scout-picker", "c:scout", "p:project-scout-jev", "c:honeybee", "s:hive-transcripts"],
-     "recency": {"s:scout-hotkeys": 1, "p:project-scout-picker": 2, "s:scout-transcriber": 400}}
-  ]
+ "cases": [
+  {
+   "id": "pricing-copy",
+   "tags": [
+    "no-name",
+    "recent-wrong"
+   ],
+   "gold": "s:site-pricing",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://scout.honeybee.dev/pricing",
+    "pageTitle": "Pricing · Scout",
+    "transcript": "Okay so on this page, the second paragraph still says it's per seat, but it's free, there's no seat thing at all. And down in the FAQ the Linux answer should just say macOS only for now, not 'coming soon'."
+   },
+   "candidates": [
+    "c:scout",
+    "c:scout-site",
+    "s:site-pricing",
+    "s:scout-site-docs",
+    "s:scout-hotkeys",
+    "p:project-scout-jev",
+    "c:apiary",
+    "c:nectar"
+   ],
+   "recency": {
+    "s:scout-hotkeys": 2,
+    "c:scout": 9,
+    "s:site-pricing": 300
+   }
+  },
+  {
+   "id": "guide-hotkeys-page",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "s:scout-site-docs",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://scout.honeybee.dev/guide/hotkeys",
+    "pageTitle": "Hotkeys · Scout guide",
+    "transcript": "The sidebar here has Hotkeys under Troubleshooting which makes no sense, move it up next to Modes. Also the table on this page is missing the aim key."
+   },
+   "candidates": [
+    "s:scout-hotkeys",
+    "s:scout-site-docs",
+    "c:scout-site",
+    "c:scout",
+    "s:site-pricing",
+    "c:foundation",
+    "s:foundation-tables"
+   ],
+   "recency": {
+    "s:scout-hotkeys": 1,
+    "s:scout-site-docs": 180
+   }
+  },
+  {
+   "id": "record-hotkey-settings",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "s:scout-hotkeys",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Scout Settings",
+    "transcript": "In the shortcuts tab, when I click the record shortcut field and press option-space it just beeps and keeps the old one. It should take the new combo, or tell me it conflicts with Spotlight or whatever."
+   },
+   "candidates": [
+    "s:scout-hotkeys",
+    "s:scout-site-docs",
+    "s:scout-transcriber",
+    "c:scout",
+    "c:scout-site",
+    "p:project-scout-picker",
+    "p:project-scout-jev",
+    "c:apiary"
+   ],
+   "recency": {
+    "s:scout-site-docs": 3,
+    "s:scout-hotkeys": 95
+   }
+  },
+  {
+   "id": "whisper-download",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:scout-transcriber",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Scout",
+    "transcript": "First launch on the new machine and the transcription model download just freezes the whole menu, there's no progress at all, I thought it crashed. It needs a progress bar and it shouldn't block recording setup."
+   },
+   "candidates": [
+    "s:scout-transcriber",
+    "s:scout-hotkeys",
+    "c:scout",
+    "p:project-scout-jev",
+    "c:apiary",
+    "c:honeybee",
+    "s:hive-transcripts"
+   ],
+   "recency": {
+    "c:scout": 1,
+    "s:hive-transcripts": 4,
+    "s:scout-transcriber": 600
+   }
+  },
+  {
+   "id": "picker-misclick",
+   "tags": [
+    "no-name",
+    "recent-wrong"
+   ],
+   "gold": "p:project-scout-jev",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Send to",
+    "transcript": "I just clicked a row by accident and it sent straight away to the wrong agent. One click shouldn't send, it should select and then I press return, or give me a couple of seconds to undo."
+   },
+   "candidates": [
+    "p:project-scout-jev",
+    "p:project-scout-picker",
+    "c:scout",
+    "s:scout-hotkeys",
+    "s:scout-transcriber",
+    "c:apiary",
+    "p:project-apiary-inbox",
+    "c:honeybee"
+   ],
+   "recency": {
+    "p:project-scout-picker": 2,
+    "s:scout-hotkeys": 6,
+    "p:project-scout-jev": 40
+   }
+  },
+  {
+   "id": "picker-tab-groups",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "p:project-scout-picker",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Send to",
+    "transcript": "Tab is supposed to jump to the next group, but from Champions it skips Project orchestrators and lands in Sessions. Shift-tab from Sessions goes back correctly though. And the counts next to the group headers are off by one when I filter."
+   },
+   "candidates": [
+    "p:project-scout-jev",
+    "p:project-scout-picker",
+    "c:scout",
+    "s:scout-hotkeys",
+    "c:apiary",
+    "p:project-apiary-inbox"
+   ],
+   "recency": {
+    "p:project-scout-jev": 1,
+    "s:scout-hotkeys": 5,
+    "p:project-scout-picker": 1500
+   }
+  },
+  {
+   "id": "jev-suggestion-wrong",
+   "tags": [
+    "named"
+   ],
+   "gold": "p:project-scout-jev",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Send to",
+    "transcript": "The suggested target thing highlighted Ledger for feedback that was obviously about the bank site. If it's that unsure it should just not highlight anything. Also the via TypeSafe tag is cut off."
+   },
+   "candidates": [
+    "p:project-scout-jev",
+    "p:project-scout-picker",
+    "c:scout",
+    "c:ledger",
+    "c:fjordbank-web",
+    "s:ledger-charts",
+    "c:apiary"
+   ],
+   "recency": {
+    "c:ledger": 3,
+    "s:ledger-charts": 5,
+    "p:project-scout-jev": 25
+   }
+  },
+  {
+   "id": "apiary-chat-jump",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:apiary-chat-scroll",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Scout · Champion chat",
+    "transcript": "Watch this, while the reply is coming in, the whole conversation scrolls back up to the top, every few seconds. I can't read anything until it's done. It should stay pinned to the bottom unless I scrolled up myself."
+   },
+   "candidates": [
+    "s:apiary-chat-scroll",
+    "s:apiary-proof-cards",
+    "s:apiary-forum-css",
+    "c:apiary",
+    "p:project-apiary-forum",
+    "p:project-apiary-inbox",
+    "c:scout",
+    "c:honeybee",
+    "s:hive-transcripts"
+   ],
+   "recency": {
+    "s:apiary-proof-cards": 2,
+    "c:scout": 1,
+    "s:apiary-chat-scroll": 70
+   }
+  },
+  {
+   "id": "proof-commit-count",
+   "tags": [
+    "no-name",
+    "recent-wrong"
+   ],
+   "gold": "s:apiary-proof-cards",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Inbox",
+    "transcript": "This proof says three commits but if you open it there's only one. The number on the card is wrong. Happens on the other one too."
+   },
+   "candidates": [
+    "s:apiary-proof-cards",
+    "p:project-apiary-inbox",
+    "p:project-apiary-forum",
+    "s:apiary-chat-scroll",
+    "c:apiary",
+    "s:apiary-forum-css",
+    "c:pollinate",
+    "p:project-pollinate-github"
+   ],
+   "recency": {
+    "p:project-apiary-inbox": 1,
+    "s:apiary-chat-scroll": 4,
+    "s:apiary-proof-cards": 200
+   }
+  },
+  {
+   "id": "inbox-snooze",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-apiary-inbox",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Inbox",
+    "transcript": "When I snooze something until tomorrow it vanishes, fine, but there's no way to see what I've snoozed. Need a Snoozed filter up here next to Waiting. And J and K should move between items like everywhere else."
+   },
+   "candidates": [
+    "p:project-apiary-inbox",
+    "p:project-apiary-forum",
+    "s:apiary-proof-cards",
+    "c:apiary",
+    "s:apiary-chat-scroll",
+    "c:scout",
+    "c:hem"
+   ],
+   "recency": {
+    "s:apiary-proof-cards": 2,
+    "p:project-apiary-inbox": 30
+   }
+  },
+  {
+   "id": "forum-header-spacing",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:apiary-forum-css",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Forum · Packet 214",
+    "transcript": "The header on this packet is cramped, the title is touching the reviewer avatars and the avatars are overlapping each other. Give it some breathing room."
+   },
+   "candidates": [
+    "s:apiary-forum-css",
+    "p:project-apiary-forum",
+    "s:apiary-proof-cards",
+    "c:apiary",
+    "p:project-apiary-inbox",
+    "c:foundation",
+    "s:foundation-tables"
+   ],
+   "recency": {
+    "p:project-apiary-forum": 3,
+    "s:apiary-forum-css": 50
+   }
+  },
+  {
+   "id": "forum-thread-layout",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-apiary-forum",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Forum · Packet 214",
+    "transcript": "The review thread under the packet should be collapsed by default, and the proof card should sit above the thread, not at the bottom where nobody sees it. This is more about the whole packet layout than the header."
+   },
+   "candidates": [
+    "s:apiary-forum-css",
+    "p:project-apiary-forum",
+    "s:apiary-proof-cards",
+    "c:apiary",
+    "p:project-apiary-inbox",
+    "s:apiary-chat-scroll"
+   ],
+   "recency": {
+    "s:apiary-forum-css": 1,
+    "s:apiary-proof-cards": 8,
+    "p:project-apiary-forum": 400
+   }
+  },
+  {
+   "id": "fjord-login-voiceover",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:fjord-login-a11y",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/logg-inn?ref=forside",
+    "pageTitle": "Logg inn – Fjordbank",
+    "transcript": "With VoiceOver on, the BankID button just reads 'button', no label. And tabbing goes from the logo straight to the footer, it skips the personal number field."
+   },
+   "candidates": [
+    "s:fjord-login-a11y",
+    "s:fjord-payments-table",
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "p:project-fjordbank-onboarding",
+    "p:project-fjordbank-payments",
+    "s:fjord-app-cards",
+    "c:scout",
+    "s:scout-hotkeys"
+   ],
+   "recency": {
+    "s:scout-hotkeys": 1,
+    "s:fjord-payments-table": 6,
+    "s:fjord-login-a11y": 900
+   }
+  },
+  {
+   "id": "fjord-payment-history-sort",
+   "tags": [
+    "no-name",
+    "recent-wrong"
+   ],
+   "gold": "s:fjord-payments-table",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/betalinger/historikk",
+    "pageTitle": "Betalingshistorikk – Fjordbank",
+    "transcript": "Clicking the date header sorts it alphabetically, look, the 10th comes before the 2nd. And the date column wraps onto two lines on this width."
+   },
+   "candidates": [
+    "s:fjord-payments-table",
+    "s:fjord-login-a11y",
+    "c:fjordbank-web",
+    "p:project-fjordbank-payments",
+    "p:project-fjordbank-onboarding",
+    "c:fjordbank-app",
+    "c:ledger",
+    "s:ledger-charts"
+   ],
+   "recency": {
+    "s:fjord-login-a11y": 1,
+    "p:project-fjordbank-payments": 4,
+    "s:fjord-payments-table": 240
+   }
+  },
+  {
+   "id": "fjord-recurring-payment",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-fjordbank-payments",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/betalinger/ny",
+    "pageTitle": "Ny betaling – Fjordbank",
+    "transcript": "When I tick repeat monthly there's no end date option, so it'd go forever. And the confirm step should show the first and last date before I sign with BankID."
+   },
+   "candidates": [
+    "s:fjord-payments-table",
+    "p:project-fjordbank-payments",
+    "c:fjordbank-web",
+    "p:project-fjordbank-onboarding",
+    "s:fjord-login-a11y",
+    "c:fjordbank-app",
+    "s:fjord-app-cards"
+   ],
+   "recency": {
+    "s:fjord-payments-table": 2,
+    "c:fjordbank-web": 10,
+    "p:project-fjordbank-payments": 600
+   }
+  },
+  {
+   "id": "fjord-onboarding-kyc",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-fjordbank-onboarding",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/bli-kunde/steg-3",
+    "pageTitle": "Bli kunde – steg 3 av 5 – Fjordbank",
+    "transcript": "This question about the source of funds has a dropdown with like thirty options, nobody will read that. Group them, and the back button here loses everything I typed in step two."
+   },
+   "candidates": [
+    "p:project-fjordbank-onboarding",
+    "p:project-fjordbank-payments",
+    "c:fjordbank-web",
+    "s:fjord-login-a11y",
+    "s:fjord-payments-table",
+    "c:fjordbank-app",
+    "c:apiary",
+    "c:scout"
+   ],
+   "recency": {
+    "s:fjord-login-a11y": 3,
+    "p:project-fjordbank-onboarding": 120
+   }
+  },
+  {
+   "id": "fjord-web-generic",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "c:fjordbank-web",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/konto/oversikt",
+    "pageTitle": "Kontooversikt – Fjordbank",
+    "transcript": "The account overview: the balances aren't right aligned so the decimals don't line up, and the savings account name gets cut off with no tooltip."
+   },
+   "candidates": [
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "s:fjord-payments-table",
+    "s:fjord-login-a11y",
+    "p:project-fjordbank-onboarding",
+    "p:project-fjordbank-payments",
+    "c:ledger",
+    "s:ledger-charts",
+    "s:fjord-app-cards"
+   ],
+   "recency": {
+    "c:fjordbank-app": 2,
+    "s:fjord-app-cards": 5,
+    "c:fjordbank-web": 1440
+   }
+  },
+  {
+   "id": "fjord-app-freeze-card",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "s:fjord-app-cards",
+   "feedback": {
+    "app": "Simulator",
+    "url": "",
+    "pageTitle": "iPhone 17 – iOS 26.1",
+    "transcript": "When I flip freeze card the sheet asks 'are you sure' with OK and Cancel, it should say Freeze card and keep it. And after freezing the toggle flips back for a second before it settles."
+   },
+   "candidates": [
+    "s:fjord-app-cards",
+    "c:fjordbank-app",
+    "c:fjordbank-web",
+    "s:fjord-login-a11y",
+    "s:fjord-payments-table",
+    "p:project-fjordbank-payments",
+    "c:ledger"
+   ],
+   "recency": {
+    "c:fjordbank-web": 1,
+    "s:fjord-login-a11y": 3,
+    "s:fjord-app-cards": 300
+   }
+  },
+  {
+   "id": "fjord-app-push",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "c:fjordbank-app",
+   "feedback": {
+    "app": "Simulator",
+    "url": "",
+    "pageTitle": "iPhone 17 – iOS 26.1",
+    "transcript": "The push notification for an incoming payment shows the raw amount in øre, like 125000, it should say 1 250 kr. Tapping it opens the home screen not the transaction."
+   },
+   "candidates": [
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "s:fjord-app-cards",
+    "s:fjord-payments-table",
+    "p:project-fjordbank-payments",
+    "c:ledger",
+    "s:ledger-charts",
+    "c:pollinate"
+   ],
+   "recency": {
+    "c:fjordbank-web": 2,
+    "s:fjord-payments-table": 7,
+    "c:fjordbank-app": 2000
+   }
+  },
+  {
+   "id": "ledger-chart-colours",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:ledger-charts",
+   "feedback": {
+    "app": "Ledger",
+    "url": "",
+    "pageTitle": "Spending – November",
+    "transcript": "Groceries and dining are both orange here so I can't tell them apart, and the legend at the bottom doesn't match the order of the bars."
+   },
+   "candidates": [
+    "s:ledger-charts",
+    "c:ledger",
+    "p:project-ledger-sync",
+    "c:fjordbank-app",
+    "c:fjordbank-web",
+    "s:fjord-payments-table",
+    "c:kitchen",
+    "c:scout"
+   ],
+   "recency": {
+    "p:project-ledger-sync": 2,
+    "c:fjordbank-web": 4,
+    "s:ledger-charts": 1000
+   }
+  },
+  {
+   "id": "ledger-sync-duplicate",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-ledger-sync",
+   "feedback": {
+    "app": "Ledger",
+    "url": "",
+    "pageTitle": "Transactions",
+    "transcript": "I added this coffee on my phone, and now on the Mac it's there twice. Editing one changes neither. Something in the syncing is creating duplicates."
+   },
+   "candidates": [
+    "s:ledger-charts",
+    "c:ledger",
+    "p:project-ledger-sync",
+    "c:fjordbank-app",
+    "c:kitchen",
+    "c:honeybee",
+    "c:apiary"
+   ],
+   "recency": {
+    "s:ledger-charts": 1,
+    "c:ledger": 30,
+    "p:project-ledger-sync": 2880
+   }
+  },
+  {
+   "id": "ledger-budget-generic",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "c:ledger",
+   "feedback": {
+    "app": "Ledger",
+    "url": "",
+    "pageTitle": "Budgets",
+    "transcript": "I want to be able to roll over what's left of a budget into next month. Right now December starts at zero again. Not urgent, just an idea."
+   },
+   "candidates": [
+    "s:ledger-charts",
+    "c:ledger",
+    "p:project-ledger-sync",
+    "c:fjordbank-app",
+    "c:fjordbank-web",
+    "c:kitchen",
+    "s:kitchen-search"
+   ],
+   "recency": {
+    "s:ledger-charts": 2,
+    "p:project-ledger-sync": 9,
+    "c:ledger": 4000
+   }
+  },
+  {
+   "id": "kitchen-search-aa",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:kitchen-search",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://kokebok.thto.no/sok?q=bl%C3%A5b%C3%A6r",
+    "pageTitle": "Søk – Kokebok",
+    "transcript": "I searched for blåbær and got nothing, but there's a blueberry pie recipe that literally has blåbær in it. Searching bl works. So the special letters break it."
+   },
+   "candidates": [
+    "s:kitchen-search",
+    "c:kitchen",
+    "c:ledger",
+    "s:ledger-charts",
+    "c:scout-site",
+    "c:nectar",
+    "c:foundation"
+   ],
+   "recency": {
+    "c:kitchen": 1,
+    "c:nectar": 3,
+    "s:kitchen-search": 500
+   }
+  },
+  {
+   "id": "kitchen-meal-planner",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "c:kitchen",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://kokebok.thto.no/ukemeny",
+    "pageTitle": "Ukemeny – Kokebok",
+    "transcript": "On the weekly menu, if I drag Tuesday's dinner onto Thursday it should swap them, right now it duplicates. And the shopping list should update after."
+   },
+   "candidates": [
+    "s:kitchen-search",
+    "c:kitchen",
+    "c:ledger",
+    "p:project-ledger-sync",
+    "c:scout",
+    "c:apiary",
+    "s:apiary-chat-scroll"
+   ],
+   "recency": {
+    "s:kitchen-search": 1,
+    "c:kitchen": 3000
+   }
+  },
+  {
+   "id": "nectar-public-flag",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:nectar-cli",
+   "feedback": {
+    "app": "Ghostty",
+    "url": "",
+    "pageTitle": "~/src/demo — nectar share --public",
+    "transcript": "I ran share with dash dash public and it printed the tailnet address again, the ts.net one, not the nctr.site link. So I sent the wrong link to the client."
+   },
+   "candidates": [
+    "s:nectar-cli",
+    "p:project-nectar-public",
+    "c:nectar",
+    "c:honeybee",
+    "s:hive-transcripts",
+    "c:pollinate",
+    "c:hem",
+    "c:scout"
+   ],
+   "recency": {
+    "p:project-nectar-public": 1,
+    "s:hive-transcripts": 4,
+    "s:nectar-cli": 160
+   }
+  },
+  {
+   "id": "nectar-link-expiry",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-nectar-public",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://abc123.nctr.site/",
+    "pageTitle": "Preview · checkout-demo",
+    "transcript": "This public link from last week still works, I thought they expired after a day? There should be an expiry I can pick, and some way to see who opened it."
+   },
+   "candidates": [
+    "s:nectar-cli",
+    "p:project-nectar-public",
+    "c:nectar",
+    "c:hem",
+    "c:pollinate",
+    "c:apiary",
+    "c:scout-site"
+   ],
+   "recency": {
+    "s:nectar-cli": 2,
+    "c:nectar": 20,
+    "p:project-nectar-public": 700
+   }
+  },
+  {
+   "id": "hive-follow",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:hive-transcripts",
+   "feedback": {
+    "app": "Ghostty",
+    "url": "",
+    "pageTitle": "hive transcript CL.31a2 --follow",
+    "transcript": "Following this transcript, the last line of each message never shows until the next message comes in. It's always one line behind."
+   },
+   "candidates": [
+    "s:hive-transcripts",
+    "c:honeybee",
+    "s:nectar-cli",
+    "c:apiary",
+    "s:apiary-chat-scroll",
+    "c:pollinate",
+    "s:pollinate-webhooks"
+   ],
+   "recency": {
+    "s:apiary-chat-scroll": 1,
+    "c:honeybee": 15,
+    "s:hive-transcripts": 360
+   }
+  },
+  {
+   "id": "hive-cells-generic",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "c:honeybee",
+   "feedback": {
+    "app": "Ghostty",
+    "url": "",
+    "pageTitle": "hive cells list",
+    "transcript": "The cells list doesn't show which ones are dirty. I have like forty and no idea which have uncommitted work. Add a column or a flag to filter."
+   },
+   "candidates": [
+    "s:hive-transcripts",
+    "c:honeybee",
+    "c:apiary",
+    "s:nectar-cli",
+    "c:pollinate",
+    "c:hem",
+    "c:scout",
+    "s:scout-hotkeys"
+   ],
+   "recency": {
+    "s:hive-transcripts": 1,
+    "s:scout-hotkeys": 2,
+    "c:honeybee": 5000
+   }
+  },
+  {
+   "id": "pollinate-signature",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:pollinate-webhooks",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://github.com/honeybeehq/apiary/settings/hooks/412",
+    "pageTitle": "Webhooks · honeybeehq/apiary",
+    "transcript": "Every delivery here is red since yesterday, 401 invalid signature. That's right after we rotated the webhook secret, so whatever checks it still has the old one."
+   },
+   "candidates": [
+    "s:pollinate-webhooks",
+    "p:project-pollinate-github",
+    "c:pollinate",
+    "c:hem",
+    "c:apiary",
+    "s:apiary-proof-cards",
+    "c:honeybee"
+   ],
+   "recency": {
+    "c:apiary": 1,
+    "p:project-pollinate-github": 5,
+    "s:pollinate-webhooks": 1200
+   }
+  },
+  {
+   "id": "pollinate-pr-routing",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "p:project-pollinate-github",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://github.com/honeybeehq/scout/pull/88",
+    "pageTitle": "Picker tab order by trmdy · Pull Request #88",
+    "transcript": "I left a review comment on this PR an hour ago and the bee that opened it never heard about it. Comments should get to the session that owns the PR, batched, not one ping per comment."
+   },
+   "candidates": [
+    "s:pollinate-webhooks",
+    "p:project-pollinate-github",
+    "c:pollinate",
+    "c:scout",
+    "p:project-scout-picker",
+    "s:scout-hotkeys",
+    "c:honeybee",
+    "c:apiary"
+   ],
+   "recency": {
+    "p:project-scout-picker": 2,
+    "c:scout": 3,
+    "p:project-pollinate-github": 800
+   }
+  },
+  {
+   "id": "hem-approval-prompt",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "c:hem",
+   "feedback": {
+    "app": "Hem",
+    "url": "",
+    "pageTitle": "Approve access",
+    "transcript": "This approval prompt doesn't say which agent is asking, just a bee id. I can't approve something when I don't know who it is. Show the session name and what it's working on."
+   },
+   "candidates": [
+    "c:hem",
+    "c:apiary",
+    "c:honeybee",
+    "p:project-apiary-inbox",
+    "c:pollinate",
+    "c:nectar",
+    "c:scout"
+   ],
+   "recency": {
+    "p:project-apiary-inbox": 1,
+    "c:apiary": 4,
+    "c:hem": 6000
+   }
+  },
+  {
+   "id": "foundation-wide-tables",
+   "tags": [
+    "no-name"
+   ],
+   "gold": "s:foundation-tables",
+   "feedback": {
+    "app": "Safari",
+    "url": "http://localhost:4173/handbook/onboarding",
+    "pageTitle": "Onboarding handbook",
+    "transcript": "The table with the tools runs off the right edge of the page here, on a narrow window. It should scroll sideways or wrap, not get clipped."
+   },
+   "candidates": [
+    "s:foundation-tables",
+    "c:foundation",
+    "s:apiary-forum-css",
+    "c:scout-site",
+    "s:scout-site-docs",
+    "c:nectar",
+    "c:apiary",
+    "s:fjord-payments-table"
+   ],
+   "recency": {
+    "s:scout-site-docs": 2,
+    "s:fjord-payments-table": 5,
+    "s:foundation-tables": 900
+   }
+  },
+  {
+   "id": "named-apiary-champion",
+   "tags": [
+    "named",
+    "recent-wrong"
+   ],
+   "gold": "c:apiary",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Scout",
+    "transcript": "This one's for the Apiary champion, not Scout. When Scout sends a project row, Apiary should show it in the orchestrator's chat with the Scout badge, right now it shows up as a plain message with no source."
+   },
+   "candidates": [
+    "c:scout",
+    "c:apiary",
+    "p:project-scout-jev",
+    "p:project-scout-picker",
+    "s:apiary-chat-scroll",
+    "s:scout-hotkeys",
+    "c:honeybee",
+    "p:project-apiary-inbox"
+   ],
+   "recency": {
+    "c:scout": 1,
+    "p:project-scout-jev": 3,
+    "c:apiary": 240
+   }
+  },
+  {
+   "id": "named-session-handle",
+   "tags": [
+    "named",
+    "recent-wrong"
+   ],
+   "gold": "s:apiary-proof-cards",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Inbox",
+    "transcript": "Send this to the proof cards session. Also the card's timestamp says 'in 3 minutes', so the clock is off somewhere."
+   },
+   "candidates": [
+    "s:apiary-proof-cards",
+    "s:apiary-chat-scroll",
+    "s:apiary-forum-css",
+    "c:apiary",
+    "p:project-apiary-inbox",
+    "p:project-apiary-forum",
+    "c:scout"
+   ],
+   "recency": {
+    "s:apiary-chat-scroll": 1,
+    "p:project-apiary-inbox": 2,
+    "s:apiary-proof-cards": 30
+   }
+  },
+  {
+   "id": "named-ledger-on-bank-page",
+   "tags": [
+    "named",
+    "context-mismatch"
+   ],
+   "gold": "c:ledger",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/konto/eksport",
+    "pageTitle": "Eksporter transaksjoner – Fjordbank",
+    "transcript": "Note for Ledger: this export gives a CSV with semicolons and comma decimals, so the Ledger importer should accept that format. Nothing wrong with the bank page itself."
+   },
+   "candidates": [
+    "c:fjordbank-web",
+    "c:ledger",
+    "s:fjord-payments-table",
+    "p:project-fjordbank-payments",
+    "s:ledger-charts",
+    "p:project-ledger-sync",
+    "c:fjordbank-app"
+   ],
+   "recency": {
+    "c:fjordbank-web": 1,
+    "s:fjord-payments-table": 2,
+    "c:ledger": 3000
+   }
+  },
+  {
+   "id": "named-nectar-from-scout-site",
+   "tags": [
+    "named",
+    "context-mismatch"
+   ],
+   "gold": "c:nectar",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://scout.honeybee.dev/",
+    "pageTitle": "Scout — talk to your screen",
+    "transcript": "The site itself is fine. But the nectar preview of it I shared earlier showed a stale build, so nectar should bust the cache when the files change. That's for Nectar."
+   },
+   "candidates": [
+    "c:scout-site",
+    "c:nectar",
+    "s:site-pricing",
+    "s:nectar-cli",
+    "p:project-nectar-public",
+    "c:scout",
+    "s:scout-site-docs"
+   ],
+   "recency": {
+    "c:scout-site": 1,
+    "s:site-pricing": 3,
+    "c:nectar": 700
+   }
+  },
+  {
+   "id": "scout-site-download",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "c:scout-site",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://scout.honeybee.dev/download",
+    "pageTitle": "Download · Scout",
+    "transcript": "The download button here still points at version 0.2.2, the release is 0.2.3. And the requirements line should say macOS 26."
+   },
+   "candidates": [
+    "c:scout",
+    "c:scout-site",
+    "s:site-pricing",
+    "s:scout-site-docs",
+    "s:scout-transcriber",
+    "p:project-scout-jev",
+    "c:nectar"
+   ],
+   "recency": {
+    "c:scout": 1,
+    "s:site-pricing": 10,
+    "c:scout-site": 1800
+   }
+  },
+  {
+   "id": "scout-app-generic",
+   "tags": [
+    "similar-name",
+    "no-name"
+   ],
+   "gold": "c:scout",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Scout",
+    "transcript": "When I stop recording, the menu bar icon keeps pulsing for like ten seconds after. It should stop the moment I press stop."
+   },
+   "candidates": [
+    "c:scout",
+    "c:scout-site",
+    "s:scout-hotkeys",
+    "s:scout-transcriber",
+    "p:project-scout-jev",
+    "p:project-scout-picker",
+    "c:apiary",
+    "s:scout-site-docs"
+   ],
+   "recency": {
+    "c:scout-site": 1,
+    "p:project-scout-jev": 2,
+    "c:scout": 2000
+   }
+  },
+  {
+   "id": "large-roster-chat",
+   "tags": [
+    "no-name",
+    "large"
+   ],
+   "gold": "s:apiary-chat-scroll",
+   "feedback": {
+    "app": "Apiary",
+    "url": "",
+    "pageTitle": "Honeybee · Champion chat",
+    "transcript": "Same scrolling bug, it's in this chat too, it snaps back up while the answer streams in. Pretty sure it's not specific to one champion."
+   },
+   "candidates": [
+    "c:scout",
+    "c:apiary",
+    "c:honeybee",
+    "c:pollinate",
+    "c:nectar",
+    "c:hem",
+    "c:foundation",
+    "p:project-apiary-forum",
+    "p:project-apiary-inbox",
+    "s:apiary-chat-scroll",
+    "s:apiary-proof-cards",
+    "s:apiary-forum-css",
+    "s:hive-transcripts",
+    "s:scout-hotkeys",
+    "s:nectar-cli"
+   ],
+   "recency": {
+    "c:honeybee": 1,
+    "s:hive-transcripts": 3,
+    "s:apiary-chat-scroll": 120
+   }
+  },
+  {
+   "id": "large-roster-bank",
+   "tags": [
+    "no-name",
+    "large",
+    "recent-wrong"
+   ],
+   "gold": "p:project-fjordbank-onboarding",
+   "feedback": {
+    "app": "Safari",
+    "url": "https://nettbank.fjordbank.no/bli-kunde/steg-1",
+    "pageTitle": "Bli kunde – steg 1 av 5 – Fjordbank",
+    "transcript": "The very first step of becoming a customer asks for my phone number before it even explains what's coming. Show the five steps up front, then BankID."
+   },
+   "candidates": [
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "p:project-fjordbank-onboarding",
+    "p:project-fjordbank-payments",
+    "s:fjord-login-a11y",
+    "s:fjord-payments-table",
+    "s:fjord-app-cards",
+    "c:ledger",
+    "c:kitchen",
+    "c:scout",
+    "c:apiary",
+    "p:project-ledger-sync",
+    "s:ledger-charts"
+   ],
+   "recency": {
+    "s:fjord-login-a11y": 1,
+    "c:fjordbank-web": 3,
+    "p:project-fjordbank-onboarding": 2500
+   }
+  },
+  {
+   "id": "vague-short",
+   "tags": [
+    "no-name",
+    "vague"
+   ],
+   "gold": "s:fjord-payments-table",
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/betalinger/historikk?side=2",
+    "pageTitle": "Betalingshistorikk – Fjordbank",
+    "transcript": "This is broken again."
+   },
+   "candidates": [
+    "s:fjord-payments-table",
+    "c:fjordbank-web",
+    "p:project-fjordbank-payments",
+    "s:fjord-login-a11y",
+    "c:ledger",
+    "c:scout",
+    "s:scout-hotkeys"
+   ],
+   "recency": {
+    "s:scout-hotkeys": 1,
+    "c:fjordbank-web": 60,
+    "s:fjord-payments-table": 30
+   }
+  },
+  {
+   "id": "transcript-names-wrong-thing",
+   "tags": [
+    "named",
+    "decoy-word"
+   ],
+   "gold": "s:scout-transcriber",
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Scout Settings",
+    "transcript": "Model settings: I picked the large model and the download progress shows 100 percent but the status still says downloading. Nothing to do with the hotkeys or the picker, it's the transcription model."
+   },
+   "candidates": [
+    "s:scout-hotkeys",
+    "s:scout-transcriber",
+    "p:project-scout-picker",
+    "c:scout",
+    "p:project-scout-jev",
+    "c:honeybee",
+    "s:hive-transcripts"
+   ],
+   "recency": {
+    "s:scout-hotkeys": 1,
+    "p:project-scout-picker": 2,
+    "s:scout-transcriber": 400
+   }
+  },
+  {
+   "id": "nofit-bank-without-bank-targets",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Google Chrome",
+    "url": "https://nettbank.fjordbank.no/betalinger/historikk",
+    "pageTitle": "Betalingshistorikk – Fjordbank",
+    "transcript": "The date column header sorts alphabetically, the 10th comes before the 2nd, and the column wraps on this width."
+   },
+   "candidates": [
+    "c:scout",
+    "c:apiary",
+    "c:honeybee",
+    "c:nectar",
+    "s:scout-hotkeys",
+    "s:apiary-chat-scroll",
+    "p:project-scout-jev"
+   ],
+   "recency": {
+    "s:scout-hotkeys": 1,
+    "c:scout": 5
+   }
+  },
+  {
+   "id": "nofit-ledger-without-ledger-targets",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Ledger",
+    "url": "",
+    "pageTitle": "Spending – November",
+    "transcript": "Groceries and dining are both orange so I can't tell them apart, and the legend order doesn't match the bars."
+   },
+   "candidates": [
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "s:fjord-payments-table",
+    "p:project-fjordbank-payments",
+    "c:kitchen",
+    "s:kitchen-search",
+    "c:scout"
+   ],
+   "recency": {
+    "s:fjord-payments-table": 2
+   }
+  },
+  {
+   "id": "nofit-figma-other-client",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Figma",
+    "url": "https://www.figma.com/design/k3J9xQ/Tindre-brand-site",
+    "pageTitle": "Tindre brand site – Figma",
+    "transcript": "On the hero frame the logo lockup is too close to the nav, and the green doesn't match the brand guide, it should be the darker one."
+   },
+   "candidates": [
+    "c:scout",
+    "c:scout-site",
+    "c:apiary",
+    "c:foundation",
+    "s:apiary-forum-css",
+    "s:site-pricing",
+    "c:nectar",
+    "p:project-apiary-forum"
+   ],
+   "recency": {
+    "s:apiary-forum-css": 2,
+    "c:scout-site": 10
+   }
+  },
+  {
+   "id": "nofit-finder",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Finder",
+    "url": "",
+    "pageTitle": "Downloads",
+    "transcript": "Why does the Finder sidebar keep losing my favourites after every update, I have to drag Projects back in each time."
+   },
+   "candidates": [
+    "c:scout",
+    "c:apiary",
+    "c:honeybee",
+    "c:hem",
+    "s:scout-hotkeys",
+    "s:scout-transcriber",
+    "p:project-scout-picker"
+   ],
+   "recency": {
+    "c:scout": 1
+   }
+  },
+  {
+   "id": "nofit-recipes-without-kitchen",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Safari",
+    "url": "https://kokebok.thto.no/ukemeny",
+    "pageTitle": "Ukemeny – Kokebok",
+    "transcript": "Dragging Tuesday's dinner onto Thursday duplicates it instead of swapping, and the shopping list doesn't update after."
+   },
+   "candidates": [
+    "c:ledger",
+    "s:ledger-charts",
+    "p:project-ledger-sync",
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "c:apiary",
+    "s:apiary-chat-scroll"
+   ],
+   "recency": {
+    "s:ledger-charts": 1,
+    "c:ledger": 6
+   }
+  },
+  {
+   "id": "nofit-personal-note",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Scout",
+    "url": "",
+    "pageTitle": "Scout",
+    "transcript": "Note to self, buy milk and call the dentist before Friday."
+   },
+   "candidates": [
+    "c:scout",
+    "c:apiary",
+    "c:ledger",
+    "c:kitchen",
+    "s:scout-hotkeys",
+    "p:project-scout-jev",
+    "c:honeybee"
+   ],
+   "recency": {
+    "p:project-scout-jev": 2
+   }
+  },
+  {
+   "id": "nofit-slack",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Slack",
+    "url": "",
+    "pageTitle": "#general – Honeybee – Slack",
+    "transcript": "Slack shows a badge for this channel even though I've read everything, and the huddle button is in the way of the thread replies."
+   },
+   "candidates": [
+    "c:scout",
+    "c:apiary",
+    "c:honeybee",
+    "c:pollinate",
+    "s:apiary-chat-scroll",
+    "p:project-apiary-inbox",
+    "s:hive-transcripts"
+   ],
+   "recency": {
+    "s:apiary-chat-scroll": 1,
+    "c:apiary": 3
+   }
+  },
+  {
+   "id": "nofit-preview-without-nectar",
+   "tags": [
+    "no-fit"
+   ],
+   "gold": null,
+   "feedback": {
+    "app": "Safari",
+    "url": "https://abc123.nctr.site/",
+    "pageTitle": "Preview · checkout-demo",
+    "transcript": "This public preview link from last week still works, I thought they expired after a day. I want to pick an expiry and see who opened it."
+   },
+   "candidates": [
+    "c:fjordbank-web",
+    "c:fjordbank-app",
+    "p:project-fjordbank-onboarding",
+    "c:ledger",
+    "c:kitchen",
+    "s:kitchen-search",
+    "s:fjord-login-a11y"
+   ],
+   "recency": {
+    "c:fjordbank-web": 1
+   }
+  }
+ ]
 }

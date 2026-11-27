@@ -1,10 +1,13 @@
 import Foundation
 
 struct Report {
-    var cases: [ResolvedCase]
+    var all: [ResolvedCase]
     var baseline: [String: Run]
     var untuned: [String: Run]
     var recording: Recording?
+
+    var cases: [ResolvedCase] { all.filter { !$0.isNoFit } }
+    var noFit: [ResolvedCase] { all.filter(\.isNoFit) }
 
     func percent(_ part: Int, _ whole: Int) -> String {
         whole == 0 ? "–" : String(format: "%.0f%% (%d/%d)", 100 * Double(part) / Double(whole), part, whole)
@@ -33,7 +36,7 @@ struct Report {
         let n = cases.count
         let jev = Dictionary((recording?.runs ?? []).filter { $0.attempt == 0 }.map { ($0.caseID, $0) }, uniquingKeysWith: { a, _ in a })
         let hasJev = !jev.isEmpty
-        out.append("## Accuracy (\(n) cases)\n")
+        out.append("## Accuracy (\(n) cases with a correct target; \(noFit.count) no-fit cases are only used in the gate table)\n")
         out.append("| Method | Top-1 | Top-3 |")
         out.append("|---|---|---|")
         out.append("| Baseline, untuned: recency + name + raw keyword overlap | \(percent(hits({ untuned[$0.id]?.keys }, within: 1), n)) | \(percent(hits({ untuned[$0.id]?.keys }, within: 3), n)) |")
@@ -50,7 +53,7 @@ struct Report {
             out.append("\nHead to head on top-1 against the tuned baseline: Jev right and baseline wrong in \(onlyJev) cases, baseline right and Jev wrong in \(onlyBase). Exact McNemar p = \(String(format: "%.4f", binomialTwoSided(min(onlyJev, onlyBase), onlyJev + onlyBase))).")
         }
 
-        let tags = Set(cases.flatMap(\.tags)).sorted()
+        let tags = Set(cases.flatMap(\.tags)).subtracting(["no-fit"]).sorted()
         out.append("\n## Top-1 by case type\n")
         out.append(hasJev ? "| Tag | Cases | Baseline | Jev |\n|---|---|---|---|" : "| Tag | Cases | Baseline |\n|---|---|---|")
         for tag in tags {
@@ -63,13 +66,15 @@ struct Report {
 
         if hasJev {
             out.append("\n## Confident picks only\n")
-            out.append("Coverage is the share of cases where the top pick clears the bar and gets highlighted. Precision is the share of highlighted picks that are correct.\n")
-            out.append("| Gate | Coverage | Precision | Wrong highlights |")
-            out.append("|---|---|---|---|")
+            out.append("Coverage is the share of labelled cases where the top pick clears the bar and gets highlighted. Precision is the share of those highlights that are correct. The last column counts no-fit cases, where no candidate fits, that would still get a highlight.\n")
+            out.append("| Gate | Coverage | Precision | Wrong highlights | Highlights on no-fit cases |")
+            out.append("|---|---|---|---|---|")
             func gate(_ label: String, _ runs: [String: Run], _ pass: (Run) -> Bool, keys: (Run) -> [String] = { $0.keys }) {
                 let kept = cases.filter { runs[$0.id].map { $0.error == nil && pass($0) } ?? false }
                 let right = kept.filter { runs[$0.id].flatMap { keys($0).first } == $0.gold }.count
-                out.append("| \(label) | \(percent(kept.count, n)) | \(percent(right, kept.count)) | \(kept.count - right) |")
+                let noFitKept = noFit.filter { runs[$0.id].map { $0.error == nil && pass($0) } ?? false }.count
+                let noFitRuns = noFit.filter { runs[$0.id] != nil }.count
+                out.append("| \(label) | \(percent(kept.count, n)) | \(percent(right, kept.count)) | \(kept.count - right) | \(percent(noFitKept, noFitRuns)) |")
             }
             for threshold in [0.0, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95] {
                 gate("Jev top probability ≥ \(threshold)", jev, { $0.top >= threshold })
@@ -77,8 +82,13 @@ struct Report {
             for threshold in [0.5, 0.7, 0.9] {
                 gate("Jev confidence ≥ \(threshold)", jev, { $0.confidence >= threshold })
             }
-            for threshold in [0.6, 0.8] {
-                gate("Jev top probability ≥ \(threshold) and any-fits Noul ≥ 0.5", jev, { $0.top >= threshold && ($0.anyFits ?? 0) >= 0.5 })
+            for threshold in [0.6, 0.8, 0.9] {
+                for fits in [0.5, 0.7] {
+                    gate("Jev top probability ≥ \(threshold) and any-fits Noul ≥ \(fits)", jev, { $0.top >= threshold && ($0.anyFits ?? 0) >= fits })
+                }
+            }
+            for fit in [0.5, 0.7] {
+                gate("Jev top Choice pick's own Noul ≥ \(fit)", jev, { ($0.ranked.first?.fit ?? 0) >= fit })
             }
             for threshold in [0.5, 0.7, 0.9] {
                 gate("Baseline softmax top ≥ \(threshold) (reference)", baseline, { $0.top >= threshold })
@@ -100,6 +110,16 @@ struct Report {
                 let grouped = Dictionary(grouping: (recording?.runs ?? []).filter { $0.error == nil }, by: \.caseID)
                 let stable = grouped.values.filter { Set($0.compactMap { $0.keys.first }).count == 1 }.count
                 out.append("\nTop pick identical across \(attempts.count) passes in \(percent(stable, grouped.count)) of cases.")
+            }
+
+            if !noFit.isEmpty {
+                out.append("\n## No-fit cases\n")
+                out.append("| Case | Jev top pick | p | any-fits Noul | its own Noul |")
+                out.append("|---|---|---|---|---|")
+                for item in noFit {
+                    guard let run = jev[item.id] else { continue }
+                    out.append("| \(item.id) | \(run.keys.first.map { name($0, in: item) } ?? run.error ?? "–") | \(String(format: "%.2f", run.top)) | \(run.anyFits.map { String(format: "%.2f", $0) } ?? "–") | \(run.ranked.first?.fit.map { String(format: "%.2f", $0) } ?? "–") |")
+                }
             }
 
             out.append("\n## Jev misses\n")

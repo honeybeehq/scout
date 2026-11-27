@@ -132,8 +132,9 @@ for item in fixtures.cases {
 }
 
 if options.check {
-    let hits = fixtures.cases.filter { baseline[$0.id]?.keys.first == $0.gold }.count
-    print("check: ok, baseline top-1 \(hits)/\(fixtures.cases.count)")
+    let labelled = fixtures.cases.filter { !$0.isNoFit }
+    let hits = labelled.filter { baseline[$0.id]?.keys.first == $0.gold }.count
+    print("check: ok, baseline top-1 \(hits)/\(labelled.count)")
     exit(0)
 }
 
@@ -173,6 +174,6 @@ if let replay = options.replay {
     }
 }
 
-let report = Report(cases: fixtures.cases, baseline: baseline, untuned: untuned, recording: recording).markdown
+let report = Report(all: fixtures.cases, baseline: baseline, untuned: untuned, recording: recording).markdown
 print(report)
 if let path = options.report { try Data(report.utf8).write(to: path) }

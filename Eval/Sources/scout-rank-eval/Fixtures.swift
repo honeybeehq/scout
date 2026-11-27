@@ -59,7 +59,7 @@ struct CaseFeedback: Codable {
 struct EvalCase: Codable {
     var id: String
     var tags: [String]
-    var gold: String
+    var gold: String?
     var feedback: CaseFeedback
     var candidates: [String]
     var recency: [String: Double]
@@ -72,6 +72,8 @@ struct ResolvedCase {
     var feedback: RankFeedback
     var candidates: [RankCandidate]
     var rows: [BridgeRow]
+
+    var isNoFit: Bool { gold.isEmpty }
 }
 
 struct FixtureSet {
@@ -98,7 +100,8 @@ struct FixtureSet {
             if !seen.insert(item.id).inserted { problems.append("\(item.id): duplicate case id") }
             if !(6...15).contains(item.candidates.count) { problems.append("\(item.id): \(item.candidates.count) candidates, want 6–15") }
             if Set(item.candidates).count != item.candidates.count { problems.append("\(item.id): repeated candidate") }
-            if !item.candidates.contains(item.gold) { problems.append("\(item.id): gold \(item.gold) is not a candidate") }
+            if let gold = item.gold, !item.candidates.contains(gold) { problems.append("\(item.id): gold \(gold) is not a candidate") }
+            if (item.gold == nil) != item.tags.contains("no-fit") { problems.append("\(item.id): only no-fit cases have no gold") }
             for alias in item.recency.keys where !item.candidates.contains(alias) { problems.append("\(item.id): recency for non-candidate \(alias)") }
             var rows: [BridgeRow] = []
             for alias in item.candidates {
@@ -109,7 +112,7 @@ struct FixtureSet {
                 rows.append(copy)
             }
             let candidates = rows.map { $0.candidate(lastActive: $0.lastActiveAt.flatMap { ISO8601DateFormatter().date(from: $0) }) }
-            let gold = byAlias[item.gold]?.key ?? item.gold
+            let gold = item.gold.map { byAlias[$0]?.key ?? $0 } ?? ""
             let feedback = RankFeedback(transcript: item.feedback.transcript, pageURL: item.feedback.url.isEmpty ? nil : item.feedback.url, pageTitle: item.feedback.pageTitle, appName: item.feedback.app)
             cases.append(ResolvedCase(id: item.id, tags: item.tags, gold: gold, feedback: feedback, candidates: candidates, rows: rows))
         }
