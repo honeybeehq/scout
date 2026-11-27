@@ -51,6 +51,11 @@ struct SettingsView: View {
         .frame(width: Self.size.width, height: Self.size.height)
         .background(Palette.canvas)
         .scaledToUISize()
+        .onChange(of: model.requestedSettingsPane, initial: true) {
+            guard let requested = model.requestedSettingsPane else { return }
+            pane = requested
+            model.requestedSettingsPane = nil
+        }
     }
 }
 
@@ -284,6 +289,7 @@ private struct AgentSettings: View {
                         ChoiceMenu(options: Preferences.agents, selection: $preferences.defaultAgent) { $0 }
                     }
                 }
+                SuggestionSection()
                 SettingsSection(title: "Sending") {
                     SettingRow(title: "Send automatically", detail: "Each task waits a moment so you can hold it or change where it goes.", divider: false) {
                         Toggle("", isOn: $preferences.autoSend)
@@ -303,6 +309,58 @@ private struct AgentSettings: View {
                 }
             }
             .padding(20)
+        }
+    }
+}
+
+private struct SuggestionSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var suggestions = model.suggestions
+        SettingsSection(title: "Suggested target") {
+            SettingRow(title: "Suggest a target with TypeSafe", detail: "Highlights the chat a recording most likely belongs in. Off until you turn it on.", divider: false) {
+                Toggle("", isOn: Binding(get: { suggestions.enabled == true }, set: { suggestions.setEnabled($0) }))
+                    .toggleStyle(SignalToggleStyle())
+                    .labelsHidden()
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(TargetSuggestions.disclosure)
+                Text(TargetSuggestions.exclusions)
+                Link("TypeSafe privacy policy", destination: TargetSuggestions.privacyURL)
+                    .foregroundStyle(Palette.accentText)
+            }
+            .font(Typography.caption)
+            .foregroundStyle(Palette.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.bottom, 10)
+            SettingRow(title: "TypeSafe API key", detail: suggestions.hasKey ? "Saved in your Mac's Keychain." : "Your own key from TypeSafe. Scout keeps it in your Mac's Keychain.") {
+                if suggestions.hasKey {
+                    Button("Remove") { suggestions.removeKey() }
+                        .buttonStyle(SecondaryButtonStyle())
+                } else {
+                    HStack(spacing: 8) {
+                        SecureField("API key", text: $suggestions.draftKey)
+                            .textFieldStyle(.plain)
+                            .font(Typography.mono)
+                            .padding(.horizontal, 8)
+                            .frame(width: 170, height: 28)
+                            .background(Palette.sunken, in: .rect(cornerRadius: Radius.control, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.stroke))
+                            .onSubmit { suggestions.saveKey() }
+                        Button("Save") { suggestions.saveKey() }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .disabled(suggestions.draftKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+            if let problem = suggestions.keyProblem {
+                HStack(spacing: 6) {
+                    StatusDot(tone: .negative)
+                    Text(problem).font(Typography.caption).foregroundStyle(Palette.textSecondary)
+                }
+                .padding(.bottom, 10)
+            }
         }
     }
 }

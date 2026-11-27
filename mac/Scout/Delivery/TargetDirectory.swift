@@ -38,6 +38,7 @@ struct TargetDirectory {
                 rows[index].subtitle = rows[index].subtitle ?? target.subtitle
                 rows[index].workspaceID = rows[index].workspaceID ?? target.workspaceID
                 rows[index].state = rows[index].state ?? target.state
+                rows[index].lastActiveAt = rows[index].lastActiveAt ?? session.lastOutputAt
                 if rows[index].isProject { continue }
                 rows[index].championName = rows[index].championName ?? target.championName
                 rows[index].championID = rows[index].championID ?? target.championID

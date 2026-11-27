@@ -23,5 +23,6 @@ Nothing leaves your Mac until you send it.
 - **Update checks.** Scout asks GitHub once a day whether a new version exists. You can turn this off. See [Updates](updates.md).
 - **Speech models.** During setup, macOS may download Apple's on-device speech model. The Whisper model downloads from Hugging Face only after you click *Download and install* or *Download*.
 - **Linear.** If you connect Linear in Settings, Scout checks your API key with Linear and keeps it in your Mac's Keychain.
+- **Suggested target.** Off until you turn on *Suggest a target with TypeSafe* in Settings → Agents or choose *Enable* in the destination sheet, and it needs your own TypeSafe API key, which Scout keeps in your Mac's Keychain. When a recording finishes, Scout then sends TypeSafe the names and bios of your Champions, Projects and sessions, their project and workspace names, a rough recency (such as "active today"), the first 500 characters of the transcript, the page title, the site's host name and the name of the app you were in. It never sends screenshots, audio, full URLs or file paths. See TypeSafe's [privacy policy](https://typesafe.ai/legal/privacy-policy).
 
 Scout's code makes no other network requests and contains no analytics.

@@ -27,6 +27,8 @@ targets:
         product: ScoutCore
       - package: ScoutKit
         product: ScoutSegmenter
+      - package: ScoutKit
+        product: ScoutRanking
       - package: WhisperKit
         product: WhisperKit
       - package: Sparkle

@@ -4,10 +4,12 @@ import secrets
 import socket
 import sys
 import threading
+import time
 
-if len(sys.argv) != 3:
-    sys.exit("usage: serve.py <fixture.json> <run dir>")
+if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--no-context"):
+    sys.exit("usage: serve.py <fixture.json> <run dir> [--no-context]")
 fixture = json.load(open(sys.argv[1]))
+context = len(sys.argv) == 3
 run = os.path.abspath(sys.argv[2])
 os.makedirs(run, exist_ok=True)
 apiary_path = os.path.join(run, "apiary.sock")
@@ -15,6 +17,34 @@ hive_path = os.path.join(run, "hived.sock")
 token = secrets.token_hex(16)
 instance = "fixture-" + secrets.token_hex(4)
 log = open(os.path.join(run, "serve.log"), "a", buffering=1)
+now = time.time() * 1000
+
+
+def stamp(value):
+    if isinstance(value, str) and value.startswith("now-") and value[-1] in "mhd":
+        return round(now - float(value[4:-1]) * {"m": 60_000, "h": 3_600_000, "d": 86_400_000}[value[-1]])
+    return value
+
+
+def row(target):
+    shaped = {key: stamp(value) for key, value in target.items()}
+    if not context:
+        shaped.pop("bio", None)
+        shaped.pop("lastActiveAt", None)
+    return shaped
+
+
+targets = [row(target) for target in fixture.get("targets", [])]
+hive_views = fixture.get("hive") or [
+    {
+        "bee": {"id": target["sessionId"], "lifecycle": "active", "name": target["title"], "title": target.get("sessionTitle"), "lastOutputAt": stamp(target["lastActiveAt"]), "tags": []},
+        "view": {},
+        "runtime": {"state": "running"},
+    }
+    for target in fixture.get("targets", [])
+    if target.get("sessionId") and target.get("lastActiveAt")
+]
+capabilities = ["focusedChat", "listTargets", "listTargets.look", "deliver"] + (["listTargets.context"] if context else [])
 
 
 def lines(conn):
@@ -42,13 +72,17 @@ def apiary(conn):
             if request.get("params", {}).get("token") != token:
                 send(conn, {"id": request["id"], "ok": False, "error": {"code": "unauthorized", "message": "bad token"}})
                 continue
-            result = {"apiary": {"instanceId": instance}, "capabilities": ["focusedChat", "listTargets", "listTargets.look", "deliver"], "windows": []}
+            result = {"apiary": {"instanceId": instance}, "capabilities": capabilities, "windows": []}
         elif verb == "focusedChat":
             result = {"target": fixture["focused"]} if fixture.get("focused") else {}
         elif verb == "listTargets":
-            result = {"targets": fixture.get("targets", [])}
+            result = {"targets": targets}
         elif verb == "deliver":
-            result = {}
+            params = request.get("params", {})
+            target = params.get("target", {})
+            title = next((row["title"] for row in targets if row["kind"] == target.get("kind") and row["id"] == target.get("id")), "")
+            log.write(f"apiary deliver {target.get('kind')}:{target.get('id')} {params.get('mode')} {title}\n")
+            result = {"target": {"title": title}} if title else {}
         else:
             send(conn, {"id": request["id"], "ok": False, "error": {"code": "unknownVerb", "message": verb}})
             continue
@@ -62,7 +96,7 @@ def hive(conn):
             continue
         log.write(f"hive {request['verb']}\n")
         if request["verb"] == "list":
-            send(conn, {"id": request["id"], "ok": True, "result": {"views": fixture.get("hive", [])}})
+            send(conn, {"id": request["id"], "ok": True, "result": {"views": hive_views}})
         else:
             send(conn, {"id": request["id"], "ok": False, "error": {"message": "fixture hive only lists"}})
 

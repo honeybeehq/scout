@@ -116,6 +116,8 @@ nonisolated struct ApiaryTarget: Hashable, Sendable {
     var workspaceName: String?
     var state: String?
     var look: ApiaryLook?
+    var bio: String?
+    var lastActiveAt: Date?
     var viaApiary = true
 
     init(kind: String, id: String, sessionID: String?, title: String, handle: String? = nil, subtitle: String? = nil, focused: Bool = false, open: Bool = false) {
@@ -160,6 +162,20 @@ nonisolated struct ApiaryTarget: Hashable, Sendable {
         workspaceID = text("workspaceId")
         workspaceName = text("workspaceName")
         look = ApiaryLook(fields["look"])
+        bio = text("bio")
+        lastActiveAt = Self.date(fields["lastActiveAt"])
+    }
+
+    private static func date(_ value: JSONValue?) -> Date? {
+        switch value {
+        case .number(let milliseconds)?: return milliseconds > 0 ? Date(timeIntervalSince1970: milliseconds / 1000) : nil
+        case .string(let text)?:
+            let formatter = ISO8601DateFormatter()
+            if let date = formatter.date(from: text) { return date }
+            formatter.formatOptions.insert(.withFractionalSeconds)
+            return formatter.date(from: text)
+        default: return nil
+        }
     }
 
     var isProject: Bool { kind == "project" }

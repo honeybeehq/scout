@@ -517,9 +517,33 @@ enum SimulationMode {
         }
         await waitFor(3) { picker.model.source != .loading }
         result["opened"] = state()
+        let selectedAtOpen = picker.model.selected?.key
+        let rowsAtOpen = picker.model.filtered.map(\.key)
         pickerSnapshot(model, "1-open", into: output)
+        if ProcessInfo.processInfo.arguments.contains("--pick-offer-probe"), picker.model.offer != .hidden {
+            let keyBefore = NSApp.keyWindow is PickerPanel
+            picker.post(.character("x"))
+            try? await Task.sleep(for: .milliseconds(200))
+            result["offerProbe"] = [
+                "offer": String(describing: picker.model.offer),
+                "pickerWasKey": keyBefore,
+                "pickerIsKey": NSApp.keyWindow is PickerPanel,
+                "typedQuery": picker.model.query,
+                "selectedAfterTyping": picker.model.selected?.key ?? "",
+            ]
+            pickerSnapshot(model, "1a-offer-typed", into: output)
+            picker.post(.delete)
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        if let wait = argument("pick-wait-suggestion").flatMap(Double.init) {
+            await waitFor(wait / 1000) { model.suggestions.lastOutcome != nil }
+            try? await Task.sleep(for: .milliseconds(250))
+            pickerSnapshot(model, "1b-suggestion", into: output)
+        }
+        result["suggestion"] = suggestionReport(model, selectedAtOpen: selectedAtOpen, rowsAtOpen: rowsAtOpen)
         guard let key = argument("pick-key") else {
             result["timings"] = model.pickerTimings
+            try? await Task.sleep(for: .milliseconds(1200))
             return result
         }
         for character in argument("pick") ?? "" {
@@ -565,8 +589,35 @@ enum SimulationMode {
             result["repeat"] = ["delivery": deliveryReport(model.lastDelivery), "confirmation": picker.model.confirmation ?? "", "problem": picker.model.problem ?? "", "timings": model.pickerTimings]
             pickerSnapshot(model, "4-repeat", into: output)
         }
+        result["suggestRequestsTotal"] = model.suggestions.requests
         try? await Task.sleep(for: .milliseconds(1800))
         return result
+    }
+
+    private static func suggestionReport(_ model: AppModel, selectedAtOpen: String?, rowsAtOpen: [String]) -> [String: Any] {
+        let suggestions = model.suggestions
+        let picker = model.picker.model
+        var report: [String: Any] = [
+            "setting": suggestions.state,
+            "requests": suggestions.requests,
+            "offer": String(describing: picker.offer),
+            "shownAs": picker.suggestion.rawValue,
+            "suggestedKey": picker.suggestedKey ?? "",
+            "selectedAtOpen": selectedAtOpen ?? "",
+            "selectedNow": picker.selected?.key ?? "",
+            "rowsUnchanged": rowsAtOpen == picker.filtered.map(\.key),
+        ]
+        if let outcome = suggestions.lastOutcome {
+            report["outcome"] = outcome.kind.rawValue
+            report["detail"] = outcome.detail
+            report["roundTripMs"] = ApiaryBridge.milliseconds(outcome.roundTrip)
+            if let probability = outcome.probability { report["topProbability"] = (probability * 1000).rounded() / 1000 }
+            if let anyFits = outcome.anyFits { report["anyFits"] = (anyFits * 1000).rounded() / 1000 }
+        }
+        if let body = suggestions.lastBody, let json = try? JSONSerialization.jsonObject(with: body) {
+            report["requestBody"] = json
+        }
+        return report
     }
 
     static var recordURL: URL? {

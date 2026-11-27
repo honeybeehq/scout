@@ -32,6 +32,8 @@ Apiary is a desktop workspace for hive sessions, and Apiary panes are hive sessi
 
 When you finish a walkthrough, the destination sheet lists Apiary chats and active hive sessions, grouped as the focused chat, Champions, Project orchestrators, sessions and *Clipboard only*. Type to filter every group at once; `Tab` jumps to the next group. `Enter` pastes the walkthrough into the chosen chat and `⌘↩` sends it. If you choose before the walkthrough is ready, the sheet shows "Sends when ready".
 
+With *Suggest a target with TypeSafe* on (Settings → Agents, off by default), Scout asks TypeSafe which chat the recording belongs in as soon as you stop. A confident answer gets a *Suggested* badge and a "via TypeSafe" tag. If it arrives within about 300 ms of the sheet opening, and you haven't typed or moved yet, it is also selected, so `Enter` sends it. A later answer only highlights its row: your selection and the order of the rows stay as they are. When TypeSafe isn't sure, fails or is offline, the sheet is the normal list. The suggestion never sends anything by itself. The first time a recording finishes, the sheet offers *Suggest a target with TypeSafe?* with *Enable* and *Not now*. See [Privacy](privacy.md) for what is sent.
+
 Apiary's *Record feedback* on a proof starts a Scout recording tied to that proof. When you finish, the walkthrough goes into that proof's review, and a line says "In the review: …". If Apiary refuses or isn't reachable, the walkthrough stays on the clipboard and the line says why.
 
 ## Linear

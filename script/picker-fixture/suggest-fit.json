@@ -1,0 +1,152 @@
+{
+  "targets": [
+    {
+      "kind": "champion",
+      "id": "scout",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000001",
+      "title": "Scout",
+      "championName": "Scout",
+      "championId": "scout",
+      "subtitle": "scout",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "bio": "Owns Scout, the macOS menu-bar app that records spoken feedback with screen context and sends it to agents.",
+      "lastActiveAt": "now-20m"
+    },
+    {
+      "kind": "champion",
+      "id": "apiary",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000002",
+      "title": "Apiary",
+      "championName": "Apiary",
+      "championId": "apiary",
+      "subtitle": "apiary",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "bio": "Owns Apiary, the desktop app and kernel for Champions, Projects and bees: chat, Inbox, Forum, proofs and landing.",
+      "lastActiveAt": "now-1d"
+    },
+    {
+      "kind": "champion",
+      "id": "fjordbank",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000004",
+      "title": "Fjordbank",
+      "championName": "Fjordbank",
+      "championId": "fjordbank",
+      "subtitle": "fjordbank",
+      "workspaceId": "ws-fjordbank",
+      "workspaceName": "Fjordbank (client)",
+      "bio": "Owns the Fjordbank client work: the online bank web app and the mobile app.",
+      "lastActiveAt": "now-5d"
+    },
+    {
+      "kind": "champion",
+      "id": "shop",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000003",
+      "title": "Shop",
+      "championName": "Shop",
+      "championId": "shop",
+      "subtitle": "shop",
+      "workspaceId": "ws-northwind",
+      "workspaceName": "Northwind Shop",
+      "bio": "Owns the Northwind web shop: catalogue, product pages, cart, checkout and payments.",
+      "lastActiveAt": "now-2d"
+    },
+    {
+      "kind": "project",
+      "id": "project-scout-suggest",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000011",
+      "title": "Scout: smart target suggestion",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "bio": "Rank the picker's targets with TypeSafe Jev and highlight a confident pick.",
+      "lastActiveAt": "now-5m"
+    },
+    {
+      "kind": "project",
+      "id": "project-apiary-inbox",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000012",
+      "title": "Apiary: Inbox triage",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "bio": "Inbox filters, snooze, keyboard triage and batch accept for proofs.",
+      "lastActiveAt": "now-6h"
+    },
+    {
+      "kind": "project",
+      "id": "project-shop-checkout",
+      "sessionId": "5c0a7e57-0000-4000-8000-000000000013",
+      "title": "Shop: One-page checkout",
+      "workspaceId": "ws-northwind",
+      "workspaceName": "Northwind Shop",
+      "bio": "New one-page checkout: the payment form, card number validation, shipping rules and the Pay now button.",
+      "lastActiveAt": "now-3h"
+    },
+    {
+      "kind": "session",
+      "id": "5c0a7e57-0000-4000-8000-000000000021",
+      "title": "scout-picker-polish",
+      "handle": "CL.20b1",
+      "sessionTitle": "Picker rows: avatars, section counts and keyboard hints",
+      "subtitle": "scout",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "lastActiveAt": "now-2m"
+    },
+    {
+      "kind": "session",
+      "id": "5c0a7e57-0000-4000-8000-000000000022",
+      "title": "apiary-forum-cards",
+      "handle": "CL.20b2",
+      "sessionTitle": "Forum packet cards and the proof card layout",
+      "subtitle": "apiary",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "lastActiveAt": "now-1h"
+    },
+    {
+      "kind": "session",
+      "id": "5c0a7e57-0000-4000-8000-000000000024",
+      "title": "shop-search-ranking",
+      "handle": "CX.31a2",
+      "sessionTitle": "Product search results ranking and typo tolerance",
+      "subtitle": "shop",
+      "workspaceId": "ws-northwind",
+      "workspaceName": "Northwind Shop",
+      "lastActiveAt": "now-40m"
+    },
+    {
+      "kind": "session",
+      "id": "5c0a7e57-0000-4000-8000-000000000023",
+      "title": "fjord-payments-table",
+      "handle": "CX.12f1",
+      "sessionTitle": "Payment history table: sorting and the date column",
+      "subtitle": "fjordbank-web",
+      "workspaceId": "ws-fjordbank",
+      "workspaceName": "Fjordbank (client)",
+      "lastActiveAt": "now-30m"
+    },
+    {
+      "kind": "session",
+      "id": "5c0a7e57-0000-4000-8000-000000000025",
+      "title": "fjord-login-a11y",
+      "handle": "CX.12f0",
+      "sessionTitle": "VoiceOver labels and focus order on the login form",
+      "subtitle": "fjordbank-web",
+      "workspaceId": "ws-fjordbank",
+      "workspaceName": "Fjordbank (client)",
+      "lastActiveAt": "now-3d"
+    },
+    {
+      "kind": "session",
+      "id": "5c0a7e57-0000-4000-8000-000000000026",
+      "title": "docs-typos",
+      "handle": "CL.20b3",
+      "sessionTitle": "Fix typos across the public guide",
+      "subtitle": "scout-site",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "lastActiveAt": "now-8d"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Target ranking eval
 
-Measures how well a ranker picks the target a finished Scout recording should go to. It compares TypeSafe Jev with a recency and name/keyword heuristic. The ranking client lives in `Sources/ScoutRanking`. The app does not use it yet.
+Measures how well a ranker picks the target a finished Scout recording should go to. It compares TypeSafe Jev with a recency and name/keyword heuristic. The ranking client lives in `Sources/ScoutRanking`. The picker uses it for the opt-in TypeSafe suggestion (`mac/Scout/Delivery/TargetSuggestions.swift`).
 
 ## Fixtures
 

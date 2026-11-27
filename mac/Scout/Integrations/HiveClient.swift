@@ -22,6 +22,7 @@ struct HiveSession: Identifiable, Hashable, Sendable {
         target.championName = isChampion ? name : nil
         target.workspaceID = workspaceTag.map { String($0.dropFirst("apiary:workspace=".count)) }
         target.state = isWaitingForYou ? "Waiting for you" : isWorking ? "Working" : nil
+        target.lastActiveAt = lastOutputAt
         target.viaApiary = false
         return target
     }

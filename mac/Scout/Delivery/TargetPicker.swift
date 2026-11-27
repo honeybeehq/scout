@@ -44,7 +44,20 @@ final class TargetPickerModel {
         case none
     }
 
+    enum Suggestion: String, Equatable {
+        case none
+        case preselected
+        case highlighted
+    }
+
+    enum Offer: Equatable {
+        case hidden
+        case asking
+        case needsKey
+    }
+
     static let clipboardKind = "clipboard"
+    static let preselectWindow: Duration = .milliseconds(300)
 
     static let clipboard: ApiaryTarget = {
         var target = ApiaryTarget(kind: clipboardKind, id: clipboardKind, sessionID: nil, title: "Clipboard only", subtitle: "Copy the walkthrough and send nothing")
@@ -67,6 +80,7 @@ final class TargetPickerModel {
     var query = "" {
         didSet {
             guard query != oldValue else { return }
+            interacted = true
             selection = 0
             regroup()
         }
@@ -79,10 +93,20 @@ final class TargetPickerModel {
     private(set) var progress: String?
     private(set) var caution = false
     var focusToken = 0
+    private(set) var suggestedKey: String?
+    private(set) var suggestion: Suggestion = .none
+    var offer: Offer = .hidden
+    @ObservationIgnored private var pendingSuggestion: String?
+    @ObservationIgnored private var openedAt: ContinuousClock.Instant?
+    @ObservationIgnored private var interacted = false
 
     var onChoose: ((ApiaryTarget, DeliveryMode) -> Void)?
     var onDismiss: (() -> Void)?
     var onRevealDebug: ((URL) -> Void)?
+    var onSuggestionShown: ((Suggestion, Duration?) -> Void)?
+    var onEnableSuggestions: (() -> Void)?
+    var onDeclineSuggestions: (() -> Void)?
+    var onOpenSuggestionSettings: (() -> Void)?
 
     init() {
         regroup()
@@ -167,7 +191,43 @@ final class TargetPickerModel {
         problem = nil
         progress = nil
         caution = false
+        suggestedKey = nil
+        suggestion = .none
+        offer = .hidden
+        pendingSuggestion = nil
+        openedAt = nil
+        interacted = false
         focusToken += 1
+    }
+
+    func opened() {
+        openedAt = .now
+        applySuggestion()
+    }
+
+    func suggest(_ key: String) {
+        pendingSuggestion = key
+        applySuggestion()
+    }
+
+    func select(_ index: Int) {
+        interacted = true
+        selection = index
+    }
+
+    private func applySuggestion() {
+        guard suggestedKey == nil, let key = pendingSuggestion, let openedAt, let index = filtered.firstIndex(where: { $0.key == key }) else { return }
+        let waited = ContinuousClock.now - openedAt
+        let untouched = !interacted && query.isEmpty && queued == nil && !delivering && confirmation == nil && progress == nil
+        suggestedKey = key
+        pendingSuggestion = nil
+        if untouched, waited <= Self.preselectWindow {
+            selection = index
+            suggestion = .preselected
+        } else {
+            suggestion = .highlighted
+        }
+        onSuggestionShown?(suggestion, waited)
     }
 
     func bind(_ target: ApiaryTarget, saying text: String) {
@@ -189,21 +249,24 @@ final class TargetPickerModel {
 
     func setTargets(_ targets: [ApiaryTarget], source: Source) {
         let keep = selected
-        let moved = selection != 0 || !query.isEmpty
+        let moved = selection != 0 || !query.isEmpty || suggestion == .preselected
         self.targets = targets
         self.source = source
         if moved, let keep, let index = filtered.firstIndex(where: { $0.key == keep.key }) { selection = index } else { selection = 0 }
+        applySuggestion()
     }
 
     func move(_ delta: Int) {
         let count = filtered.count
         guard count > 0 else { return }
+        interacted = true
         selection = (selection + delta + count) % count
     }
 
     func jump(_ delta: Int) {
         let starts = sections.map(\.start)
         guard !starts.isEmpty else { return }
+        interacted = true
         if delta > 0 {
             selection = starts.first { $0 > selection } ?? starts[0]
         } else {
@@ -252,6 +315,7 @@ final class TargetPickerController {
     private var panel: PickerPanel?
     private var monitor: Any?
     private var closing: Task<Void, Never>?
+    var onClose: (() -> Void)?
 
     var isOpen: Bool { panel?.isVisible == true }
 
@@ -292,6 +356,7 @@ final class TargetPickerController {
         panel.alphaValue = 1
         panel.orderFrontRegardless()
         panel.displayIfNeeded()
+        model.opened()
         if takingKeys {
             panel.makeKey()
             listen()
@@ -302,6 +367,7 @@ final class TargetPickerController {
     }
 
     func close(after delay: Duration = .zero) {
+        onClose?()
         closing?.cancel()
         closing = Task { [weak self] in
             if delay > .zero { try? await Task.sleep(for: delay) }
@@ -431,6 +497,7 @@ struct TargetPickerView: View {
             } else {
                 header
                 search(query: $model.query)
+                if model.offer != .hidden { offer }
                 list
                 Rectangle().fill(Palette.hairline).frame(height: 1)
                 footer
@@ -576,7 +643,7 @@ struct TargetPickerView: View {
                                     .id(target.key)
                                     .contentShape(.rect)
                                     .onTapGesture {
-                                        model.selection = index
+                                        model.select(index)
                                         model.choose(.paste)
                                     }
                             }
@@ -632,8 +699,57 @@ struct TargetPickerView: View {
         return parts.joined(separator: " · ")
     }
 
+    private var offer: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Palette.accentText)
+            Text(model.offer == .needsKey ? "Add your TypeSafe API key in Settings → Agents." : "Suggest a target with TypeSafe?")
+                .font(Typography.callout)
+                .foregroundStyle(Palette.text)
+                .lineLimit(1)
+            Spacer(minLength: 6)
+            if model.offer == .needsKey {
+                Button("Open Settings") { model.onOpenSuggestionSettings?() }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .focusable(false)
+            } else {
+                Button("Not now") { model.onDeclineSuggestions?() }
+                    .buttonStyle(QuietButtonStyle())
+                    .focusable(false)
+                Button("Enable") { model.onEnableSuggestions?() }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .focusable(false)
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 38)
+        .background(Palette.accentWash)
+        .overlay(alignment: .bottom) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+        .help("Scout sends target names and bios, the first 500 transcript characters, the page title, the site's host and the app name to TypeSafe. Never screenshots, audio, full URLs or paths.")
+    }
+
+    private func suggestedTag(selected: Bool) -> some View {
+        HStack(spacing: 6) {
+            Text("via TypeSafe")
+                .font(Typography.caption)
+                .foregroundStyle(selected ? Palette.onInk.opacity(0.62) : Palette.textTertiary)
+            Text("Suggested")
+                .font(Typography.label)
+                .tracking(0.7)
+                .textCase(.uppercase)
+                .foregroundStyle(selected ? Palette.onInk : Palette.accentText)
+                .padding(.horizontal, 5)
+                .frame(height: 16)
+                .overlay(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous).strokeBorder(selected ? Palette.onInk.opacity(0.5) : Palette.accent.opacity(0.6)))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Suggested via TypeSafe")
+    }
+
     private func row(_ target: ApiaryTarget, focused: Bool, selected: Bool) -> some View {
         let detail = subtitle(target, focused: focused)
+        let suggested = target.key == model.suggestedKey
         return HStack(spacing: 10) {
             TargetIcon(target: target)
             VStack(alignment: .leading, spacing: 1) {
@@ -653,13 +769,21 @@ struct TargetPickerView: View {
                 }
             }
             Spacer(minLength: 6)
+            if suggested {
+                suggestedTag(selected: selected)
+            }
             if selected {
                 KeyHint("↩", emphasized: true)
             }
         }
         .padding(.horizontal, 8)
         .frame(height: 36)
-        .background(selected ? Palette.ink : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .background(selected ? Palette.ink : suggested ? Palette.accentWash : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .overlay {
+            if suggested, !selected {
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.accent.opacity(0.45), lineWidth: 1)
+            }
+        }
     }
 
     private var footer: some View {

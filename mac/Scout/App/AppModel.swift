@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import Observation
 import ScoutCore
+import ScoutRanking
 import ServiceManagement
 
 @Observable
@@ -15,6 +16,7 @@ final class AppModel {
     let bridge = BridgeServer()
     let apiary = ApiaryBridge()
     let picker = TargetPickerController()
+    let suggestions = TargetSuggestions()
     let updates = Updates(starts: !AppModel.rendersOnly && !SimulationMode.isRunning)
     private(set) var lastDelivery: DeliveryOutcome?
     private(set) var lastDeliveryLine: String?
@@ -35,6 +37,7 @@ final class AppModel {
     @ObservationIgnored private var opensOnceSettled: Set<String> = []
     var openOnboarding: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
+    var requestedSettingsPane: SettingsView.Pane?
     var openReviewWindow: (() -> Void)?
     let breakShortcut = KeyShortcut.nextTask
     private var breakHotkey: GlobalHotkey?
@@ -114,6 +117,7 @@ final class AppModel {
         picker.model.onChoose = { [weak self] target, mode in self?.choose(target, mode: mode) }
         picker.model.onDismiss = { [weak self] in self?.dismissPicker() }
         picker.model.onRevealDebug = { [weak self] url in self?.revealDebugData(at: url) }
+        connectSuggestions()
         ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
         ScoutAppDelegate.onWillFinishLaunching = { [preferences] in preferences.applyAppearance() }
         if !Self.rendersOnly {
@@ -408,7 +412,8 @@ final class AppModel {
                 boundTarget = nil
                 openBound(target, expecting: walkthrough.bundle.id, pressedAt: pressed)
             } else {
-                openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed)
+                let spoken = session.ledger.utterances.map(\.text).joined(separator: " ")
+                openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed, feedback: TargetSuggestions.feedback(transcript: spoken, context: session.ledger.contexts.last?.context ?? session.context))
             }
             Task { await finishWalkthrough(walkthrough, of: session, pressedAt: pressed, handedOff: handedOff) }
             return
@@ -520,13 +525,23 @@ final class AppModel {
 
     @ObservationIgnored private var pickerWalkthroughID: String?
 
-    private func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant) {
+    func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant, feedback: RankFeedback? = nil) {
         pickerWalkthroughID = walkthroughID
         chosen = nil
         finishPressedAt = pressedAt
         pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
+        suggestions.begin()
         picker.model.reset(with: finished)
-        if !prefetched.targets.isEmpty { picker.model.setTargets(prefetched.targets, source: prefetched.source) }
+        if suggestions.showsOffer {
+            picker.model.offer = .asking
+            suggestions.markOffered()
+        }
+        suggestions.offer(feedback: feedback ?? finished.map { TargetSuggestions.feedback(from: $0.walkthrough) })
+        if !prefetched.targets.isEmpty {
+            picker.model.setTargets(prefetched.targets, source: prefetched.source)
+            suggestions.offer(candidates: prefetched.targets)
+        }
+        pickerTimings["suggestRequested"] = suggestions.requests > 0 ? ApiaryBridge.milliseconds(.now - pressedAt) : nil
         picker.open(near: NSEvent.mouseLocation)
         pickerTimings["pickerShown"] = ApiaryBridge.milliseconds(.now - pressedAt)
         if !prefetched.targets.isEmpty { pickerTimings["targetsListed"] = pickerTimings["pickerShown"] }
@@ -542,6 +557,7 @@ final class AppModel {
         finishPressedAt = pressedAt
         lastDeliveryLine = nil
         pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
+        suggestions.begin()
         picker.model.reset()
         picker.model.bind(target, saying: "Adding to the proof review…")
         picker.open(near: NSEvent.mouseLocation, takingKeys: false)
@@ -552,6 +568,11 @@ final class AppModel {
     func loadTargets(pressedAt: ContinuousClock.Instant) async {
         let result = await TargetDirectory.load(apiary: apiary, hive: integrations.hiveClient)
         picker.model.setTargets(result.targets, source: result.source)
+        if picker.isOpen, !picker.model.isBound {
+            let before = suggestions.requests
+            suggestions.offer(candidates: result.targets)
+            if suggestions.requests > before { pickerTimings["suggestRequested"] = ApiaryBridge.milliseconds(.now - pressedAt) }
+        }
         pickerTimings["targetsRefreshed"] = ApiaryBridge.milliseconds(.now - pressedAt)
         if pickerTimings["targetsListed"] == nil { pickerTimings["targetsListed"] = pickerTimings["targetsRefreshed"] }
     }
@@ -559,6 +580,7 @@ final class AppModel {
     @ObservationIgnored private var chosen: (target: ApiaryTarget, mode: DeliveryMode, at: ContinuousClock.Instant)?
 
     private func choose(_ target: ApiaryTarget, mode: DeliveryMode) {
+        suggestions.cancel()
         chosen = (target, mode, .now)
         if let finishPressedAt { pickerTimings["finishToChoice"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
         guard let finished = picker.model.walkthrough else { return }
@@ -568,6 +590,7 @@ final class AppModel {
     private func walkthroughReady(_ finished: FinishedWalkthrough) {
         guard picker.isOpen, picker.model.confirmation == nil, pickerWalkthroughID == finished.walkthrough.id else { return }
         picker.model.ready(finished)
+        if chosen == nil { suggestions.offer(feedback: TargetSuggestions.feedback(from: finished.walkthrough)) }
         if let chosen, picker.model.queued != nil {
             deliver(finished, to: chosen.target, mode: chosen.mode)
         }
@@ -640,6 +663,41 @@ final class AppModel {
         case "badRequest": return "Apiary refused it (\(trimmed))"
         default: return trimmed
         }
+    }
+
+    private func connectSuggestions() {
+        suggestions.onResult = { [weak self] outcome in self?.suggestionArrived(outcome) }
+        picker.onClose = { [weak self] in self?.suggestions.cancel() }
+        picker.model.onSuggestionShown = { [weak self] shown, waited in
+            guard let self else { return }
+            pickerTimings["suggestShownAs"] = shown == .preselected ? 1 : 2
+            if let waited { pickerTimings["openToSuggestionShown"] = ApiaryBridge.milliseconds(waited) }
+            NSLog("[scout-suggest] %@ %.0f ms after the panel opened", shown.rawValue, waited.map { $0.seconds * 1000 } ?? -1)
+        }
+        picker.model.onEnableSuggestions = { [weak self] in
+            guard let self else { return }
+            suggestions.setEnabled(true)
+            if suggestions.hasKey {
+                picker.model.offer = .hidden
+                suggestions.launch()
+            } else {
+                picker.model.offer = .needsKey
+            }
+        }
+        picker.model.onDeclineSuggestions = { [weak self] in
+            self?.suggestions.setEnabled(false)
+            self?.picker.model.offer = .hidden
+        }
+        picker.model.onOpenSuggestionSettings = { [weak self] in
+            self?.requestedSettingsPane = .agents
+            self?.openSettingsWindow?()
+        }
+    }
+
+    private func suggestionArrived(_ outcome: SuggestionOutcome) {
+        guard picker.isOpen, !picker.model.isBound, picker.model.confirmation == nil else { return }
+        pickerTimings["suggestRoundTrip"] = ApiaryBridge.milliseconds(outcome.roundTrip)
+        if let key = outcome.key { picker.model.suggest(key) }
     }
 
     private func dismissPicker() {
