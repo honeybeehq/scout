@@ -400,6 +400,11 @@ final class TargetPickerController {
         if takingKeys {
             panel.makeKey()
             listen()
+            for delay in [0, 50, 300, 1000] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(delay)) { [weak self] in
+                    self?.trace("open+\(delay)ms")
+                }
+            }
         } else {
             panel.resignKey()
             stopListening()
@@ -456,6 +461,48 @@ final class TargetPickerController {
         return rep
     }
 
+    static var traceFile: URL?
+
+    var keyState: [String: Any] {
+        let responder = panel?.firstResponder
+        let editor = responder as? NSTextView
+        return [
+            "appActive": NSApp.isActive,
+            "frontmost": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "",
+            "keyWindow": NSApp.keyWindow.map { "\(type(of: $0)) #\($0.windowNumber)" } ?? "nil",
+            "keyWindowIsPanel": NSApp.keyWindow === panel,
+            "panelIsKey": panel?.isKeyWindow ?? false,
+            "panelWindow": panel?.windowNumber ?? -1,
+            "firstResponder": responder.map { "\(type(of: $0))" } ?? "nil",
+            "fieldEditor": editor?.isFieldEditor ?? false,
+            "editorDelegate": (editor?.delegate).map { "\(type(of: $0))" } ?? "nil",
+            "query": model.query,
+            "selection": model.selected?.title ?? "",
+            "pending": model.pending != nil,
+            "offer": "\(model.offer)",
+            "suggestion": "\(model.suggestion)",
+            "phase": "\(model.phase)",
+            "compact": model.isCompact,
+            "focusToken": model.focusToken,
+        ]
+    }
+
+    func trace(_ what: String, _ extra: [String: Any] = [:]) {
+        var row = keyState.merging(extra) { _, new in new }
+        row["what"] = what
+        row["epochMs"] = Int(Date().timeIntervalSince1970 * 1000)
+        guard let data = try? JSONSerialization.data(withJSONObject: row, options: [.sortedKeys]), let line = String(data: data, encoding: .utf8) else { return }
+        NSLog("[scout-keys] %@", line)
+        guard let file = Self.traceFile else { return }
+        if let handle = try? FileHandle(forWritingTo: file) {
+            handle.seekToEndOfFile()
+            handle.write(Data((line + "\n").utf8))
+            try? handle.close()
+        } else {
+            try? Data((line + "\n").utf8).write(to: file)
+        }
+    }
+
     func post(_ key: PickerKey) {
         guard let panel else { return }
         let event = NSEvent.keyEvent(
@@ -476,6 +523,12 @@ final class TargetPickerController {
     private func listen() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if let self {
+                let before = self.model.query
+                self.trace("keyDown", ["keyCode": Int(event.keyCode), "chars": event.characters ?? "", "eventWindow": event.windowNumber, "eventWindowIsPanel": event.window === self.panel, "queryBefore": before])
+                let chars = event.characters ?? ""
+                DispatchQueue.main.async { [weak self] in self?.trace("afterKey", ["chars": chars]) }
+            }
             guard let self, let panel = self.panel, event.window === panel || event.windowNumber == panel.windowNumber else { return event }
             let model = self.model
             if model.pending != nil {

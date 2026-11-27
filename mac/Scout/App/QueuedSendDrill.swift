@@ -63,6 +63,35 @@ enum QueuedSendDrill {
             model.unsent.map { ["walkthrough": $0.id, "reason": $0.reason, "folderExists": FileManager.default.fileExists(atPath: $0.directory.path)] }
         }
         switch scenario {
+        case "typing":
+            TargetPickerController.traceFile = output.appendingPathComponent("keys.jsonl")
+            let rounds = Int(argument("typing-rounds") ?? "") ?? 6
+            let hold = Double(argument("typing-hold") ?? "") ?? 25
+            var results: [[String: Any]] = []
+            for round in 1...rounds {
+                let marker = { (name: String) in try? "\(Int(Date().timeIntervalSince1970 * 1000))".write(to: output.appendingPathComponent("\(name)-\(round)"), atomically: true, encoding: .utf8) }
+                marker("recording")
+                note("typing round \(round): recording")
+                guard await drill.record() else { break }
+                await waitFor(3) { model.picker.model.source != .loading }
+                model.picker.trace("round \(round) ready")
+                marker("ready")
+                if let text = argument("typing-inapp") {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    for character in text { model.picker.post(.character(character)) }
+                }
+                let deadline = Date().addingTimeInterval(hold)
+                while Date() < deadline, !FileManager.default.fileExists(atPath: output.appendingPathComponent("done-\(round)").path) {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                drill.shot("typing-\(round)")
+                model.picker.trace("round \(round) end")
+                results.append(["round": round, "state": model.picker.keyState])
+                if model.picker.model.pending != nil { model.picker.model.release() }
+                model.picker.model.onDismiss?()
+                try? await Task.sleep(for: .milliseconds(1500))
+            }
+            report["typing"] = results
         case "relaunch":
             report["unsentAtLaunch"] = unsentReport()
             report["unsentFile"] = FileManager.default.fileExists(atPath: UnsentWalkthroughs.file.path)
