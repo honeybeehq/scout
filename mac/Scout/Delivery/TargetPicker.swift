@@ -914,9 +914,18 @@ struct TargetPickerView: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            hint("⇥", "Next group")
-            hint("esc", "Clipboard only")
-            if model.canPaste { hint("⌘↩", "Send now") }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    hint("⇥", "Next group")
+                    hint("esc", "Clipboard only")
+                    if model.canPaste { hint("⌘↩", "Send now") }
+                }
+                HStack(spacing: 12) {
+                    hint("esc", "Clipboard only")
+                    if model.canPaste { hint("⌘↩", "Send now") }
+                }
+            }
+            .layoutPriority(1)
             Spacer(minLength: 6)
             if let problem = model.problem {
                 HStack(spacing: 6) {
@@ -959,7 +968,9 @@ struct TargetPickerView: View {
             Text(label)
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textTertiary)
+                .lineLimit(1)
         }
+        .fixedSize()
     }
 
     private func confirmed(_ text: String) -> some View {
