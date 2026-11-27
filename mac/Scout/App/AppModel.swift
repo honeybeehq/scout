@@ -532,6 +532,8 @@ final class AppModel {
     @ObservationIgnored private var pickerOpenings = 0
     @ObservationIgnored private var deliveries: [Int: Task<Void, Never>] = [:]
     @ObservationIgnored private var deliveryCount = 0
+    @ObservationIgnored private var quitWaiting = false
+    @ObservationIgnored private var quitForced = false
 
     func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant, feedback: RankFeedback? = nil) {
         picker.model.release()
@@ -720,19 +722,21 @@ final class AppModel {
 
     private func shouldTerminate() -> NSApplication.TerminateReply {
         picker.model.release()
-        let waiting = Array(deliveries.values)
         let queued = picker.model.queued != nil && picker.isOpen
-        guard !waiting.isEmpty || queued else { return .terminateNow }
-        NSLog("[scout-safe-send] quitting with %d deliveries in flight%@", waiting.count, queued ? " and one waiting for the walkthrough" : "")
+        guard !quitForced, !deliveries.isEmpty || queued else { return .terminateNow }
+        guard !quitWaiting else { return .terminateCancel }
+        quitWaiting = true
+        NSLog("[scout-safe-send] quit waits for %d deliveries in flight%@", deliveries.count, queued ? " and one waiting for the walkthrough" : "")
         Task {
             let deadline = ContinuousClock.now + .seconds(15)
-            for task in waiting { await task.value }
-            while ContinuousClock.now < deadline, picker.model.queued != nil || !deliveries.isEmpty {
+            while ContinuousClock.now < deadline, !deliveries.isEmpty || (picker.model.queued != nil && picker.isOpen) {
                 try? await Task.sleep(for: .milliseconds(50))
             }
-            NSApp.reply(toApplicationShouldTerminate: true)
+            quitForced = true
+            NSLog("[scout-safe-send] quitting, %d deliveries left", deliveries.count)
+            NSApp.terminate(nil)
         }
-        return .terminateLater
+        return .terminateCancel
     }
 
     private func dismissPicker() {
