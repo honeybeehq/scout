@@ -5,6 +5,7 @@ import SwiftUI
 
 struct TargetSection: Identifiable, Equatable {
     enum Group: String, CaseIterable {
+        case suggested
         case focused
         case champions
         case projects
@@ -13,6 +14,7 @@ struct TargetSection: Identifiable, Equatable {
 
         var title: String {
             switch self {
+            case .suggested: "Suggested"
             case .focused: "Focused chat"
             case .champions: "Champions"
             case .projects: "Project orchestrators"
@@ -57,6 +59,7 @@ final class TargetPickerModel {
     private(set) var targets: [ApiaryTarget] = [] {
         didSet {
             searchIndex = targets.map(\.searchText)
+            suggestedKey = SafeSendVariant.mockSuggestion.flatMap { word in targets.first { $0.title.lowercased().contains(word) }?.key }
             regroup()
         }
     }
@@ -71,7 +74,17 @@ final class TargetPickerModel {
             regroup()
         }
     }
-    var selection = 0
+    var selection = 0 {
+        didSet {
+            if armed != nil, armed != selected?.key { armed = nil }
+        }
+    }
+    let variant = SafeSendVariant.current
+    private(set) var suggestedKey: String?
+    private(set) var armed: String?
+    private(set) var pending: PendingSend?
+    @ObservationIgnored private var holding: Task<Void, Never>?
+    @ObservationIgnored var frames: [String: CGRect] = [:]
     private(set) var queued: DeliveryMode?
     private(set) var delivering = false
     private(set) var confirmation: String?
@@ -92,8 +105,9 @@ final class TargetPickerModel {
         walkthrough?.debugDirectory.flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
     }
 
-    private static func section(of target: ApiaryTarget) -> TargetSection.Group {
-        if target.kind == clipboardKind { return .other }
+    private func section(of target: ApiaryTarget) -> TargetSection.Group {
+        if target.kind == Self.clipboardKind { return .other }
+        if target.key == suggestedKey { return .suggested }
         if target.focused { return .focused }
         if target.isProject { return .projects }
         if target.isChampion { return .champions }
@@ -124,7 +138,7 @@ final class TargetPickerModel {
         let rows: [(ApiaryTarget, String)] = Array(zip(targets, searchIndex)) + [(Self.clipboard, Self.clipboard.searchText + " copy")]
         for (index, row) in rows.enumerated() {
             guard let score = words.isEmpty ? 0 : Self.score(row.0, text: row.1, words: words) else { continue }
-            buckets[Self.section(of: row.0), default: []].append((score, index, row.0))
+            buckets[section(of: row.0), default: []].append((score, index, row.0))
         }
         var built: [TargetSection] = []
         var start = 0
@@ -155,6 +169,10 @@ final class TargetPickerModel {
     var isBound: Bool { progress != nil }
 
     func reset(with walkthrough: FinishedWalkthrough? = nil) {
+        holding?.cancel()
+        holding = nil
+        pending = nil
+        armed = nil
         phase = walkthrough == nil ? .finishing : .ready
         self.walkthrough = walkthrough
         targets = []
@@ -212,18 +230,92 @@ final class TargetPickerModel {
         }
     }
 
+    var suggested: ApiaryTarget? {
+        targets.first { $0.key == suggestedKey }
+    }
+
+    func unusual(_ target: ApiaryTarget) -> String? {
+        guard variant == .unusual, target.kind != Self.clipboardKind, target.key != suggestedKey, !target.focused else { return nil }
+        if let home = suggested?.workspaceLabel ?? targets.first(where: \.focused)?.workspaceLabel, let workspace = target.workspaceLabel, workspace != home {
+            return "Other workspace"
+        }
+        return target.open ? nil : "Not recent"
+    }
+
+    func tap(_ index: Int) {
+        guard pending == nil, !delivering, confirmation == nil, filtered.indices.contains(index) else { return }
+        let target = filtered[index]
+        switch variant {
+        case .off, .undo:
+            selection = index
+            choose(.paste)
+        case .select:
+            if armed == target.key {
+                choose(.paste)
+            } else {
+                selection = index
+                armed = target.key
+            }
+        case .unusual:
+            if unusual(target) == nil || armed == target.key {
+                selection = index
+                choose(.paste)
+            } else {
+                selection = index
+                armed = target.key
+            }
+        }
+    }
+
     func choose(_ mode: DeliveryMode) {
-        guard !delivering, confirmation == nil, let target = selected else { return }
+        guard !delivering, confirmation == nil, pending == nil, let target = selected else { return }
+        armed = nil
         if target.kind == Self.clipboardKind {
             onDismiss?()
             return
         }
         let mode = canPaste ? mode : .send
+        if variant == .undo {
+            hold(target, mode)
+            return
+        }
+        commit(target, mode)
+    }
+
+    private func commit(_ target: ApiaryTarget, _ mode: DeliveryMode) {
         if phase == .finishing {
             queued = mode
         }
         problem = nil
         onChoose?(target, mode)
+    }
+
+    private func hold(_ target: ApiaryTarget, _ mode: DeliveryMode) {
+        let seconds = SafeSendVariant.undoSeconds
+        pending = PendingSend(target: target, mode: mode, started: Date(), seconds: seconds)
+        holding?.cancel()
+        holding = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            self?.release()
+        }
+    }
+
+    func release() {
+        guard let pending else { return }
+        holding?.cancel()
+        holding = nil
+        self.pending = nil
+        commit(pending.target, pending.mode)
+    }
+
+    func undo() {
+        guard let pending else { return }
+        holding?.cancel()
+        holding = nil
+        self.pending = nil
+        if let index = filtered.firstIndex(where: { $0.key == pending.target.key }) { selection = index }
+        focusToken += 1
     }
 
     func began() {
@@ -254,6 +346,8 @@ final class TargetPickerController {
     private var closing: Task<Void, Never>?
 
     var isOpen: Bool { panel?.isVisible == true }
+
+    var frame: CGRect? { panel?.frame }
 
     func prepare() {
         guard panel == nil else { return }
@@ -371,6 +465,15 @@ final class TargetPickerController {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let panel = self.panel, event.window === panel || event.windowNumber == panel.windowNumber else { return event }
             let model = self.model
+            if model.pending != nil {
+                switch event.keyCode {
+                case 53: model.undo()
+                case 6 where event.modifierFlags.contains(.command): model.undo()
+                case 36, 76: model.release()
+                default: break
+                }
+                return nil
+            }
             switch event.keyCode {
             case 125:
                 model.move(1)
@@ -433,7 +536,11 @@ struct TargetPickerView: View {
                 search(query: $model.query)
                 list
                 Rectangle().fill(Palette.hairline).frame(height: 1)
-                footer
+                if let pending = model.pending {
+                    undoBar(pending)
+                } else {
+                    footer
+                }
             }
         }
         .frame(width: TargetPickerController.size.width, height: model.isCompact ? 52 : TargetPickerController.size.height, alignment: .topLeading)
@@ -575,10 +682,8 @@ struct TargetPickerView: View {
                                 row(target, focused: section.group == .focused, selected: index == model.selection)
                                     .id(target.key)
                                     .contentShape(.rect)
-                                    .onTapGesture {
-                                        model.selection = index
-                                        model.choose(.paste)
-                                    }
+                                    .onTapGesture { model.tap(index) }
+                                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { model.frames[target.key] = $0 }
                             }
                         } header: {
                             sectionHeader(section)
@@ -591,6 +696,9 @@ struct TargetPickerView: View {
             }
             .scrollIndicators(.never)
             .frame(maxHeight: .infinity)
+            .allowsHitTesting(model.pending == nil)
+            .opacity(model.pending == nil ? 1 : 0.5)
+            .animation(Motion.snappy, value: model.pending == nil)
             .onChange(of: model.selection) {
                 if let section = model.sections.first(where: { $0.start == model.selection }) {
                     proxy.scrollTo("group:\(section.id)", anchor: .top)
@@ -603,12 +711,22 @@ struct TargetPickerView: View {
 
     private func sectionHeader(_ section: TargetSection) -> some View {
         HStack(spacing: 6) {
+            if section.group == .suggested {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Palette.accentText)
+            }
             Text(section.group.title)
                 .font(Typography.label)
                 .tracking(0.9)
                 .textCase(.uppercase)
-                .foregroundStyle(Palette.textTertiary)
-            if section.group != .other {
+                .foregroundStyle(section.group == .suggested ? Palette.accentText : Palette.textTertiary)
+            if section.group == .suggested {
+                Spacer()
+                Text("via TypeSafe")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+            } else if section.group != .other {
                 Text("\(section.rows.count)")
                     .font(Typography.caption)
                     .monospacedDigit()
@@ -633,33 +751,93 @@ struct TargetPickerView: View {
     }
 
     private func row(_ target: ApiaryTarget, focused: Bool, selected: Bool) -> some View {
-        let detail = subtitle(target, focused: focused)
+        let caution = model.unusual(target)
+        let armed = model.armed == target.key
+        let warn = armed && caution != nil
+        let ink = selected && !warn
+        let suggested = target.key == model.suggestedKey
+        let base = subtitle(target, focused: focused)
+        let detail = caution.map { reason in warn ? "\(reason) · click again to send" : [reason, base].filter { !$0.isEmpty }.joined(separator: " · ") } ?? base
+        let fill: Color = ink ? Palette.ink : warn ? Palette.cautionFill.opacity(0.16) : suggested ? Palette.accentWash : .clear
+        let edge: Color = warn ? Palette.caution.opacity(0.6) : suggested && !ink ? Palette.accent.opacity(0.35) : .clear
         return HStack(spacing: 10) {
             TargetIcon(target: target)
             VStack(alignment: .leading, spacing: 1) {
                 HighlightText(
                     text: target.title,
                     query: model.query,
-                    color: selected ? Palette.onInk : Palette.text,
-                    dim: selected ? Palette.onInk.opacity(0.72) : Palette.textSecondary
+                    color: ink ? Palette.onInk : Palette.text,
+                    dim: ink ? Palette.onInk.opacity(0.72) : Palette.textSecondary
                 )
                 .lineLimit(1)
                 if !detail.isEmpty {
-                    Text(detail)
-                        .font(Typography.caption)
-                        .foregroundStyle(selected ? Palette.onInk.opacity(0.72) : Palette.textTertiary)
-                        .lineLimit(1)
-                        .help(detail)
+                    HStack(spacing: 4) {
+                        if caution != nil {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(ink ? Palette.onInk.opacity(0.72) : Palette.caution)
+                        }
+                        Text(detail)
+                            .font(Typography.caption)
+                            .foregroundStyle(ink ? Palette.onInk.opacity(0.72) : warn ? Palette.caution : Palette.textTertiary)
+                            .lineLimit(1)
+                            .help(detail)
+                    }
                 }
             }
             Spacer(minLength: 6)
+            if armed, !warn {
+                Text("Click again to send")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.onInk.opacity(0.8))
+            }
             if selected {
                 KeyHint("↩", emphasized: true)
             }
         }
         .padding(.horizontal, 8)
         .frame(height: 36)
-        .background(selected ? Palette.ink : .clear, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .background(fill, in: .rect(cornerRadius: Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(edge, lineWidth: 1))
+        .animation(Motion.snappy, value: armed)
+    }
+
+    private func undoBar(_ pending: PendingSend) -> some View {
+        TimelineView(.animation) { context in
+            let left = max(0, pending.seconds - context.date.timeIntervalSince(pending.started))
+            HStack(spacing: 10) {
+                TargetIcon(target: pending.target)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Sent to \(Text(pending.target.title).fontWeight(.semibold))")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Palette.text)
+                        .lineLimit(1)
+                    Text("Delivers in \(Int(left.rounded(.up))) s")
+                        .font(Typography.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.textTertiary)
+                }
+                Spacer(minLength: 6)
+                Button { model.undo() } label: {
+                    HStack(spacing: 6) {
+                        Text("Undo")
+                        KeyHint("esc")
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle(large: false))
+                .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { model.frames["undo"] = $0 }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .overlay(alignment: .topLeading) {
+                GeometryReader { proxy in
+                    Rectangle()
+                        .fill(Palette.accent)
+                        .frame(width: proxy.size.width * left / max(pending.seconds, 0.1), height: 2)
+                }
+                .frame(height: 2)
+            }
+        }
     }
 
     private var footer: some View {

@@ -4,6 +4,7 @@ import secrets
 import socket
 import sys
 import threading
+import time
 
 if len(sys.argv) != 3:
     sys.exit("usage: serve.py <fixture.json> <run dir>")
@@ -48,6 +49,8 @@ def apiary(conn):
         elif verb == "listTargets":
             result = {"targets": fixture.get("targets", [])}
         elif verb == "deliver":
+            target = request.get("params", {}).get("target", {})
+            log.write(f"deliver {int(time.time() * 1000)} {json.dumps(target)}\n")
             result = {}
         else:
             send(conn, {"id": request["id"], "ok": False, "error": {"code": "unknownVerb", "message": verb}})
