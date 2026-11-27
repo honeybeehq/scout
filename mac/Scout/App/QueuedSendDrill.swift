@@ -63,6 +63,28 @@ enum QueuedSendDrill {
             model.unsent.map { ["walkthrough": $0.id, "reason": $0.reason, "folderExists": FileManager.default.fileExists(atPath: $0.directory.path)] }
         }
         switch scenario {
+        case "typing-matrix":
+            if let scheme = argument("typing-scheme") { NSApp.appearance = NSAppearance(named: scheme == "light" ? .aqua : .darkAqua) }
+            let methods = (argument("typing-methods") ?? "cgevent,cgevent-hid,postevent").split(separator: ",").map(String.init)
+            var rows: [[String: Any]] = []
+            guard await drill.record() else { break }
+            await waitFor(3) { model.picker.model.source != .loading }
+            try? await Task.sleep(for: .milliseconds(700))
+            for method in methods { rows += await drill.matrix(method, picker: "stop") }
+            drill.press("postevent", .escape)
+            await waitFor(30) { model.lastWalkthrough != nil }
+            try? await Task.sleep(for: .seconds(2))
+            for method in methods {
+                model.sendLastWalkthrough()
+                await waitFor(3) { model.picker.model.source != .loading }
+                try? await Task.sleep(for: .milliseconds(700))
+                rows += await drill.matrix(method, picker: "send-menu")
+                drill.press("postevent", .escape)
+                try? await Task.sleep(for: .seconds(1))
+            }
+            report["matrix"] = rows
+            report["suggestState"] = model.suggestions.state
+            report["passed"] = rows.allSatisfy { $0["pass"] as? Bool == true }
         case "typing":
             var probes: [[String: Any]] = []
             guard await drill.record() else { break }
@@ -227,6 +249,63 @@ enum QueuedSendDrill {
             }
             try? await Task.sleep(for: .milliseconds(150))
             note("picked \(name)", ["via": via, "selected": picker.model.selected?.title ?? ""])
+        }
+
+        static let codes: [Character: CGKeyCode] = ["a": 0, "s": 1, "z": 6, "x": 7, "c": 8, "r": 15, "y": 16, "t": 17, "o": 31, "i": 34, "p": 35, "l": 37]
+
+        func press(_ method: String, _ key: PickerKey) {
+            switch method {
+            case "postevent":
+                picker.post(key)
+            default:
+                let source = method == "cgevent-hid" ? CGEventSource(stateID: .hidSystemState) : nil
+                let pid = ProcessInfo.processInfo.processIdentifier
+                for down in [true, false] {
+                    let event = CGEvent(keyboardEventSource: source, virtualKey: key.code, keyDown: down)
+                    if key.modifiers.contains(.command) { event?.flags = .maskCommand }
+                    event?.postToPid(pid)
+                }
+            }
+        }
+
+        func type(_ method: String, _ text: String) async {
+            for character in text {
+                press(method, method == "postevent" ? .character(character) : PickerKey(code: Self.codes[character] ?? 0, characters: String(character)))
+                try? await Task.sleep(for: .milliseconds(30))
+            }
+            try? await Task.sleep(for: .milliseconds(350))
+        }
+
+        func matrix(_ method: String, picker name: String) async -> [[String: Any]] {
+            let model = picker.model
+            var rows: [[String: Any]] = []
+            func check(_ step: String, expect query: String, pending: Bool = false) {
+                let pass = model.query == query && (model.pending != nil) == pending
+                rows.append(["method": method, "picker": name, "case": step, "expect": query, "query": model.query, "pending": model.pending != nil, "selected": model.selected?.title ?? "", "pass": pass, "offer": "\(model.offer)", "suggestion": "\(model.suggestion)", "key": picker.windowState["key"] ?? "", "firstResponder": picker.windowState["firstResponder"] ?? "", "appActive": NSApp.isActive, "frontmost": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""])
+                shot("matrix-\(name)-\(method)-\(step)")
+                note("matrix \(name) \(method) \(step)", ["query": model.query, "pass": pass])
+            }
+            await type(method, "poly")
+            check("type", expect: "poly")
+            press(method, .enter)
+            try? await Task.sleep(for: .milliseconds(300))
+            await type(method, "x")
+            check("undo-window", expect: "poly", pending: true)
+            press(method, .escape)
+            try? await Task.sleep(for: .milliseconds(300))
+            await type(method, "z")
+            check("after-undo", expect: "polyz")
+            model.query = ""
+            try? await Task.sleep(for: .milliseconds(200))
+            if let late = model.filtered.dropFirst(2).first?.key {
+                model.suggest(late)
+                try? await Task.sleep(for: .milliseconds(200))
+                await type(method, "scout")
+                check("late-highlight", expect: "scout")
+            }
+            model.query = ""
+            try? await Task.sleep(for: .milliseconds(200))
+            return rows
         }
 
         func typeProbe(_ name: String) async -> [String: Any] {
