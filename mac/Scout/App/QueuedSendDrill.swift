@@ -67,22 +67,43 @@ enum QueuedSendDrill {
             if let scheme = argument("typing-scheme") { NSApp.appearance = NSAppearance(named: scheme == "light" ? .aqua : .darkAqua) }
             let methods = (argument("typing-methods") ?? "cgevent,cgevent-hid,postevent").split(separator: ",").map(String.init)
             var rows: [[String: Any]] = []
-            guard await drill.record() else { break }
+            var opens: [[String: Any]] = []
+            let deactivates = argument("typing-deactivate") != nil
+            func traceOpen(_ name: String) async {
+                for delay in [0, 50, 300, 1000] {
+                    if delay > 0 { try? await Task.sleep(for: .milliseconds(delay == 50 ? 50 : delay == 300 ? 250 : 700)) }
+                    opens.append(["open": name, "ms": delay, "panelKey": model.picker.windowState["key"] ?? "", "appActive": NSApp.isActive, "keyWindow": NSApp.keyWindow.map { "\(type(of: $0))" } ?? "nil", "firstResponder": model.picker.windowState["firstResponder"] ?? ""])
+                }
+            }
+            func deactivate() async {
+                guard deactivates else { return }
+                NSApp.deactivate()
+                try? await Task.sleep(for: .milliseconds(600))
+                opens.append(["deactivated": true, "appActive": NSApp.isActive])
+            }
+            var finished = false
+            model.startScouting(inputFile: fixture.audio, result: .walkthrough) { finished = true }
+            await waitFor(120) { finished }
+            try? await Task.sleep(for: .milliseconds(800))
+            await deactivate()
+            model.stopScouting()
+            await traceOpen("stop")
             await waitFor(3) { model.picker.model.source != .loading }
-            try? await Task.sleep(for: .milliseconds(700))
             for method in methods { rows += await drill.matrix(method, picker: "stop") }
             drill.press("postevent", .escape)
             await waitFor(30) { model.lastWalkthrough != nil }
             try? await Task.sleep(for: .seconds(2))
             for method in methods {
+                await deactivate()
                 model.sendLastWalkthrough()
+                await traceOpen("send-menu-\(method)")
                 await waitFor(3) { model.picker.model.source != .loading }
-                try? await Task.sleep(for: .milliseconds(700))
                 rows += await drill.matrix(method, picker: "send-menu")
                 drill.press("postevent", .escape)
                 try? await Task.sleep(for: .seconds(1))
             }
             report["matrix"] = rows
+            report["opens"] = opens
             report["suggestState"] = model.suggestions.state
             report["passed"] = rows.allSatisfy { $0["pass"] as? Bool == true }
         case "typing":
@@ -251,7 +272,7 @@ enum QueuedSendDrill {
             note("picked \(name)", ["via": via, "selected": picker.model.selected?.title ?? ""])
         }
 
-        static let codes: [Character: CGKeyCode] = ["a": 0, "s": 1, "z": 6, "x": 7, "c": 8, "r": 15, "y": 16, "t": 17, "o": 31, "i": 34, "p": 35, "l": 37]
+        static let codes: [Character: CGKeyCode] = ["a": 0, "s": 1, "z": 6, "x": 7, "c": 8, "r": 15, "y": 16, "t": 17, "u": 32, "o": 31, "i": 34, "p": 35, "l": 37]
 
         func press(_ method: String, _ key: PickerKey) {
             switch method {
