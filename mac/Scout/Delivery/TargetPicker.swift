@@ -353,6 +353,8 @@ final class TargetPickerController {
     private var panel: PickerPanel?
     private var monitor: Any?
     private var closing: Task<Void, Never>?
+    private var openedAt: Date?
+    private var otherAppActivatedAt: Date?
     var onClose: (() -> Void)?
 
     var isOpen: Bool { panel?.isVisible == true }
@@ -381,6 +383,22 @@ final class TargetPickerController {
         panel.contentView = host
         panel.layoutIfNeeded()
         self.panel = panel
+        NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
+            let clicked = NSEvent.pressedMouseButtons != 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) { if !clicked { self?.regainKey() } }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard app?.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+            DispatchQueue.main.async { self?.otherAppActivatedAt = Date() }
+        }
+    }
+
+    private func regainKey() {
+        guard let panel, panel.isVisible, !panel.isKeyWindow, monitor != nil, closing?.isCancelled != false,
+              let openedAt, Date().timeIntervalSince(openedAt) < 1.5, (otherAppActivatedAt ?? .distantPast) < openedAt,
+              NSApp.keyWindow == nil else { return }
+        panel.makeKey()
     }
 
     func open(near cursor: CGPoint, takingKeys: Bool = true) {
@@ -398,6 +416,7 @@ final class TargetPickerController {
         panel.displayIfNeeded()
         model.opened()
         if takingKeys {
+            openedAt = Date()
             panel.makeKey()
             listen()
             DispatchQueue.main.async { [weak self] in
