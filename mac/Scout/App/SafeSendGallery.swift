@@ -194,10 +194,16 @@ enum SafeSendGallery {
             }
             await SafeSendGallery.pause(250)
             let before = signature
+            var landed: [String] = []
+            let monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { event in
+                landed.append("\(event.type == .leftMouseDown ? "down" : "up") w\(event.windowNumber) \(Int(event.locationInWindow.x)),\(Int(event.locationInWindow.y)) key=\(event.window?.isKeyWindow == true)")
+                return event
+            }
             CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
             try? await Task.sleep(for: .milliseconds(70))
             CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
             try? await Task.sleep(for: .milliseconds(300))
+            if let monitor { NSEvent.removeMonitor(monitor) }
             var via = "mouse"
             if signature == before {
                 via = "direct"
@@ -207,7 +213,7 @@ enum SafeSendGallery {
                     state.tap(index)
                 }
             }
-            SafeSendGallery.note("click \(name)", ["via": via, "selected": state.selected?.title ?? "", "armed": state.armed ?? "", "pending": state.pending?.target.title ?? "", "confirmation": state.confirmation ?? ""])
+            SafeSendGallery.note("click \(name)", ["landed": landed, "frame": "\(frame)", "point": "\(point)", "panel": "\(picker.frame ?? .zero)", "active": NSApp.isActive, "via": via, "selected": state.selected?.title ?? "", "armed": state.armed ?? "", "pending": state.pending?.target.title ?? "", "confirmation": state.confirmation ?? ""])
         }
 
         mutating func shot(_ name: String) async {

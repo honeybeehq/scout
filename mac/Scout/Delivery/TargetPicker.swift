@@ -85,6 +85,7 @@ final class TargetPickerModel {
     private(set) var pending: PendingSend?
     @ObservationIgnored private var holding: Task<Void, Never>?
     @ObservationIgnored var frames: [String: CGRect] = [:]
+    @ObservationIgnored private(set) var pointed = false
     private(set) var queued: DeliveryMode?
     private(set) var delivering = false
     private(set) var confirmation: String?
@@ -216,12 +217,14 @@ final class TargetPickerModel {
     func move(_ delta: Int) {
         let count = filtered.count
         guard count > 0 else { return }
+        pointed = false
         selection = (selection + delta + count) % count
     }
 
     func jump(_ delta: Int) {
         let starts = sections.map(\.start)
         guard !starts.isEmpty else { return }
+        pointed = false
         if delta > 0 {
             selection = starts.first { $0 > selection } ?? starts[0]
         } else {
@@ -245,6 +248,7 @@ final class TargetPickerModel {
     func tap(_ index: Int) {
         guard pending == nil, !delivering, confirmation == nil, filtered.indices.contains(index) else { return }
         let target = filtered[index]
+        pointed = true
         switch variant {
         case .off, .undo:
             selection = index
@@ -697,9 +701,8 @@ struct TargetPickerView: View {
             .scrollIndicators(.never)
             .frame(maxHeight: .infinity)
             .allowsHitTesting(model.pending == nil)
-            .opacity(model.pending == nil ? 1 : 0.5)
-            .animation(Motion.snappy, value: model.pending == nil)
             .onChange(of: model.selection) {
+                guard !model.pointed else { return }
                 if let section = model.sections.first(where: { $0.start == model.selection }) {
                     proxy.scrollTo("group:\(section.id)", anchor: .top)
                 } else if let key = model.selected?.key {
@@ -721,18 +724,18 @@ struct TargetPickerView: View {
                 .tracking(0.9)
                 .textCase(.uppercase)
                 .foregroundStyle(section.group == .suggested ? Palette.accentText : Palette.textTertiary)
-            if section.group == .suggested {
-                Spacer()
-                Text("via TypeSafe")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
-            } else if section.group != .other {
+            if section.group != .other, section.group != .suggested {
                 Text("\(section.rows.count)")
                     .font(Typography.caption)
                     .monospacedDigit()
                     .foregroundStyle(Palette.textTertiary)
             }
             Spacer()
+            if section.group == .suggested {
+                Text("via TypeSafe")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.top, 10)
@@ -799,7 +802,9 @@ struct TargetPickerView: View {
         .frame(height: 36)
         .background(fill, in: .rect(cornerRadius: Radius.control, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(edge, lineWidth: 1))
+        .opacity(model.pending.map { $0.target.key == target.key ? 1 : 0.4 } ?? 1)
         .animation(Motion.snappy, value: armed)
+        .animation(Motion.snappy, value: model.pending == nil)
     }
 
     private func undoBar(_ pending: PendingSend) -> some View {
