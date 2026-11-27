@@ -204,6 +204,7 @@ actor ApiaryBridge {
     private let discoveryPath: String?
     private var socket: BridgeSocket?
     private var hello: ApiaryHello?
+    static let contextCapability = "listTargets.context"
     private var connecting: Task<ApiaryHello, Error>?
     private var pending: [Int: CheckedContinuation<JSONValue, Error>] = [:]
     private var nextID = 1
@@ -254,7 +255,14 @@ actor ApiaryBridge {
     func listTargets(limit: Int = 500) async throws -> [ApiaryTarget] {
         let answer = try await call("listTargets", .object(["limit": .number(Double(limit))]), timeout: .milliseconds(1500))
         guard case .object(let fields) = answer, case .array(let rows)? = fields["targets"] else { return [] }
-        return rows.compactMap(ApiaryTarget.init)
+        let targets = rows.compactMap(ApiaryTarget.init)
+        guard hello?.capabilities.contains(Self.contextCapability) != true else { return targets }
+        return targets.map { target in
+            var target = target
+            target.bio = nil
+            target.lastActiveAt = nil
+            return target
+        }
     }
 
     func deliver(_ params: JSONValue, timeout: Duration = .milliseconds(3000)) async throws -> [String: JSONValue] {

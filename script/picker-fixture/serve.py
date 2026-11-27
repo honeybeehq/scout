@@ -5,6 +5,7 @@ import socket
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 
 if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--no-context"):
     sys.exit("usage: serve.py <fixture.json> <run dir> [--no-context]")
@@ -22,13 +23,20 @@ now = time.time() * 1000
 
 def stamp(value):
     if isinstance(value, str) and value.startswith("now-") and value[-1] in "mhd":
-        return round(now - float(value[4:-1]) * {"m": 60_000, "h": 3_600_000, "d": 86_400_000}[value[-1]])
+        at = now - float(value[4:-1]) * {"m": 60_000, "h": 3_600_000, "d": 86_400_000}[value[-1]]
+        return datetime.fromtimestamp(at / 1000, timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     return value
 
 
-def row(target):
+def millis(value):
+    return round(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
+
+
+def row(target, include=True):
     shaped = {key: stamp(value) for key, value in target.items()}
-    if not context:
+    if "bio" in shaped:
+        shaped["bio"] = shaped["bio"][:200]
+    if not context or not include:
         shaped.pop("bio", None)
         shaped.pop("lastActiveAt", None)
     return shaped
@@ -37,7 +45,7 @@ def row(target):
 targets = [row(target) for target in fixture.get("targets", [])]
 hive_views = fixture.get("hive") or [
     {
-        "bee": {"id": target["sessionId"], "lifecycle": "active", "name": target["title"], "title": target.get("sessionTitle"), "lastOutputAt": stamp(target["lastActiveAt"]), "tags": []},
+        "bee": {"id": target["sessionId"], "lifecycle": "active", "name": target["title"], "title": target.get("sessionTitle"), "lastOutputAt": millis(stamp(target["lastActiveAt"])), "tags": []},
         "view": {},
         "runtime": {"state": "running"},
     }
@@ -76,7 +84,8 @@ def apiary(conn):
         elif verb == "focusedChat":
             result = {"target": fixture["focused"]} if fixture.get("focused") else {}
         elif verb == "listTargets":
-            result = {"targets": targets}
+            wants = request.get("params", {}).get("context", True) is not False
+            result = {"targets": targets if wants else [row(target, False) for target in fixture.get("targets", [])]}
         elif verb == "deliver":
             params = request.get("params", {})
             target = params.get("target", {})
