@@ -18,6 +18,9 @@ struct SuggestionOutcome: Sendable {
     var roundTrip: Duration
     var probability: Double?
     var anyFits: Double?
+    var topIndex: Int?
+    var topKind: String?
+    var candidates = 0
 }
 
 @Observable
@@ -40,6 +43,7 @@ final class TargetSuggestions {
     private(set) var keyProblem: String?
     private(set) var lastOutcome: SuggestionOutcome?
     private(set) var requests = 0
+    @ObservationIgnored private(set) var requestedAt: ContinuousClock.Instant?
     var draftKey = ""
 
     @ObservationIgnored private var memoryKey: String?
@@ -142,6 +146,7 @@ final class TargetSuggestions {
         launched = false
         lastOutcome = nil
         lastBody = nil
+        requestedAt = nil
     }
 
     func offer(feedback: RankFeedback?) {
@@ -185,16 +190,18 @@ final class TargetSuggestions {
         let delay = Self.delay
         let generation = generation
         NSLog("[scout-suggest] request %d: %d candidates", requests, rows.count)
+        requestedAt = .now
         task = Task { [weak self] in
             let started = ContinuousClock.now
-            let outcome: SuggestionOutcome
+            var outcome: SuggestionOutcome
+            var top: (index: Int, kind: String)?
             do {
                 let ranking = try await Self.rank(ranker, feedback, rows, now: now)
-                let top = ranking.top
+                if let key = ranking.top?.key, let index = rows.firstIndex(where: { $0.key == key }) { top = (index, rows[index].kind.rawValue) }
                 if let pick = ranking.suggestion() {
                     outcome = SuggestionOutcome(kind: .confident, key: pick.key, detail: "confident", roundTrip: .now - started, probability: pick.probability, anyFits: ranking.anyFits)
                 } else {
-                    outcome = SuggestionOutcome(kind: .unsure, key: nil, detail: "not confident", roundTrip: .now - started, probability: top?.probability, anyFits: ranking.anyFits)
+                    outcome = SuggestionOutcome(kind: .unsure, key: nil, detail: "not confident", roundTrip: .now - started, probability: ranking.top?.probability, anyFits: ranking.anyFits)
                 }
             } catch is CancellationError {
                 return
@@ -212,6 +219,9 @@ final class TargetSuggestions {
             } catch {
                 outcome = SuggestionOutcome(kind: .failed, key: nil, detail: String(describing: type(of: error)), roundTrip: .now - started)
             }
+            outcome.topIndex = top?.index
+            outcome.topKind = top?.kind
+            outcome.candidates = rows.count
             if delay > .zero {
                 try? await Task.sleep(for: delay)
             }

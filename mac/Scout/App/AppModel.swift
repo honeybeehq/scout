@@ -17,6 +17,7 @@ final class AppModel {
     let apiary = ApiaryBridge()
     let picker = TargetPickerController()
     let suggestions = TargetSuggestions()
+    @ObservationIgnored let suggestTelemetry = SuggestionTelemetry()
     let updates = Updates(starts: !AppModel.rendersOnly && !SimulationMode.isRunning)
     private(set) var lastDelivery: DeliveryOutcome?
     private(set) var lastDeliveryLine: String?
@@ -423,7 +424,7 @@ final class AppModel {
                 openBound(target, expecting: walkthrough.bundle.id, pressedAt: pressed)
             } else {
                 let spoken = session.ledger.utterances.map(\.text).joined(separator: " ")
-                openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed, feedback: TargetSuggestions.feedback(transcript: spoken, context: session.ledger.contexts.last?.context ?? session.context))
+                openPicker(for: nil, expecting: walkthrough.bundle.id, pressedAt: pressed, feedback: TargetSuggestions.feedback(transcript: spoken, context: session.ledger.contexts.last?.context ?? session.context), debug: session.debug?.directory)
             }
             Task { await finishWalkthrough(walkthrough, of: session, pressedAt: pressed, handedOff: handedOff) }
             return
@@ -546,14 +547,16 @@ final class AppModel {
     @ObservationIgnored private var quitWaiting = false
     @ObservationIgnored private var quitForced = false
 
-    func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant, feedback: RankFeedback? = nil) {
+    func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant, feedback: RankFeedback? = nil, debug: URL? = nil) {
         picker.model.release()
+        flushSuggestTelemetry()
         pickerOpenings += 1
         pickerWalkthroughID = walkthroughID
         chosen = nil
         finishPressedAt = pressedAt
         pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
         suggestions.begin()
+        suggestTelemetry.begin(opening: pickerOpenings, debugDirectory: debug ?? finished?.debugDirectory, on: suggestions.isOn, keeps: preferences.keepsDebugData)
         picker.model.reset(with: finished)
         if suggestions.showsOffer {
             picker.model.offer = .asking
@@ -566,6 +569,7 @@ final class AppModel {
         }
         pickerTimings["suggestRequested"] = suggestions.requests > 0 ? ApiaryBridge.milliseconds(.now - pressedAt) : nil
         picker.open(near: NSEvent.mouseLocation)
+        suggestTelemetry.opened()
         pickerTimings["pickerShown"] = ApiaryBridge.milliseconds(.now - pressedAt)
         if !prefetched.targets.isEmpty { pickerTimings["targetsListed"] = pickerTimings["pickerShown"] }
         DispatchQueue.main.async { [weak self] in
@@ -576,6 +580,7 @@ final class AppModel {
 
     private func openBound(_ target: ApiaryTarget, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant) {
         picker.model.release()
+        flushSuggestTelemetry()
         pickerOpenings += 1
         pickerWalkthroughID = walkthroughID
         chosen = (target, .paste, pressedAt)
@@ -738,9 +743,13 @@ final class AppModel {
 
     private func connectSuggestions() {
         suggestions.onResult = { [weak self] outcome in self?.suggestionArrived(outcome) }
-        picker.onClose = { [weak self] in self?.suggestions.cancel() }
+        picker.onClose = { [weak self] in
+            self?.flushSuggestTelemetry()
+            self?.suggestions.cancel()
+        }
         picker.model.onSuggestionShown = { [weak self] shown, waited in
             guard let self else { return }
+            suggestTelemetry.shown(shown, after: waited)
             pickerTimings["suggestShownAs"] = shown == .preselected ? 1 : 2
             if let waited { pickerTimings["openToSuggestionShown"] = ApiaryBridge.milliseconds(waited) }
             NSLog("[scout-suggest] %@ %.0f ms after the panel opened", shown.rawValue, waited.map { $0.seconds * 1000 } ?? -1)
@@ -765,7 +774,13 @@ final class AppModel {
         }
     }
 
+    private func flushSuggestTelemetry() {
+        suggestTelemetry.requested(at: suggestions.requestedAt)
+        suggestTelemetry.flush()
+    }
+
     private func suggestionArrived(_ outcome: SuggestionOutcome) {
+        suggestTelemetry.answered(outcome, requestedAt: suggestions.requestedAt)
         guard picker.isOpen, !picker.model.isBound, picker.model.confirmation == nil else { return }
         pickerTimings["suggestRoundTrip"] = ApiaryBridge.milliseconds(outcome.roundTrip)
         if let key = outcome.key { picker.model.suggest(key) }
@@ -773,6 +788,7 @@ final class AppModel {
 
     private func shouldTerminate() -> NSApplication.TerminateReply {
         picker.model.release()
+        flushSuggestTelemetry()
         guard !quitForced, !deliveries.isEmpty || !queuedSends.isEmpty else { return .terminateNow }
         guard !quitWaiting else { return .terminateCancel }
         quitWaiting = true
