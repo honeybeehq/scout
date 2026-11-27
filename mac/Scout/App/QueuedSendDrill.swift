@@ -22,7 +22,12 @@ enum QueuedSendDrill {
     private static var activations: [[String: Any]] = []
 
     private static func stamp(_ what: String, _ detail: String) {
-        activations.append(["what": what, "detail": detail, "epochMs": Int(Date().timeIntervalSince1970 * 1000), "appActive": NSApp.isActive])
+        var row: [String: Any] = ["what": what, "detail": detail, "epochMs": Int(Date().timeIntervalSince1970 * 1000), "appActive": NSApp.isActive]
+        if what.contains("resigned") {
+            row["stack"] = Array(Thread.callStackSymbols.prefix(40))
+            row["currentEvent"] = NSApp.currentEvent.map { "type \($0.type.rawValue) subtype \($0.type == .appKitDefined || $0.type == .systemDefined ? Int($0.subtype.rawValue) : -1) window \($0.windowNumber)" } ?? "nil"
+        }
+        activations.append(row)
     }
     private static let began = Date()
 
@@ -130,6 +135,17 @@ enum QueuedSendDrill {
                 rows += await drill.matrix(method, picker: "send-menu")
                 drill.press("postevent", .escape)
                 try? await Task.sleep(for: .seconds(1))
+            }
+            if argument("typing-cmdtab") != nil, let finder = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first {
+                stamp("open cmdtab", "")
+                model.sendLastWalkthrough()
+                try? await Task.sleep(for: .milliseconds(150))
+                stamp("activate finder", "")
+                finder.activate()
+                try? await Task.sleep(for: .seconds(2.5))
+                report["cmdtab"] = ["panelKey": model.picker.windowState["key"] ?? "", "appActive": NSApp.isActive, "frontmost": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "", "visible": model.picker.isOpen]
+                drill.press("postevent", .escape)
+                try? await Task.sleep(for: .seconds(1.5))
             }
             model.sendLastWalkthrough()
             await waitFor(3) { model.picker.model.source != .loading }
