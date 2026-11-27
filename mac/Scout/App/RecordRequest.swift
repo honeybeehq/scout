@@ -31,6 +31,12 @@ final class ScoutAppDelegate: NSObject, NSApplicationDelegate {
 
     static var onWillFinishLaunching: (() -> Void)?
 
+    static var onShouldTerminate: (() -> NSApplication.TerminateReply)?
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Self.onShouldTerminate?() ?? .terminateNow
+    }
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         Self.onWillFinishLaunching?()
     }

@@ -68,7 +68,7 @@ final class AppModel {
     private var hotkey: GlobalHotkey?
 
     static var rendersOnly: Bool {
-        OptimiseReplay.output != nil || PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil || PickerGallery.directory != nil
+        OptimiseReplay.output != nil || PanelGallery.directory != nil || ReviewGallery.directory != nil || EngineGallery.directory != nil || PickerGallery.directory != nil || SafeSendGallery.directory != nil
     }
 
     private static let shortcutKey = "shortcut.startScouting"
@@ -119,6 +119,7 @@ final class AppModel {
         picker.model.onRevealDebug = { [weak self] url in self?.revealDebugData(at: url) }
         connectSuggestions()
         ScoutAppDelegate.onRecord = { [weak self] request in self?.record(request) }
+        ScoutAppDelegate.onShouldTerminate = { [weak self] in self?.shouldTerminate() ?? .terminateNow }
         ScoutAppDelegate.onWillFinishLaunching = { [preferences] in preferences.applyAppearance() }
         if !Self.rendersOnly {
             Task.detached(priority: .background) {
@@ -138,6 +139,9 @@ final class AppModel {
         }
         if let directory = PickerGallery.directory {
             Task { await PickerGallery.run(model: self, into: directory) }
+        }
+        if let directory = SafeSendGallery.directory {
+            Task { await SafeSendGallery.run(model: self, into: directory) }
         }
         if let directory = SimulationMode.deliveryCheck {
             Task { await SimulationMode.runDeliveryCheck(model: self, directory: directory) }
@@ -525,8 +529,13 @@ final class AppModel {
     }
 
     @ObservationIgnored private var pickerWalkthroughID: String?
+    @ObservationIgnored private var pickerOpenings = 0
+    @ObservationIgnored private var deliveries: [Int: Task<Void, Never>] = [:]
+    @ObservationIgnored private var deliveryCount = 0
 
     func openPicker(for finished: FinishedWalkthrough?, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant, feedback: RankFeedback? = nil) {
+        picker.model.release()
+        pickerOpenings += 1
         pickerWalkthroughID = walkthroughID
         chosen = nil
         finishPressedAt = pressedAt
@@ -553,6 +562,8 @@ final class AppModel {
     }
 
     private func openBound(_ target: ApiaryTarget, expecting walkthroughID: String, pressedAt: ContinuousClock.Instant) {
+        picker.model.release()
+        pickerOpenings += 1
         pickerWalkthroughID = walkthroughID
         chosen = (target, .paste, pressedAt)
         finishPressedAt = pressedAt
@@ -604,11 +615,16 @@ final class AppModel {
         let bound = model.isBound
         let delivery = WalkthroughDelivery(apiary: apiary, hive: integrations.hiveClient)
         let started = ContinuousClock.now
+        let opening = pickerOpenings
+        deliveryCount += 1
+        let number = deliveryCount
         pickerTimings["deliverStartEpochMs"] = (Date().timeIntervalSince1970 * 1000).rounded()
-        Task {
+        deliveries[number] = Task {
+            defer { deliveries[number] = nil }
             do {
                 let outcome = try await delivery.deliver(bundle: finished.directory, walkthrough: finished.walkthrough.id, to: target, mode: mode, viaApiary: viaApiary, dryRun: SimulationMode.isDryRun)
                 lastDelivery = outcome
+                guard opening == pickerOpenings else { return }
                 pickerTimings["deliverRoundTrip"] = ApiaryBridge.milliseconds(.now - started)
                 if let chosenAt = chosen?.at { pickerTimings["chooseToDelivered"] = ApiaryBridge.milliseconds(.now - chosenAt) }
                 if let finishPressedAt { pickerTimings["finishToDelivered"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
@@ -624,6 +640,7 @@ final class AppModel {
                 picker.compact()
                 picker.close(after: .milliseconds(1400))
             } catch {
+                guard opening == pickerOpenings else { return }
                 if bound {
                     chosen = nil
                     let line = "On the clipboard: \(Self.boundReason(error))."
@@ -699,6 +716,23 @@ final class AppModel {
         guard picker.isOpen, !picker.model.isBound, picker.model.confirmation == nil else { return }
         pickerTimings["suggestRoundTrip"] = ApiaryBridge.milliseconds(outcome.roundTrip)
         if let key = outcome.key { picker.model.suggest(key) }
+    }
+
+    private func shouldTerminate() -> NSApplication.TerminateReply {
+        picker.model.release()
+        let waiting = Array(deliveries.values)
+        let queued = picker.model.queued != nil && picker.isOpen
+        guard !waiting.isEmpty || queued else { return .terminateNow }
+        NSLog("[scout-safe-send] quitting with %d deliveries in flight%@", waiting.count, queued ? " and one waiting for the walkthrough" : "")
+        Task {
+            let deadline = ContinuousClock.now + .seconds(15)
+            for task in waiting { await task.value }
+            while ContinuousClock.now < deadline, picker.model.queued != nil || !deliveries.isEmpty {
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     private func dismissPicker() {

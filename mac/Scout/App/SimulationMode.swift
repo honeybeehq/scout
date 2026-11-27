@@ -164,7 +164,7 @@ enum SimulationMode {
     }
 
     static var panelSharing: NSWindow.SharingType {
-        isRunning || PickerGallery.directory != nil ? .readOnly : .none
+        isRunning || PickerGallery.directory != nil || SafeSendGallery.directory != nil ? .readOnly : .none
     }
 
     static var deliveryCheck: URL? {
@@ -561,6 +561,12 @@ enum SimulationMode {
         case "send": picker.post(.commandEnter)
         case "escape": picker.post(.escape)
         default: picker.post(.enter)
+        }
+        if key != "escape" {
+            await waitFor(1) { picker.model.pending != nil }
+            try? await Task.sleep(for: .milliseconds(600))
+            result["held"] = ["pending": picker.model.pending?.target.title ?? "", "seconds": picker.model.pending?.seconds ?? 0, "pressedEpochMs": Int((picker.model.pending?.started.timeIntervalSince1970 ?? 0) * 1000)]
+            pickerSnapshot(model, "2b-undo-window", into: output)
         }
         await waitFor(10) { picker.model.confirmation != nil || picker.model.problem != nil }
         result["confirmation"] = picker.model.confirmation ?? ""

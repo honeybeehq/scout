@@ -59,6 +59,11 @@ final class TargetPickerModel {
     static let clipboardKind = "clipboard"
     static let preselectWindow: Duration = .milliseconds(300)
 
+    static var undoSeconds: Double {
+        let value = UserDefaults.standard.double(forKey: "ScoutSafeSendUndoSeconds")
+        return value > 0 ? value : 4
+    }
+
     static let clipboard: ApiaryTarget = {
         var target = ApiaryTarget(kind: clipboardKind, id: clipboardKind, sessionID: nil, title: "Clipboard only", subtitle: "Copy the walkthrough and send nothing")
         target.viaApiary = false
@@ -86,6 +91,9 @@ final class TargetPickerModel {
         }
     }
     var selection = 0
+    private(set) var pending: PendingSend?
+    @ObservationIgnored private var holding: Task<Void, Never>?
+    @ObservationIgnored var frames: [String: CGRect] = [:]
     private(set) var queued: DeliveryMode?
     private(set) var delivering = false
     private(set) var confirmation: String?
@@ -179,6 +187,7 @@ final class TargetPickerModel {
     var isBound: Bool { progress != nil }
 
     func reset(with walkthrough: FinishedWalkthrough? = nil) {
+        release()
         phase = walkthrough == nil ? .finishing : .ready
         self.walkthrough = walkthrough
         targets = []
@@ -218,7 +227,7 @@ final class TargetPickerModel {
     private func applySuggestion() {
         guard suggestedKey == nil, let key = pendingSuggestion, let openedAt, let index = filtered.firstIndex(where: { $0.key == key }) else { return }
         let waited = ContinuousClock.now - openedAt
-        let untouched = !interacted && query.isEmpty && queued == nil && !delivering && confirmation == nil && progress == nil
+        let untouched = !interacted && query.isEmpty && pending == nil && queued == nil && !delivering && confirmation == nil && progress == nil
         suggestedKey = key
         pendingSuggestion = nil
         if untouched, waited <= Self.preselectWindow {
@@ -258,14 +267,14 @@ final class TargetPickerModel {
 
     func move(_ delta: Int) {
         let count = filtered.count
-        guard count > 0 else { return }
+        guard count > 0, pending == nil else { return }
         interacted = true
         selection = (selection + delta + count) % count
     }
 
     func jump(_ delta: Int) {
         let starts = sections.map(\.start)
-        guard !starts.isEmpty else { return }
+        guard !starts.isEmpty, pending == nil else { return }
         interacted = true
         if delta > 0 {
             selection = starts.first { $0 > selection } ?? starts[0]
@@ -276,17 +285,39 @@ final class TargetPickerModel {
     }
 
     func choose(_ mode: DeliveryMode) {
-        guard !delivering, confirmation == nil, let target = selected else { return }
+        guard !delivering, confirmation == nil, pending == nil, let target = selected else { return }
         if target.kind == Self.clipboardKind {
             onDismiss?()
             return
         }
-        let mode = canPaste ? mode : .send
-        if phase == .finishing {
-            queued = mode
-        }
+        let seconds = Self.undoSeconds
+        pending = PendingSend(target: target, mode: canPaste ? mode : .send, started: Date(), seconds: seconds)
         problem = nil
-        onChoose?(target, mode)
+        holding = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            self?.release()
+        }
+    }
+
+    func release() {
+        guard let pending else { return }
+        holding?.cancel()
+        holding = nil
+        self.pending = nil
+        if phase == .finishing {
+            queued = pending.mode
+        }
+        onChoose?(pending.target, pending.mode)
+    }
+
+    func undo() {
+        guard let pending else { return }
+        holding?.cancel()
+        holding = nil
+        self.pending = nil
+        if let index = filtered.firstIndex(where: { $0.key == pending.target.key }) { selection = index }
+        focusToken += 1
     }
 
     func began() {
@@ -308,6 +339,13 @@ final class TargetPickerModel {
     }
 }
 
+struct PendingSend: Equatable {
+    var target: ApiaryTarget
+    var mode: DeliveryMode
+    var started: Date
+    var seconds: Double
+}
+
 final class TargetPickerController {
     static let size = CGSize(width: 460, height: 520)
 
@@ -318,6 +356,8 @@ final class TargetPickerController {
     var onClose: (() -> Void)?
 
     var isOpen: Bool { panel?.isVisible == true }
+
+    var frame: CGRect? { panel?.frame }
 
     func prepare() {
         guard panel == nil else { return }
@@ -367,6 +407,7 @@ final class TargetPickerController {
     }
 
     func close(after delay: Duration = .zero) {
+        model.release()
         onClose?()
         closing?.cancel()
         closing = Task { [weak self] in
@@ -437,6 +478,15 @@ final class TargetPickerController {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let panel = self.panel, event.window === panel || event.windowNumber == panel.windowNumber else { return event }
             let model = self.model
+            if model.pending != nil {
+                switch event.keyCode {
+                case 53: model.undo()
+                case 6 where event.modifierFlags.contains(.command): model.undo()
+                case 36, 76: model.release()
+                default: break
+                }
+                return nil
+            }
             switch event.keyCode {
             case 125:
                 model.move(1)
@@ -474,6 +524,7 @@ struct PickerKey {
     static let tab = PickerKey(code: 48, characters: "\t")
     static let shiftTab = PickerKey(code: 48, characters: "\t", modifiers: .shift)
     static let delete = PickerKey(code: 51, characters: "\u{7F}")
+    static let commandZ = PickerKey(code: 6, characters: "z", modifiers: .command)
 
     static func character(_ value: Character) -> PickerKey {
         PickerKey(code: 0, characters: String(value))
@@ -500,7 +551,11 @@ struct TargetPickerView: View {
                 if model.offer != .hidden { offer }
                 list
                 Rectangle().fill(Palette.hairline).frame(height: 1)
-                footer
+                if let pending = model.pending {
+                    undoBar(pending)
+                } else {
+                    footer
+                }
             }
         }
         .frame(width: TargetPickerController.size.width, height: model.isCompact ? 52 : TargetPickerController.size.height, alignment: .topLeading)
@@ -646,6 +701,7 @@ struct TargetPickerView: View {
                                         model.select(index)
                                         model.choose(.paste)
                                     }
+                                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { model.frames[target.key] = $0 }
                             }
                         } header: {
                             sectionHeader(section)
@@ -658,6 +714,7 @@ struct TargetPickerView: View {
             }
             .scrollIndicators(.never)
             .frame(maxHeight: .infinity)
+            .allowsHitTesting(model.pending == nil)
             .onChange(of: model.selection) {
                 if let section = model.sections.first(where: { $0.start == model.selection }) {
                     proxy.scrollTo("group:\(section.id)", anchor: .top)
@@ -784,6 +841,50 @@ struct TargetPickerView: View {
                 RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Palette.accent.opacity(0.45), lineWidth: 1)
             }
         }
+        .opacity(model.pending.map { $0.target.key == target.key ? 1 : 0.4 } ?? 1)
+        .animation(Motion.snappy, value: model.pending == nil)
+    }
+
+    private func undoBar(_ pending: PendingSend) -> some View {
+        TimelineView(.animation) { context in
+            let left = max(0, pending.seconds - context.date.timeIntervalSince(pending.started))
+            HStack(spacing: 10) {
+                TargetIcon(target: pending.target)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Sent to \(Text(pending.target.title).fontWeight(.semibold))")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Palette.text)
+                        .lineLimit(1)
+                    Text("Delivers in \(Int(left.rounded(.up))) s")
+                        .font(Typography.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.textTertiary)
+                }
+                Spacer(minLength: 6)
+                hint("↩", "Send now")
+                Button { model.undo() } label: {
+                    HStack(spacing: 6) {
+                        Text("Undo")
+                        KeyHint("esc")
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle(large: false))
+                .help("Undo (esc or ⌘Z)")
+                .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { model.frames["undo"] = $0 }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .overlay(alignment: .topLeading) {
+                GeometryReader { proxy in
+                    Rectangle()
+                        .fill(Palette.accent)
+                        .frame(width: proxy.size.width * left / max(pending.seconds, 0.1), height: 2)
+                }
+                .frame(height: 2)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Sent to \(pending.target.title). Undo with escape.")
     }
 
     private var footer: some View {

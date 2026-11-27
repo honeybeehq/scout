@@ -18,6 +18,7 @@ hive_path = os.path.join(run, "hived.sock")
 token = secrets.token_hex(16)
 instance = "fixture-" + secrets.token_hex(4)
 log = open(os.path.join(run, "serve.log"), "a", buffering=1)
+deliveries = open(os.path.join(run, "deliveries.log"), "a", buffering=1)
 now = time.time() * 1000
 
 
@@ -91,6 +92,7 @@ def apiary(conn):
             target = params.get("target", {})
             title = next((row["title"] for row in targets if row["kind"] == target.get("kind") and row["id"] == target.get("id")), "")
             log.write(f"apiary deliver {target.get('kind')}:{target.get('id')} {params.get('mode')} {title}\n")
+            deliveries.write(f"{round(time.time() * 1000)} {target.get('kind')}:{target.get('id')} {params.get('mode')} {title}\n")
             result = {"target": {"title": title}} if title else {}
         else:
             send(conn, {"id": request["id"], "ok": False, "error": {"code": "unknownVerb", "message": verb}})
