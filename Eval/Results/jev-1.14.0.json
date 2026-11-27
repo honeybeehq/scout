@@ -1,0 +1,7402 @@
+{
+  "model" : "jev-1.14.0",
+  "recordedAt" : "2026-11-27T11:16:13Z",
+  "runs" : [
+    {
+      "anyFits" : 0.84,
+      "attempt" : 0,
+      "caseID" : "pricing-copy",
+      "confidence" : 1,
+      "inputTokens" : 1959,
+      "milliseconds" : 237.061625,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.75,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.73,
+      "attempt" : 0,
+      "caseID" : "guide-hotkeys-page",
+      "confidence" : 0.99,
+      "inputTokens" : 1660,
+      "milliseconds" : 157.896166,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.85,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.15,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.25,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 0,
+      "caseID" : "record-hotkey-settings",
+      "confidence" : 0.99,
+      "inputTokens" : 1945,
+      "milliseconds" : 171.629625,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:scout",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.83,
+      "attempt" : 0,
+      "caseID" : "whisper-download",
+      "confidence" : 0.99,
+      "inputTokens" : 1773,
+      "milliseconds" : 162.288125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:scout",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.74,
+      "attempt" : 0,
+      "caseID" : "picker-misclick",
+      "confidence" : 0.99,
+      "inputTokens" : 1964,
+      "milliseconds" : 245.117625,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.44,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.53,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 0,
+      "caseID" : "picker-tab-groups",
+      "confidence" : 1,
+      "inputTokens" : 1625,
+      "milliseconds" : 194.14025,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "project:project-scout-picker",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.75,
+      "attempt" : 0,
+      "caseID" : "jev-suggestion-wrong",
+      "confidence" : 0.94,
+      "inputTokens" : 1843,
+      "milliseconds" : 156.384667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.81,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.95
+        },
+        {
+          "fit" : 0.65,
+          "key" : "champion:scout",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.37,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.26,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 0,
+      "caseID" : "apiary-chat-jump",
+      "confidence" : 1,
+      "inputTokens" : 2050,
+      "milliseconds" : 170.192833,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.81,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 0,
+      "caseID" : "proof-commit-count",
+      "confidence" : 0.99,
+      "inputTokens" : 1819,
+      "milliseconds" : 176.430208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.54,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.43,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.93,
+      "attempt" : 0,
+      "caseID" : "inbox-snooze",
+      "confidence" : 1,
+      "inputTokens" : 1715,
+      "milliseconds" : 165.433708,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.44,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 0,
+      "caseID" : "forum-header-spacing",
+      "confidence" : 1,
+      "inputTokens" : 1640,
+      "milliseconds" : 153.941459,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.23,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.75,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.88,
+      "attempt" : 0,
+      "caseID" : "forum-thread-layout",
+      "confidence" : 1,
+      "inputTokens" : 1498,
+      "milliseconds" : 158.664125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "project:project-apiary-forum",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.3,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.33,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.24,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.86,
+      "attempt" : 0,
+      "caseID" : "fjord-login-voiceover",
+      "confidence" : 1,
+      "inputTokens" : 2175,
+      "milliseconds" : 149.273041,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.97,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.73,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.26,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 0,
+      "caseID" : "fjord-payment-history-sort",
+      "confidence" : 1,
+      "inputTokens" : 1998,
+      "milliseconds" : 164.806333,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.56,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.61,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 0,
+      "caseID" : "fjord-recurring-payment",
+      "confidence" : 1,
+      "inputTokens" : 1822,
+      "milliseconds" : 141.393708,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.97,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.69,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.86,
+      "attempt" : 0,
+      "caseID" : "fjord-onboarding-kyc",
+      "confidence" : 1,
+      "inputTokens" : 2058,
+      "milliseconds" : 165.947958,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.74,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.77,
+      "attempt" : 0,
+      "caseID" : "fjord-web-generic",
+      "confidence" : 1,
+      "inputTokens" : 2143,
+      "milliseconds" : 171.738083,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.89,
+          "key" : "champion:fjordbank-web",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.95,
+      "attempt" : 0,
+      "caseID" : "fjord-app-freeze-card",
+      "confidence" : 1,
+      "inputTokens" : 1806,
+      "milliseconds" : 164.50125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.84,
+      "attempt" : 0,
+      "caseID" : "fjord-app-push",
+      "confidence" : 1,
+      "inputTokens" : 1948,
+      "milliseconds" : 162.380833,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:fjordbank-app",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 0,
+      "caseID" : "ledger-chart-colours",
+      "confidence" : 0.99,
+      "inputTokens" : 1959,
+      "milliseconds" : 159.072917,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.79,
+      "attempt" : 0,
+      "caseID" : "ledger-sync-duplicate",
+      "confidence" : 1,
+      "inputTokens" : 1756,
+      "milliseconds" : 147.565833,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "project:project-ledger-sync",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.69,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 0,
+      "caseID" : "ledger-budget-generic",
+      "confidence" : 1,
+      "inputTokens" : 1744,
+      "milliseconds" : 149.108208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.87,
+          "key" : "champion:ledger",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.28,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.2,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 0,
+      "caseID" : "kitchen-search-aa",
+      "confidence" : 0.98,
+      "inputTokens" : 1714,
+      "milliseconds" : 170.159667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.87,
+          "key" : "champion:kitchen",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 0,
+      "caseID" : "kitchen-meal-planner",
+      "confidence" : 1,
+      "inputTokens" : 1750,
+      "milliseconds" : 144.996708,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:kitchen",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 0,
+      "caseID" : "nectar-public-flag",
+      "confidence" : 0.99,
+      "inputTokens" : 1920,
+      "milliseconds" : 166.935792,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.86,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.8,
+          "key" : "project:project-nectar-public",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.77,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 0,
+      "caseID" : "nectar-link-expiry",
+      "confidence" : 0.99,
+      "inputTokens" : 1747,
+      "milliseconds" : 146.067458,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "project:project-nectar-public",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.82,
+          "key" : "champion:nectar",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 0,
+      "caseID" : "hive-follow",
+      "confidence" : 0.99,
+      "inputTokens" : 1676,
+      "milliseconds" : 140.012958,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.43,
+      "attempt" : 0,
+      "caseID" : "hive-cells-generic",
+      "confidence" : 0.65,
+      "inputTokens" : 1896,
+      "milliseconds" : 231.951875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.54,
+          "key" : "champion:honeybee",
+          "probability" : 0.69
+        },
+        {
+          "fit" : 0.62,
+          "key" : "champion:apiary",
+          "probability" : 0.29
+        },
+        {
+          "fit" : 0.27,
+          "key" : "champion:scout",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.74,
+      "attempt" : 0,
+      "caseID" : "pollinate-signature",
+      "confidence" : 0.99,
+      "inputTokens" : 1719,
+      "milliseconds" : 148.257708,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.87,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.75,
+          "key" : "champion:pollinate",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.37,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.7,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 0,
+      "caseID" : "pollinate-pr-routing",
+      "confidence" : 0.93,
+      "inputTokens" : 1943,
+      "milliseconds" : 309.509208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.88,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0.94
+        },
+        {
+          "fit" : 0.3,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.36,
+          "key" : "champion:scout",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.48,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.24,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 0,
+      "caseID" : "hem-approval-prompt",
+      "confidence" : 0.99,
+      "inputTokens" : 1790,
+      "milliseconds" : 145.3265,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "champion:hem",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.29,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.21,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "champion:scout",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 0,
+      "caseID" : "foundation-wide-tables",
+      "confidence" : 0.97,
+      "inputTokens" : 1855,
+      "milliseconds" : 152.987667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0.97
+        },
+        {
+          "fit" : 0.18,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.77,
+          "key" : "champion:foundation",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.71,
+      "attempt" : 0,
+      "caseID" : "named-apiary-champion",
+      "confidence" : 0.78,
+      "inputTokens" : 1960,
+      "milliseconds" : 170.97325,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.86,
+          "key" : "champion:apiary",
+          "probability" : 0.81
+        },
+        {
+          "fit" : 0.24,
+          "key" : "champion:scout",
+          "probability" : 0.19
+        },
+        {
+          "fit" : 0.15,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.62,
+      "attempt" : 0,
+      "caseID" : "named-session-handle",
+      "confidence" : 0.82,
+      "inputTokens" : 1682,
+      "milliseconds" : 138.668042,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.82,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0.85
+        },
+        {
+          "fit" : 0.44,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0.11
+        },
+        {
+          "fit" : 0.33,
+          "key" : "champion:apiary",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.22,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.2,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.59,
+      "attempt" : 0,
+      "caseID" : "named-ledger-on-bank-page",
+      "confidence" : 0.77,
+      "inputTokens" : 1791,
+      "milliseconds" : 151.024041,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.71,
+          "key" : "champion:ledger",
+          "probability" : 0.8
+        },
+        {
+          "fit" : 0.31,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.12
+        },
+        {
+          "fit" : 0.29,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.06
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.19,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.82,
+      "attempt" : 0,
+      "caseID" : "named-nectar-from-scout-site",
+      "confidence" : 0.99,
+      "inputTokens" : 1723,
+      "milliseconds" : 163.325708,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "champion:nectar",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.26,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.2,
+          "key" : "project:project-nectar-public",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 0,
+      "caseID" : "scout-site-download",
+      "confidence" : 1,
+      "inputTokens" : 1763,
+      "milliseconds" : 159.916458,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:scout-site",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 0,
+      "caseID" : "scout-app-generic",
+      "confidence" : 0.98,
+      "inputTokens" : 1929,
+      "milliseconds" : 125.321959,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.89,
+          "key" : "champion:scout",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.19,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.2,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.76,
+      "attempt" : 0,
+      "caseID" : "large-roster-chat",
+      "confidence" : 0.99,
+      "inputTokens" : 3017,
+      "milliseconds" : 188.0015,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.86,
+          "key" : "champion:apiary",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.17,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 0,
+      "caseID" : "large-roster-bank",
+      "confidence" : 1,
+      "inputTokens" : 2884,
+      "milliseconds" : 143.669292,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.6,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.63,
+      "attempt" : 0,
+      "caseID" : "vague-short",
+      "confidence" : 0.89,
+      "inputTokens" : 1782,
+      "milliseconds" : 186.643375,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.85,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.91
+        },
+        {
+          "fit" : 0.69,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.09
+        },
+        {
+          "fit" : 0.42,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 0,
+      "caseID" : "transcript-names-wrong-thing",
+      "confidence" : 1,
+      "inputTokens" : 1767,
+      "milliseconds" : 202.286333,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.46,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.04,
+      "attempt" : 0,
+      "caseID" : "nofit-bank-without-bank-targets",
+      "confidence" : 0.74,
+      "inputTokens" : 1809,
+      "milliseconds" : 151.61725,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.35,
+          "key" : "champion:scout",
+          "probability" : 0.78
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:nectar",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:honeybee",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.13,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:apiary",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.07,
+      "attempt" : 0,
+      "caseID" : "nofit-ledger-without-ledger-targets",
+      "confidence" : 0.35,
+      "inputTokens" : 1781,
+      "milliseconds" : 164.475416,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.32,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.44
+        },
+        {
+          "fit" : 0.19,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.26
+        },
+        {
+          "fit" : 0.35,
+          "key" : "champion:scout",
+          "probability" : 0.25
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:kitchen",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.19,
+      "attempt" : 0,
+      "caseID" : "nofit-figma-other-client",
+      "confidence" : 0.79,
+      "inputTokens" : 1911,
+      "milliseconds" : 139.216542,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.25,
+          "key" : "champion:scout-site",
+          "probability" : 0.82
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:scout",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:nectar",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:foundation",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.04,
+      "attempt" : 0,
+      "caseID" : "nofit-finder",
+      "confidence" : 0.65,
+      "inputTokens" : 1734,
+      "milliseconds" : 148.084458,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.28,
+          "key" : "champion:scout",
+          "probability" : 0.7
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:apiary",
+          "probability" : 0.16
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:honeybee",
+          "probability" : 0.08
+        },
+        {
+          "fit" : 0.08,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.01,
+      "attempt" : 0,
+      "caseID" : "nofit-recipes-without-kitchen",
+      "confidence" : 0.38,
+      "inputTokens" : 1766,
+      "milliseconds" : 172.309625,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.47
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0.26
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:apiary",
+          "probability" : 0.16
+        },
+        {
+          "fit" : 0.01,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0.02
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.36,
+      "attempt" : 0,
+      "caseID" : "nofit-personal-note",
+      "confidence" : 0.5,
+      "inputTokens" : 1790,
+      "milliseconds" : 184.920792,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.39,
+          "key" : "champion:scout",
+          "probability" : 0.57
+        },
+        {
+          "fit" : 0.31,
+          "key" : "champion:kitchen",
+          "probability" : 0.21
+        },
+        {
+          "fit" : 0.32,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.11
+        },
+        {
+          "fit" : 0.2,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:apiary",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.17,
+          "key" : "champion:honeybee",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.25,
+      "attempt" : 0,
+      "caseID" : "nofit-slack",
+      "confidence" : 0.86,
+      "inputTokens" : 1736,
+      "milliseconds" : 144.979875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.67,
+          "key" : "champion:apiary",
+          "probability" : 0.88
+        },
+        {
+          "fit" : 0.23,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.21,
+          "key" : "champion:scout",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.17,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.08,
+      "attempt" : 0,
+      "caseID" : "nofit-preview-without-nectar",
+      "confidence" : 0.78,
+      "inputTokens" : 1821,
+      "milliseconds" : 165.04975,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.34,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.81
+        },
+        {
+          "fit" : 0.16,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0.11
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:kitchen",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:ledger",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.86,
+      "attempt" : 1,
+      "caseID" : "pricing-copy",
+      "confidence" : 1,
+      "inputTokens" : 1959,
+      "milliseconds" : 160.099958,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.81,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.71,
+      "attempt" : 1,
+      "caseID" : "guide-hotkeys-page",
+      "confidence" : 0.98,
+      "inputTokens" : 1660,
+      "milliseconds" : 195.344875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.87,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.78,
+          "key" : "champion:scout-site",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.17,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.29,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.86,
+      "attempt" : 1,
+      "caseID" : "record-hotkey-settings",
+      "confidence" : 0.99,
+      "inputTokens" : 1945,
+      "milliseconds" : 165.865917,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.74,
+          "key" : "champion:scout",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.83,
+      "attempt" : 1,
+      "caseID" : "whisper-download",
+      "confidence" : 0.99,
+      "inputTokens" : 1773,
+      "milliseconds" : 145.90025,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:scout",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.75,
+      "attempt" : 1,
+      "caseID" : "picker-misclick",
+      "confidence" : 1,
+      "inputTokens" : 1964,
+      "milliseconds" : 145.233709,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "project:project-scout-jev",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.53,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.47,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 1,
+      "caseID" : "picker-tab-groups",
+      "confidence" : 1,
+      "inputTokens" : 1625,
+      "milliseconds" : 135.950958,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "project:project-scout-picker",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.35,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.76,
+      "attempt" : 1,
+      "caseID" : "jev-suggestion-wrong",
+      "confidence" : 0.94,
+      "inputTokens" : 1843,
+      "milliseconds" : 158.694667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.75,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.95
+        },
+        {
+          "fit" : 0.65,
+          "key" : "champion:scout",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.43,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.3,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.35,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 1,
+      "caseID" : "apiary-chat-jump",
+      "confidence" : 1,
+      "inputTokens" : 2050,
+      "milliseconds" : 150.333125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.7,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 1,
+      "caseID" : "proof-commit-count",
+      "confidence" : 1,
+      "inputTokens" : 1819,
+      "milliseconds" : 146.386,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.48,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.32,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.48,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.94,
+      "attempt" : 1,
+      "caseID" : "inbox-snooze",
+      "confidence" : 1,
+      "inputTokens" : 1715,
+      "milliseconds" : 139.859833,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.41,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 1,
+      "caseID" : "forum-header-spacing",
+      "confidence" : 1,
+      "inputTokens" : 1640,
+      "milliseconds" : 151.002417,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.25,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.78,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.89,
+      "attempt" : 1,
+      "caseID" : "forum-thread-layout",
+      "confidence" : 1,
+      "inputTokens" : 1498,
+      "milliseconds" : 156.032667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "project:project-apiary-forum",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.3,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.23,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.88,
+      "attempt" : 1,
+      "caseID" : "fjord-login-voiceover",
+      "confidence" : 1,
+      "inputTokens" : 2175,
+      "milliseconds" : 169.831416,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.97,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.73,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.2,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 1,
+      "caseID" : "fjord-payment-history-sort",
+      "confidence" : 1,
+      "inputTokens" : 1998,
+      "milliseconds" : 153.025542,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.52,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.57,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 1,
+      "caseID" : "fjord-recurring-payment",
+      "confidence" : 1,
+      "inputTokens" : 1822,
+      "milliseconds" : 173.97225,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.69,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.86,
+      "attempt" : 1,
+      "caseID" : "fjord-onboarding-kyc",
+      "confidence" : 1,
+      "inputTokens" : 2058,
+      "milliseconds" : 169.389875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.69,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.77,
+      "attempt" : 1,
+      "caseID" : "fjord-web-generic",
+      "confidence" : 1,
+      "inputTokens" : 2143,
+      "milliseconds" : 158.270583,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "champion:fjordbank-web",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.94,
+      "attempt" : 1,
+      "caseID" : "fjord-app-freeze-card",
+      "confidence" : 1,
+      "inputTokens" : 1806,
+      "milliseconds" : 163.861709,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.77,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 1,
+      "caseID" : "fjord-app-push",
+      "confidence" : 1,
+      "inputTokens" : 1948,
+      "milliseconds" : 134.301667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:fjordbank-app",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.84,
+      "attempt" : 1,
+      "caseID" : "ledger-chart-colours",
+      "confidence" : 1,
+      "inputTokens" : 1959,
+      "milliseconds" : 166.077208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.7,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.8,
+      "attempt" : 1,
+      "caseID" : "ledger-sync-duplicate",
+      "confidence" : 1,
+      "inputTokens" : 1756,
+      "milliseconds" : 169.369334,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "project:project-ledger-sync",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.68,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 1,
+      "caseID" : "ledger-budget-generic",
+      "confidence" : 1,
+      "inputTokens" : 1744,
+      "milliseconds" : 129.864584,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.87,
+          "key" : "champion:ledger",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.28,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.22,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 1,
+      "caseID" : "kitchen-search-aa",
+      "confidence" : 0.98,
+      "inputTokens" : 1714,
+      "milliseconds" : 159.806833,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.84,
+          "key" : "champion:kitchen",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 1,
+      "caseID" : "kitchen-meal-planner",
+      "confidence" : 1,
+      "inputTokens" : 1750,
+      "milliseconds" : 159.99625,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:kitchen",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 1,
+      "caseID" : "nectar-public-flag",
+      "confidence" : 0.98,
+      "inputTokens" : 1920,
+      "milliseconds" : 165.818083,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.89,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.83,
+          "key" : "project:project-nectar-public",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.2,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.77,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 1,
+      "caseID" : "nectar-link-expiry",
+      "confidence" : 0.99,
+      "inputTokens" : 1747,
+      "milliseconds" : 136.055125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "project:project-nectar-public",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.82,
+          "key" : "champion:nectar",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.15,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.86,
+      "attempt" : 1,
+      "caseID" : "hive-follow",
+      "confidence" : 0.99,
+      "inputTokens" : 1676,
+      "milliseconds" : 151.477542,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:apiary",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.35,
+      "attempt" : 1,
+      "caseID" : "hive-cells-generic",
+      "confidence" : 0.69,
+      "inputTokens" : 1896,
+      "milliseconds" : 147.319083,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.45,
+          "key" : "champion:honeybee",
+          "probability" : 0.73
+        },
+        {
+          "fit" : 0.61,
+          "key" : "champion:apiary",
+          "probability" : 0.24
+        },
+        {
+          "fit" : 0.32,
+          "key" : "champion:scout",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 1,
+      "caseID" : "pollinate-signature",
+      "confidence" : 0.99,
+      "inputTokens" : 1719,
+      "milliseconds" : 171.5105,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.85,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.72,
+          "key" : "champion:pollinate",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.46,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.67,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.69,
+      "attempt" : 1,
+      "caseID" : "pollinate-pr-routing",
+      "confidence" : 0.92,
+      "inputTokens" : 1943,
+      "milliseconds" : 170.103334,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.87,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0.93
+        },
+        {
+          "fit" : 0.4,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.38,
+          "key" : "champion:scout",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.5,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.2,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 1,
+      "caseID" : "hem-approval-prompt",
+      "confidence" : 0.99,
+      "inputTokens" : 1790,
+      "milliseconds" : 155.197458,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "champion:hem",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.3,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.19,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:scout",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.84,
+      "attempt" : 1,
+      "caseID" : "foundation-wide-tables",
+      "confidence" : 0.95,
+      "inputTokens" : 1855,
+      "milliseconds" : 144.994208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.89,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0.96
+        },
+        {
+          "fit" : 0.77,
+          "key" : "champion:foundation",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.2,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.67,
+      "attempt" : 1,
+      "caseID" : "named-apiary-champion",
+      "confidence" : 0.84,
+      "inputTokens" : 1960,
+      "milliseconds" : 159.292041,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.84,
+          "key" : "champion:apiary",
+          "probability" : 0.86
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:scout",
+          "probability" : 0.14
+        },
+        {
+          "fit" : 0.13,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.6,
+      "attempt" : 1,
+      "caseID" : "named-session-handle",
+      "confidence" : 0.85,
+      "inputTokens" : 1682,
+      "milliseconds" : 185.687916,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.81,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0.87
+        },
+        {
+          "fit" : 0.5,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0.09
+        },
+        {
+          "fit" : 0.35,
+          "key" : "champion:apiary",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.25,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.21,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.59,
+      "attempt" : 1,
+      "caseID" : "named-ledger-on-bank-page",
+      "confidence" : 0.74,
+      "inputTokens" : 1791,
+      "milliseconds" : 159.712291,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.71,
+          "key" : "champion:ledger",
+          "probability" : 0.78
+        },
+        {
+          "fit" : 0.34,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.14
+        },
+        {
+          "fit" : 0.26,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.82,
+      "attempt" : 1,
+      "caseID" : "named-nectar-from-scout-site",
+      "confidence" : 0.99,
+      "inputTokens" : 1723,
+      "milliseconds" : 183.799417,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "champion:nectar",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.25,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.16,
+          "key" : "project:project-nectar-public",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 1,
+      "caseID" : "scout-site-download",
+      "confidence" : 1,
+      "inputTokens" : 1763,
+      "milliseconds" : 143.35475,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "champion:scout-site",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 1,
+      "caseID" : "scout-app-generic",
+      "confidence" : 0.99,
+      "inputTokens" : 1929,
+      "milliseconds" : 145.45225,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.89,
+          "key" : "champion:scout",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.14,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.23,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.72,
+      "attempt" : 1,
+      "caseID" : "large-roster-chat",
+      "confidence" : 0.99,
+      "inputTokens" : 3017,
+      "milliseconds" : 144.032542,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.83,
+          "key" : "champion:apiary",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.08,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.17,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 1,
+      "caseID" : "large-roster-bank",
+      "confidence" : 0.99,
+      "inputTokens" : 2884,
+      "milliseconds" : 149.301125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.59,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.6,
+      "attempt" : 1,
+      "caseID" : "vague-short",
+      "confidence" : 0.92,
+      "inputTokens" : 1782,
+      "milliseconds" : 170.774583,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.85,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.93
+        },
+        {
+          "fit" : 0.7,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.42,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 1,
+      "caseID" : "transcript-names-wrong-thing",
+      "confidence" : 1,
+      "inputTokens" : 1767,
+      "milliseconds" : 164.322833,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.42,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.05,
+      "attempt" : 1,
+      "caseID" : "nofit-bank-without-bank-targets",
+      "confidence" : 0.81,
+      "inputTokens" : 1809,
+      "milliseconds" : 145.338042,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.42,
+          "key" : "champion:scout",
+          "probability" : 0.84
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:honeybee",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:nectar",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:apiary",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.08,
+      "attempt" : 1,
+      "caseID" : "nofit-ledger-without-ledger-targets",
+      "confidence" : 0.25,
+      "inputTokens" : 1781,
+      "milliseconds" : 167.923917,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.3,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.36
+        },
+        {
+          "fit" : 0.37,
+          "key" : "champion:scout",
+          "probability" : 0.3
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.27
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:kitchen",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.08,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.19,
+      "attempt" : 1,
+      "caseID" : "nofit-figma-other-client",
+      "confidence" : 0.79,
+      "inputTokens" : 1911,
+      "milliseconds" : 154.823583,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.36,
+          "key" : "champion:scout-site",
+          "probability" : 0.82
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:apiary",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:scout",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:foundation",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:nectar",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.03,
+      "attempt" : 1,
+      "caseID" : "nofit-finder",
+      "confidence" : 0.62,
+      "inputTokens" : 1734,
+      "milliseconds" : 183.025666,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.27,
+          "key" : "champion:scout",
+          "probability" : 0.67
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:apiary",
+          "probability" : 0.16
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:honeybee",
+          "probability" : 0.08
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:hem",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.01,
+      "attempt" : 1,
+      "caseID" : "nofit-recipes-without-kitchen",
+      "confidence" : 0.22,
+      "inputTokens" : 1766,
+      "milliseconds" : 225.665208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.32999999999999996
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0.29999999999999993
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0.20999999999999994
+        },
+        {
+          "fit" : 0.01,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0.059999999999999984
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.04999999999999999
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0.029999999999999992
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.019999999999999997
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.4,
+      "attempt" : 1,
+      "caseID" : "nofit-personal-note",
+      "confidence" : 0.42,
+      "inputTokens" : 1790,
+      "milliseconds" : 146.410125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.51,
+          "key" : "champion:kitchen",
+          "probability" : 0.5
+        },
+        {
+          "fit" : 0.37,
+          "key" : "champion:scout",
+          "probability" : 0.33
+        },
+        {
+          "fit" : 0.15,
+          "key" : "champion:apiary",
+          "probability" : 0.06
+        },
+        {
+          "fit" : 0.36,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.06
+        },
+        {
+          "fit" : 0.29,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.17,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.22,
+      "attempt" : 1,
+      "caseID" : "nofit-slack",
+      "confidence" : 0.78,
+      "inputTokens" : 1736,
+      "milliseconds" : 172.542709,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.65,
+          "key" : "champion:apiary",
+          "probability" : 0.81
+        },
+        {
+          "fit" : 0.26,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.13
+        },
+        {
+          "fit" : 0.22,
+          "key" : "champion:scout",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.17,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.17,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.08,
+      "attempt" : 1,
+      "caseID" : "nofit-preview-without-nectar",
+      "confidence" : 0.7,
+      "inputTokens" : 1821,
+      "milliseconds" : 193.848875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.43,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.74
+        },
+        {
+          "fit" : 0.19,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0.16
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:kitchen",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:ledger",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 2,
+      "caseID" : "pricing-copy",
+      "confidence" : 1,
+      "inputTokens" : 1959,
+      "milliseconds" : 150.851917,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.82,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.67,
+      "attempt" : 2,
+      "caseID" : "guide-hotkeys-page",
+      "confidence" : 0.99,
+      "inputTokens" : 1660,
+      "milliseconds" : 148.514583,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.86,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.17,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.89,
+      "attempt" : 2,
+      "caseID" : "record-hotkey-settings",
+      "confidence" : 1,
+      "inputTokens" : 1945,
+      "milliseconds" : 133.019792,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 2,
+      "caseID" : "whisper-download",
+      "confidence" : 1,
+      "inputTokens" : 1773,
+      "milliseconds" : 146.942208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.76,
+      "attempt" : 2,
+      "caseID" : "picker-misclick",
+      "confidence" : 1,
+      "inputTokens" : 1964,
+      "milliseconds" : 141.170875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "project:project-scout-jev",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.52,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.47,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.9,
+      "attempt" : 2,
+      "caseID" : "picker-tab-groups",
+      "confidence" : 1,
+      "inputTokens" : 1625,
+      "milliseconds" : 163.781791,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "project:project-scout-picker",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.75,
+      "attempt" : 2,
+      "caseID" : "jev-suggestion-wrong",
+      "confidence" : 0.93,
+      "inputTokens" : 1843,
+      "milliseconds" : 132.612709,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.8,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.94
+        },
+        {
+          "fit" : 0.4,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.59,
+          "key" : "champion:scout",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.26,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 2,
+      "caseID" : "apiary-chat-jump",
+      "confidence" : 1,
+      "inputTokens" : 2050,
+      "milliseconds" : 158.02025,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.79,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 2,
+      "caseID" : "proof-commit-count",
+      "confidence" : 1,
+      "inputTokens" : 1819,
+      "milliseconds" : 167.676792,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.43,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.31,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.56,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.93,
+      "attempt" : 2,
+      "caseID" : "inbox-snooze",
+      "confidence" : 1,
+      "inputTokens" : 1715,
+      "milliseconds" : 146.475667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.42,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 2,
+      "caseID" : "forum-header-spacing",
+      "confidence" : 1,
+      "inputTokens" : 1640,
+      "milliseconds" : 152.133542,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.24,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.75,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 2,
+      "caseID" : "forum-thread-layout",
+      "confidence" : 1,
+      "inputTokens" : 1498,
+      "milliseconds" : 161.831334,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "project:project-apiary-forum",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.28,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.36,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.26,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 2,
+      "caseID" : "fjord-login-voiceover",
+      "confidence" : 1,
+      "inputTokens" : 2175,
+      "milliseconds" : 173.322542,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.97,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.73,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.23,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 2,
+      "caseID" : "fjord-payment-history-sort",
+      "confidence" : 1,
+      "inputTokens" : 1998,
+      "milliseconds" : 172.549834,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.54,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.61,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 2,
+      "caseID" : "fjord-recurring-payment",
+      "confidence" : 1,
+      "inputTokens" : 1822,
+      "milliseconds" : 332.47175,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.69,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 2,
+      "caseID" : "fjord-onboarding-kyc",
+      "confidence" : 1,
+      "inputTokens" : 2058,
+      "milliseconds" : 176.440834,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.81,
+      "attempt" : 2,
+      "caseID" : "fjord-web-generic",
+      "confidence" : 1,
+      "inputTokens" : 2143,
+      "milliseconds" : 148.384792,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "champion:fjordbank-web",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.94,
+      "attempt" : 2,
+      "caseID" : "fjord-app-freeze-card",
+      "confidence" : 1,
+      "inputTokens" : 1806,
+      "milliseconds" : 210.357,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.95,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.77,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.84,
+      "attempt" : 2,
+      "caseID" : "fjord-app-push",
+      "confidence" : 1,
+      "inputTokens" : 1948,
+      "milliseconds" : 180.254792,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:fjordbank-app",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.84,
+      "attempt" : 2,
+      "caseID" : "ledger-chart-colours",
+      "confidence" : 1,
+      "inputTokens" : 1959,
+      "milliseconds" : 217.927375,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.94,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.73,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.78,
+      "attempt" : 2,
+      "caseID" : "ledger-sync-duplicate",
+      "confidence" : 1,
+      "inputTokens" : 1756,
+      "milliseconds" : 163.553125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "project:project-ledger-sync",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.74,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.88,
+      "attempt" : 2,
+      "caseID" : "ledger-budget-generic",
+      "confidence" : 1,
+      "inputTokens" : 1744,
+      "milliseconds" : 137.67775,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.87,
+          "key" : "champion:ledger",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.22,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 2,
+      "caseID" : "kitchen-search-aa",
+      "confidence" : 0.99,
+      "inputTokens" : 1714,
+      "milliseconds" : 149.885166,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.86,
+          "key" : "champion:kitchen",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 2,
+      "caseID" : "kitchen-meal-planner",
+      "confidence" : 1,
+      "inputTokens" : 1750,
+      "milliseconds" : 149.459667,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "champion:kitchen",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.15,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 2,
+      "caseID" : "nectar-public-flag",
+      "confidence" : 0.97,
+      "inputTokens" : 1920,
+      "milliseconds" : 128.488084,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.85,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0.97
+        },
+        {
+          "fit" : 0.85,
+          "key" : "project:project-nectar-public",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.21,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 2,
+      "caseID" : "nectar-link-expiry",
+      "confidence" : 0.99,
+      "inputTokens" : 1747,
+      "milliseconds" : 175.443208,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "project:project-nectar-public",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.81,
+          "key" : "champion:nectar",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.87,
+      "attempt" : 2,
+      "caseID" : "hive-follow",
+      "confidence" : 1,
+      "inputTokens" : 1676,
+      "milliseconds" : 148.472083,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.76,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.43,
+      "attempt" : 2,
+      "caseID" : "hive-cells-generic",
+      "confidence" : 0.69,
+      "inputTokens" : 1896,
+      "milliseconds" : 171.615958,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.57,
+          "key" : "champion:honeybee",
+          "probability" : 0.73
+        },
+        {
+          "fit" : 0.59,
+          "key" : "champion:apiary",
+          "probability" : 0.26
+        },
+        {
+          "fit" : 0.22,
+          "key" : "champion:scout",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.09,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 2,
+      "caseID" : "pollinate-signature",
+      "confidence" : 0.99,
+      "inputTokens" : 1719,
+      "milliseconds" : 128.6155,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.86,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.71,
+          "key" : "champion:pollinate",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.38,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.68,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.71,
+      "attempt" : 2,
+      "caseID" : "pollinate-pr-routing",
+      "confidence" : 0.94,
+      "inputTokens" : 1943,
+      "milliseconds" : 153.978,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.88,
+          "key" : "project:project-pollinate-github",
+          "probability" : 0.95
+        },
+        {
+          "fit" : 0.35,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.32,
+          "key" : "champion:scout",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.51,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.22,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000014",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.91,
+      "attempt" : 2,
+      "caseID" : "hem-approval-prompt",
+      "confidence" : 0.99,
+      "inputTokens" : 1790,
+      "milliseconds" : 145.496583,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "champion:hem",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.27,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:scout",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.84,
+      "attempt" : 2,
+      "caseID" : "foundation-wide-tables",
+      "confidence" : 0.95,
+      "inputTokens" : 1855,
+      "milliseconds" : 169.413084,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000013",
+          "probability" : 0.96
+        },
+        {
+          "fit" : 0.2,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.74,
+          "key" : "champion:foundation",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:scout-site",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 2,
+      "caseID" : "named-apiary-champion",
+      "confidence" : 0.79,
+      "inputTokens" : 1960,
+      "milliseconds" : 167.549958,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.85,
+          "key" : "champion:apiary",
+          "probability" : 0.82
+        },
+        {
+          "fit" : 0.21,
+          "key" : "champion:scout",
+          "probability" : 0.17
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.7,
+      "attempt" : 2,
+      "caseID" : "named-session-handle",
+      "confidence" : 0.87,
+      "inputTokens" : 1682,
+      "milliseconds" : 186.7435,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.82,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0.89
+        },
+        {
+          "fit" : 0.44,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0.09
+        },
+        {
+          "fit" : 0.31,
+          "key" : "champion:apiary",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.23,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.2,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.53,
+      "attempt" : 2,
+      "caseID" : "named-ledger-on-bank-page",
+      "confidence" : 0.66,
+      "inputTokens" : 1791,
+      "milliseconds" : 147.922417,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.69,
+          "key" : "champion:ledger",
+          "probability" : 0.71
+        },
+        {
+          "fit" : 0.32,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.21
+        },
+        {
+          "fit" : 0.28,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.07
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.81,
+      "attempt" : 2,
+      "caseID" : "named-nectar-from-scout-site",
+      "confidence" : 0.99,
+      "inputTokens" : 1723,
+      "milliseconds" : 134.149666,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "champion:nectar",
+          "probability" : 0.99
+        },
+        {
+          "fit" : 0.24,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.16,
+          "key" : "project:project-nectar-public",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.92,
+      "attempt" : 2,
+      "caseID" : "scout-site-download",
+      "confidence" : 1,
+      "inputTokens" : 1763,
+      "milliseconds" : 132.255,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.93,
+          "key" : "champion:scout-site",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.3,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.73,
+      "attempt" : 2,
+      "caseID" : "scout-app-generic",
+      "confidence" : 0.98,
+      "inputTokens" : 1929,
+      "milliseconds" : 157.643167,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.9,
+          "key" : "champion:scout",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.14,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:scout-site",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.11,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000015",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.19,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.74,
+      "attempt" : 2,
+      "caseID" : "large-roster-chat",
+      "confidence" : 0.98,
+      "inputTokens" : 3017,
+      "milliseconds" : 145.124083,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.96,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.98
+        },
+        {
+          "fit" : 0.82,
+          "key" : "champion:apiary",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:foundation",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.18,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:nectar",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000004",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000011",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.88,
+      "attempt" : 2,
+      "caseID" : "large-roster-bank",
+      "confidence" : 1,
+      "inputTokens" : 2884,
+      "milliseconds" : 170.758375,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.91,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.04,
+          "key" : "champion:apiary",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.65,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "champion:kitchen",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000007",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.13,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.01,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.61,
+      "attempt" : 2,
+      "caseID" : "vague-short",
+      "confidence" : 0.88,
+      "inputTokens" : 1782,
+      "milliseconds" : 149.893166,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.83,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.9
+        },
+        {
+          "fit" : 0.7,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.1
+        },
+        {
+          "fit" : 0.43,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.21,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.07,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.85,
+      "attempt" : 2,
+      "caseID" : "transcript-names-wrong-thing",
+      "confidence" : 1,
+      "inputTokens" : 1767,
+      "milliseconds" : 164.647125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.92,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 1
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:honeybee",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.43,
+          "key" : "champion:scout",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-scout-picker",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-scout-jev",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.05,
+      "attempt" : 2,
+      "caseID" : "nofit-bank-without-bank-targets",
+      "confidence" : 0.78,
+      "inputTokens" : 1809,
+      "milliseconds" : 161.772083,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.41,
+          "key" : "champion:scout",
+          "probability" : 0.81
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:honeybee",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.12,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:nectar",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:apiary",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.08,
+      "attempt" : 2,
+      "caseID" : "nofit-ledger-without-ledger-targets",
+      "confidence" : 0.52,
+      "inputTokens" : 1781,
+      "milliseconds" : 166.558125,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.36,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.59
+        },
+        {
+          "fit" : 0.26,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.21
+        },
+        {
+          "fit" : 0.35,
+          "key" : "champion:scout",
+          "probability" : 0.15
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:kitchen",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.1,
+          "key" : "project:project-fjordbank-payments",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000006",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.13,
+      "attempt" : 2,
+      "caseID" : "nofit-figma-other-client",
+      "confidence" : 0.76,
+      "inputTokens" : 1911,
+      "milliseconds" : 176.582334,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.26,
+          "key" : "champion:scout-site",
+          "probability" : 0.79
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:scout",
+          "probability" : 0.06
+        },
+        {
+          "fit" : 0.08,
+          "key" : "champion:apiary",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000010",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:foundation",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.07,
+          "key" : "champion:nectar",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000016",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.03,
+          "key" : "project:project-apiary-forum",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.05,
+      "attempt" : 2,
+      "caseID" : "nofit-finder",
+      "confidence" : 0.64,
+      "inputTokens" : 1734,
+      "milliseconds" : 130.191916,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.31,
+          "key" : "champion:scout",
+          "probability" : 0.69
+        },
+        {
+          "fit" : 0.14,
+          "key" : "champion:apiary",
+          "probability" : 0.16
+        },
+        {
+          "fit" : 0.1,
+          "key" : "champion:honeybee",
+          "probability" : 0.08
+        },
+        {
+          "fit" : 0.06,
+          "key" : "project:project-scout-picker",
+          "probability" : 0.06
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000002",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.05,
+          "key" : "champion:hem",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.04,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.01,
+      "attempt" : 2,
+      "caseID" : "nofit-recipes-without-kitchen",
+      "confidence" : 0.3,
+      "inputTokens" : 1766,
+      "milliseconds" : 150.996084,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.4
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:ledger",
+          "probability" : 0.28
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:apiary",
+          "probability" : 0.18
+        },
+        {
+          "fit" : 0.02,
+          "key" : "project:project-ledger-sync",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.02,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.02,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000008",
+          "probability" : 0.03
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.38,
+      "attempt" : 2,
+      "caseID" : "nofit-personal-note",
+      "confidence" : 0.43,
+      "inputTokens" : 1790,
+      "milliseconds" : 186.594875,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.4,
+          "key" : "champion:scout",
+          "probability" : 0.51
+        },
+        {
+          "fit" : 0.4,
+          "key" : "champion:kitchen",
+          "probability" : 0.3
+        },
+        {
+          "fit" : 0.32,
+          "key" : "project:project-scout-jev",
+          "probability" : 0.08
+        },
+        {
+          "fit" : 0.16,
+          "key" : "champion:apiary",
+          "probability" : 0.05
+        },
+        {
+          "fit" : 0.23,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000001",
+          "probability" : 0.03
+        },
+        {
+          "fit" : 0.17,
+          "key" : "champion:honeybee",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.09,
+          "key" : "champion:ledger",
+          "probability" : 0.01
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.24,
+      "attempt" : 2,
+      "caseID" : "nofit-slack",
+      "confidence" : 0.84,
+      "inputTokens" : 1736,
+      "milliseconds" : 177.845041,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.68,
+          "key" : "champion:apiary",
+          "probability" : 0.86
+        },
+        {
+          "fit" : 0.28,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000003",
+          "probability" : 0.09
+        },
+        {
+          "fit" : 0.22,
+          "key" : "champion:scout",
+          "probability" : 0.04
+        },
+        {
+          "fit" : 0.19,
+          "key" : "champion:honeybee",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.17,
+          "key" : "project:project-apiary-inbox",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:pollinate",
+          "probability" : 0
+        },
+        {
+          "fit" : 0.05,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000012",
+          "probability" : 0
+        }
+      ]
+    },
+    {
+      "anyFits" : 0.08,
+      "attempt" : 2,
+      "caseID" : "nofit-preview-without-nectar",
+      "confidence" : 0.77,
+      "inputTokens" : 1821,
+      "milliseconds" : 138.829458,
+      "model" : "jev-1.14.0",
+      "ranked" : [
+        {
+          "fit" : 0.39,
+          "key" : "champion:fjordbank-web",
+          "probability" : 0.8
+        },
+        {
+          "fit" : 0.15,
+          "key" : "project:project-fjordbank-onboarding",
+          "probability" : 0.12
+        },
+        {
+          "fit" : 0.12,
+          "key" : "champion:fjordbank-app",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.11,
+          "key" : "champion:kitchen",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.06,
+          "key" : "champion:ledger",
+          "probability" : 0.02
+        },
+        {
+          "fit" : 0.06,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000005",
+          "probability" : 0.01
+        },
+        {
+          "fit" : 0.03,
+          "key" : "session:b1a7c0de-0003-4000-8000-000000000009",
+          "probability" : 0.01
+        }
+      ]
+    }
+  ],
+  "warmupMilliseconds" : 188.158541
+}

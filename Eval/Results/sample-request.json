@@ -1,0 +1,136 @@
+{
+  "model" : "jev-1.14.0",
+  "questions" : {
+    "any_fits" : {
+      "instructions" : "Does one of the targets in `targets` clearly own what the spoken feedback in `feedback` is about, so it is obvious where to send it?",
+      "type" : "noul"
+    },
+    "fit_0" : {
+      "instructions" : "Is the target `Scout (Champion)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_1" : {
+      "instructions" : "Is the target `Scout Site (Champion)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_2" : {
+      "instructions" : "Is the target `site-pricing (Session)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_3" : {
+      "instructions" : "Is the target `scout-site-docs (Session)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_4" : {
+      "instructions" : "Is the target `scout-hotkeys (Session)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_5" : {
+      "instructions" : "Is the target `Scout: smart target suggestion (Jev) + safe send (Project)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_6" : {
+      "instructions" : "Is the target `Apiary (Champion)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "fit_7" : {
+      "instructions" : "Is the target `Nectar (Champion)` in `targets` the right one to receive the spoken feedback in `feedback` and act on it?",
+      "type" : "noul"
+    },
+    "target" : {
+      "criteria" : {
+        "Apiary (Champion)" : "Champion: Owns Apiary, the desktop app and kernel for Champions, Projects and bees: chat, Inbox, Forum, proofs and landing.",
+        "Nectar (Champion)" : "Champion: Owns nectar, the preview server: tailnet URLs for prototypes, desktop testpacks and public nctr.site links.",
+        "Scout (Champion)" : "Champion: Owns Scout, the macOS menu-bar app that records spoken feedback with screen context and sends it to agents: recording, transcription, the target picker and delivery.",
+        "Scout Site (Champion)" : "Champion: Owns scout.honeybee.dev, Scout's marketing site, download page and user guide.",
+        "scout-hotkeys (Session)" : "Session: Make the record hotkey configurable in Settings",
+        "scout-site-docs (Session)" : "Session: User guide sidebar order and the hotkeys page",
+        "Scout: smart target suggestion (Jev) + safe send (Project)" : "Project: Rank the picker's targets with TypeSafe Jev, preselect a confident pick, and stop one-click misclick sends.",
+        "site-pricing (Session)" : "Session: Rewrite the pricing page copy and FAQ"
+      },
+      "instructions" : "Scout recorded the spoken feedback in `feedback` while the user was on the page or app it names. Which target in `targets` should receive this feedback and act on it? A Session is one agent working on the task in its bio; a Champion owns a whole product; a Project orchestrator runs a multi-step effort. If the feedback names a target, choose that one. Otherwise choose the target whose work most specifically covers what the feedback is about: a Session or Project working on exactly that beats the Champion of the whole product, and the Champion beats an unrelated Session. Recent activity is only a weak hint.",
+      "type" : "choice"
+    }
+  },
+  "state" : {
+    "feedback" : {
+      "app" : "Safari",
+      "page_title" : "Pricing · Scout",
+      "site" : "scout.honeybee.dev",
+      "spoken_feedback" : "Okay so on this page, the second paragraph still says it's per seat, but it's free, there's no seat thing at all. And down in the FAQ the Linux answer should just say macOS only for now, not 'coming soon'."
+    },
+    "targets" : [
+      {
+        "bio" : "Owns Scout, the macOS menu-bar app that records spoken feedback with screen context and sends it to agents: recording, transcription, the target picker and delivery.",
+        "kind" : "Champion",
+        "name" : "Scout",
+        "project" : "scout",
+        "recent_activity" : "active in the last 15 minutes",
+        "target" : "Scout (Champion)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "Owns scout.honeybee.dev, Scout's marketing site, download page and user guide.",
+        "kind" : "Champion",
+        "name" : "Scout Site",
+        "project" : "scout-site",
+        "recent_activity" : "active this week",
+        "target" : "Scout Site (Champion)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "Rewrite the pricing page copy and FAQ",
+        "kind" : "Session",
+        "name" : "site-pricing",
+        "project" : "scout-site",
+        "recent_activity" : "active today",
+        "target" : "site-pricing (Session)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "User guide sidebar order and the hotkeys page",
+        "kind" : "Session",
+        "name" : "scout-site-docs",
+        "project" : "scout-site",
+        "recent_activity" : "active this week",
+        "target" : "scout-site-docs (Session)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "Make the record hotkey configurable in Settings",
+        "kind" : "Session",
+        "name" : "scout-hotkeys",
+        "project" : "scout",
+        "recent_activity" : "active in the last 15 minutes",
+        "target" : "scout-hotkeys (Session)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "Rank the picker's targets with TypeSafe Jev, preselect a confident pick, and stop one-click misclick sends.",
+        "kind" : "Project",
+        "name" : "Scout: smart target suggestion (Jev) + safe send",
+        "recent_activity" : "active this week",
+        "target" : "Scout: smart target suggestion (Jev) + safe send (Project)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "Owns Apiary, the desktop app and kernel for Champions, Projects and bees: chat, Inbox, Forum, proofs and landing.",
+        "kind" : "Champion",
+        "name" : "Apiary",
+        "project" : "apiary",
+        "recent_activity" : "active this week",
+        "target" : "Apiary (Champion)",
+        "workspace" : "Honeybee"
+      },
+      {
+        "bio" : "Owns nectar, the preview server: tailnet URLs for prototypes, desktop testpacks and public nctr.site links.",
+        "kind" : "Champion",
+        "name" : "Nectar",
+        "project" : "nectar",
+        "recent_activity" : "active this week",
+        "target" : "Nectar (Champion)",
+        "workspace" : "Honeybee"
+      }
+    ]
+  }
+}

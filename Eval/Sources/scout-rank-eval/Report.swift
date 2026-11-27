@@ -87,6 +87,7 @@ struct Report {
                     gate("Jev top probability ≥ \(threshold) and any-fits Noul ≥ \(fits)", jev, { $0.top >= threshold && ($0.anyFits ?? 0) >= fits })
                 }
             }
+            gate("Recommended: TargetRanking.suggestion() defaults (top ≥ 0.8, any-fits ≥ 0.5)", jev, { $0.top >= 0.8 && ($0.anyFits ?? 0) >= 0.5 })
             for fit in [0.5, 0.7] {
                 gate("Jev top Choice pick's own Noul ≥ \(fit)", jev, { ($0.ranked.first?.fit ?? 0) >= fit })
             }

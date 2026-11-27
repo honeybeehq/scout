@@ -120,8 +120,11 @@ public struct TargetRanking: Sendable {
 
     public var top: ScoredTarget? { ranked.first }
 
-    public func suggestion(minimumProbability: Double) -> ScoredTarget? {
-        guard let top, top.probability >= minimumProbability else { return nil }
+    public static let suggestedMinimumProbability = 0.8
+    public static let suggestedMinimumAnyFits = 0.5
+
+    public func suggestion(minimumProbability: Double = TargetRanking.suggestedMinimumProbability, minimumAnyFits: Double = TargetRanking.suggestedMinimumAnyFits) -> ScoredTarget? {
+        guard source == .jev, let top, top.probability >= minimumProbability, let anyFits, anyFits >= minimumAnyFits else { return nil }
         return top
     }
 }

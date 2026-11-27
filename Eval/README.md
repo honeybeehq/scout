@@ -31,3 +31,7 @@ export TYPESAFE_API_KEY="$(hem get global/typesafe-api-key key)"
 - Accuracy uses the first pass. Latency uses every pass except one warm-up request.
 
 The harness builds on macOS and on Linux with Swift 6.2 or later.
+
+## Results
+
+`Results/report.md` is the report from the live run on 2026-11-27 (`jev-1.14.0`, 3 passes on mini05), rebuilt from `Results/jev-1.14.0.json`. `Results/sample-request.json` is the exact body sent for the first case. On these fixtures, Jev's Choice got 42/42 top-1. The baseline tuned on the same set got 32/42, and the untuned one got 19/42. The p50 latency was 159 ms and the p95 was 210 ms. `TargetRanking.suggestion()` highlights a pick only when its Choice probability is at least 0.8 and the any-fits Noul is at least 0.5. That gate kept 41 of the 42 labelled cases with none wrong, and highlighted none of the 8 no-fit cases. The fixtures were written by the same author as the labels, so treat these as an upper bound and recheck them against real recordings once the picker logs choices.
