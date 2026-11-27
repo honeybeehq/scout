@@ -14,6 +14,13 @@ struct MenuBarPanelState {
         let transcriptProblem: String?
     }
 
+    struct UnsentSummary: Identifiable {
+        let id: String
+        let title: String
+        let target: String
+        let reason: String
+    }
+
     var isScouting = false
     var shortcut = "⌃⌥S"
     var breakShortcut = "⌃⌥B"
@@ -21,6 +28,7 @@ struct MenuBarPanelState {
     var lastSessionSaveFailed = false
     var lastWalkthrough: WalkthroughSummary?
     var walkthroughProblem: String?
+    var unsent: [UnsentSummary] = []
     var hive: Integrations.HiveStatus = .checking
     var apiaryRunning = false
     var sdkApps: [String] = []
@@ -39,6 +47,9 @@ struct MenuBarPanelActions {
     var sendWalkthrough: () -> Void = {}
     var copyWalkthrough: () -> Void = {}
     var revealWalkthrough: () -> Void = {}
+    var resendUnsent: (String) -> Void = { _ in }
+    var revealUnsent: (String) -> Void = { _ in }
+    var dismissUnsent: (String) -> Void = { _ in }
     var revealDebugData: () -> Void = {}
     var openSetup: () -> Void = {}
     var openSettings: () -> Void = {}
@@ -66,6 +77,7 @@ struct MenuBarPanel: View {
             lastSessionSaveFailed: model.review?.saveError != nil,
             lastWalkthrough: model.lastWalkthrough.map(Self.summary),
             walkthroughProblem: model.walkthroughProblem,
+            unsent: model.unsent.map { .init(id: $0.id, title: $0.title, target: $0.target, reason: $0.reason) },
             hive: model.integrations.hive,
             apiaryRunning: model.integrations.apiary == .running,
             sdkApps: model.bridge.clients.filter { $0.hello != nil }.map(\.name),
@@ -86,6 +98,9 @@ struct MenuBarPanel: View {
             sendWalkthrough: { model.sendLastWalkthrough() },
             copyWalkthrough: { model.copyLastWalkthrough() },
             revealWalkthrough: { model.revealLastWalkthrough() },
+            resendUnsent: { id in if let item = model.unsent.first(where: { $0.id == id }) { model.resend(item) } },
+            revealUnsent: { id in if let item = model.unsent.first(where: { $0.id == id }) { model.revealUnsent(item) } },
+            dismissUnsent: { id in if let item = model.unsent.first(where: { $0.id == id }) { model.dismissUnsent(item) } },
             revealDebugData: { model.revealDebugData() },
             openSetup: {
                 model.onboarding.restart()
@@ -218,6 +233,9 @@ struct MenuBarPanelContent: View {
             }
             .frame(height: 20)
 
+            ForEach(state.unsent) { item in
+                UnsentRow(item: item, isScouting: state.isScouting, actions: actions)
+            }
             if let walkthrough = state.lastWalkthrough {
                 LastWalkthroughRow(walkthrough: walkthrough, isScouting: state.isScouting, actions: actions)
             }
@@ -230,7 +248,7 @@ struct MenuBarPanelContent: View {
                 .foregroundStyle(Palette.textSecondary)
             }
             if state.recent.isEmpty {
-                if state.lastWalkthrough == nil {
+                if state.lastWalkthrough == nil, state.unsent.isEmpty {
                     Text("Nothing yet. Start scouting and talk through what you see.")
                         .font(Typography.callout)
                         .foregroundStyle(Palette.textTertiary)
@@ -486,6 +504,46 @@ private struct LastWalkthroughRow: View {
                 .padding(.top, 4)
             }
         }
+    }
+}
+
+private struct UnsentRow: View {
+    let item: MenuBarPanelState.UnsentSummary
+    let isScouting: Bool
+    let actions: MenuBarPanelActions
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            StatusDot(tone: .negative, size: 6)
+                .frame(width: 12)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Not delivered to \(item.target)")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineLimit(1)
+                Text(item.reason)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 4) {
+                    Button("Send again…") { actions.resendUnsent(item.id) }
+                        .buttonStyle(SecondaryButtonStyle())
+                        .disabled(isScouting)
+                    Button("Show in Finder") { actions.revealUnsent(item.id) }
+                        .buttonStyle(QuietButtonStyle())
+                    Button("Dismiss") { actions.dismissUnsent(item.id) }
+                        .buttonStyle(QuietButtonStyle())
+                }
+                .padding(.top, 4)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(item.title), not delivered to \(item.target): \(item.reason)")
     }
 }
 

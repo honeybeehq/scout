@@ -29,6 +29,7 @@ final class AppModel {
     private(set) var session: ScoutingSession?
     private(set) var lastWalkthrough: FinishedWalkthrough?
     private(set) var walkthroughProblem: String?
+    private(set) var unsent: [UnsentWalkthrough] = []
     private(set) var lastDebugDirectory: URL?
     @ObservationIgnored private(set) var debugFinish: Task<Void, Never>?
     private(set) var review: SessionReview?
@@ -122,6 +123,8 @@ final class AppModel {
         ScoutAppDelegate.onShouldTerminate = { [weak self] in self?.shouldTerminate() ?? .terminateNow }
         ScoutAppDelegate.onWillFinishLaunching = { [preferences] in preferences.applyAppearance() }
         if !Self.rendersOnly {
+            unsent = UnsentWalkthroughs.load()
+            if !unsent.isEmpty { NSLog("[scout-safe-send] %d recordings were not delivered, listed in the menu", unsent.count) }
             Task.detached(priority: .background) {
                 let resolution = ScoutDataRoot.current
                 NSLog("[scout-data] root %@ (%@), pruning %@", resolution.root.path, resolution.reason, resolution.allowsPruning ? "on" : "off")
@@ -472,6 +475,9 @@ final class AppModel {
             walkthroughReady(finished)
         } catch {
             walkthrough.discard()
+            if queuedSends.removeValue(forKey: walkthrough.bundle.id) != nil {
+                NSLog("[scout-safe-send] queued send for %@ dropped: the walkthrough couldn't be saved", walkthrough.bundle.id)
+            }
             lastWalkthrough = nil
             walkthroughProblem = "The walkthrough couldn't be saved: \(error)"
             if pickerWalkthroughID == walkthrough.bundle.id {
@@ -534,6 +540,8 @@ final class AppModel {
     @ObservationIgnored private(set) var pickerWalkthroughID: String?
     @ObservationIgnored private var pickerOpenings = 0
     @ObservationIgnored private var deliveries: [Int: Task<Void, Never>] = [:]
+    @ObservationIgnored private var inFlight: [Int: UnsentWalkthrough] = [:]
+    @ObservationIgnored private var queuedSends: [String: QueuedSend] = [:]
     @ObservationIgnored private var deliveryCount = 0
     @ObservationIgnored private var quitWaiting = false
     @ObservationIgnored private var quitForced = false
@@ -571,6 +579,7 @@ final class AppModel {
         pickerOpenings += 1
         pickerWalkthroughID = walkthroughID
         chosen = (target, .paste, pressedAt)
+        queuedSends[walkthroughID] = QueuedSend(target: target, mode: .paste, viaApiary: target.viaApiary, bound: true)
         finishPressedAt = pressedAt
         lastDeliveryLine = nil
         pickerTimings = ["finishEpochMs": (Date().timeIntervalSince1970 * 1000).rounded() - ApiaryBridge.milliseconds(.now - pressedAt)]
@@ -600,36 +609,63 @@ final class AppModel {
         suggestions.cancel()
         chosen = (target, mode, .now)
         if let finishPressedAt { pickerTimings["finishToChoice"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
-        guard let finished = picker.model.walkthrough else { return }
-        deliver(finished, to: target, mode: mode)
+        let viaApiary = picker.model.source == .apiary && target.viaApiary
+        guard let finished = picker.model.walkthrough else {
+            guard let id = pickerWalkthroughID else { return }
+            queuedSends[id] = QueuedSend(target: target, mode: mode, viaApiary: viaApiary, bound: false)
+            NSLog("[scout-safe-send] queued %@ for %@:%@ until the recording finishes", id, target.kind, target.id)
+            return
+        }
+        deliver(finished, to: target, mode: mode, viaApiary: viaApiary, bound: false)
     }
 
-    private func walkthroughReady(_ finished: FinishedWalkthrough) {
-        guard picker.isOpen, picker.model.confirmation == nil, pickerWalkthroughID == finished.walkthrough.id else { return }
+    func walkthroughReady(_ finished: FinishedWalkthrough) {
+        let id = finished.walkthrough.id
+        let showing = picker.isOpen && picker.model.confirmation == nil && pickerWalkthroughID == id
+        if let send = queuedSends.removeValue(forKey: id) {
+            if showing { picker.model.ready(finished) }
+            NSLog("[scout-safe-send] %@ finished, delivering its queued send%@", id, showing ? "" : " in the background")
+            deliver(finished, to: send.target, mode: send.mode, viaApiary: send.viaApiary, bound: send.bound)
+            return
+        }
+        guard showing else { return }
         picker.model.ready(finished)
         if chosen == nil { suggestions.offer(feedback: TargetSuggestions.feedback(from: finished.walkthrough)) }
-        if let chosen, picker.model.queued != nil {
-            deliver(finished, to: chosen.target, mode: chosen.mode)
-        }
     }
 
-    private func deliver(_ finished: FinishedWalkthrough, to target: ApiaryTarget, mode: DeliveryMode) {
+    private func deliver(_ finished: FinishedWalkthrough, to target: ApiaryTarget, mode: DeliveryMode, viaApiary: Bool, bound: Bool) {
         let model = picker.model
-        model.began()
-        let viaApiary = model.source == .apiary && target.viaApiary
-        let bound = model.isBound
+        let attached = picker.isOpen && pickerWalkthroughID == finished.walkthrough.id
+        if attached { model.began() }
         let delivery = WalkthroughDelivery(apiary: apiary, hive: integrations.hiveClient)
         let started = ContinuousClock.now
         let opening = pickerOpenings
         deliveryCount += 1
         let number = deliveryCount
-        pickerTimings["deliverStartEpochMs"] = (Date().timeIntervalSince1970 * 1000).rounded()
+        let record = UnsentWalkthrough(id: finished.walkthrough.id, directory: finished.directory, title: finished.walkthrough.title ?? "Walkthrough", target: target.title, reason: "Scout quit before it was delivered", at: Date())
+        inFlight[number] = record
+        if attached { pickerTimings["deliverStartEpochMs"] = (Date().timeIntervalSince1970 * 1000).rounded() }
         deliveries[number] = Task {
-            defer { deliveries[number] = nil }
+            defer {
+                deliveries[number] = nil
+                inFlight[number] = nil
+            }
             do {
                 let outcome = try await delivery.deliver(bundle: finished.directory, walkthrough: finished.walkthrough.id, to: target, mode: mode, viaApiary: viaApiary, dryRun: SimulationMode.isDryRun)
                 lastDelivery = outcome
-                guard opening == pickerOpenings else { return }
+                let current = attached && opening == pickerOpenings
+                if !current, outcome.route == .clipboard {
+                    var missed = record
+                    missed.reason = "Apiary wasn't reachable, so it only went to the clipboard"
+                    missed.at = Date()
+                    notDelivered(missed)
+                    return
+                }
+                delivered(finished.walkthrough.id)
+                guard current else {
+                    NSLog("[scout-safe-send] delivered %@ to %@:%@ (%@) after its picker closed", finished.walkthrough.id, target.kind, target.id, outcome.route.rawValue)
+                    return
+                }
                 pickerTimings["deliverRoundTrip"] = ApiaryBridge.milliseconds(.now - started)
                 if let chosenAt = chosen?.at { pickerTimings["chooseToDelivered"] = ApiaryBridge.milliseconds(.now - chosenAt) }
                 if let finishPressedAt { pickerTimings["finishToDelivered"] = ApiaryBridge.milliseconds(.now - finishPressedAt) }
@@ -645,7 +681,14 @@ final class AppModel {
                 picker.compact()
                 picker.close(after: .milliseconds(1400))
             } catch {
-                guard opening == pickerOpenings else { return }
+                var failed = record
+                failed.reason = bound ? Self.boundReason(error) : Self.failureReason(error)
+                failed.at = Date()
+                notDelivered(failed)
+                guard attached, opening == pickerOpenings else {
+                    NSLog("[scout-safe-send] delivery of %@ to %@:%@ failed after its picker closed: %@", finished.walkthrough.id, target.kind, target.id, failed.reason)
+                    return
+                }
                 if bound {
                     chosen = nil
                     let line = "On the clipboard: \(Self.boundReason(error))."
@@ -676,6 +719,11 @@ final class AppModel {
             }
             return "On the clipboard: \(reason)."
         }
+    }
+
+    private static func failureReason(_ error: Error) -> String {
+        let message = (error as? WalkthroughDelivery.Failure)?.message ?? error.localizedDescription
+        return message.trimmingCharacters(in: CharacterSet(charactersIn: ". \n"))
     }
 
     private static func boundReason(_ error: Error) -> String {
@@ -725,25 +773,66 @@ final class AppModel {
 
     private func shouldTerminate() -> NSApplication.TerminateReply {
         picker.model.release()
-        let queued = picker.model.queued != nil && picker.isOpen
-        guard !quitForced, !deliveries.isEmpty || queued else { return .terminateNow }
+        guard !quitForced, !deliveries.isEmpty || !queuedSends.isEmpty else { return .terminateNow }
         guard !quitWaiting else { return .terminateCancel }
         quitWaiting = true
-        NSLog("[scout-safe-send] quit waits for %d deliveries in flight%@", deliveries.count, queued ? " and one waiting for the walkthrough" : "")
+        NSLog("[scout-safe-send] quit waits for %d deliveries in flight and %d waiting for their recording", deliveries.count, queuedSends.count)
         Task {
-            let deadline = ContinuousClock.now + .seconds(15)
-            while ContinuousClock.now < deadline, !deliveries.isEmpty || (picker.model.queued != nil && picker.isOpen) {
+            let started = ContinuousClock.now
+            var deadline = started + .seconds(15)
+            while ContinuousClock.now < deadline, !deliveries.isEmpty || !queuedSends.isEmpty {
+                if !queuedSends.isEmpty { deadline = min(max(deadline, .now + .seconds(15)), started + .seconds(120)) }
                 try? await Task.sleep(for: .milliseconds(50))
             }
+            for record in inFlight.values { notDelivered(record) }
             quitForced = true
-            NSLog("[scout-safe-send] quitting, %d deliveries left", deliveries.count)
+            NSLog("[scout-safe-send] quitting after %.0f ms, %d deliveries and %d queued sends left, %d recordings listed as not delivered", (ContinuousClock.now - started).seconds * 1000, deliveries.count, queuedSends.count, unsent.count)
             NSApp.terminate(nil)
         }
         return .terminateCancel
     }
 
+    private func delivered(_ id: String) {
+        guard unsent.contains(where: { $0.id == id }) else { return }
+        unsent.removeAll { $0.id == id }
+        UnsentWalkthroughs.save(unsent)
+    }
+
+    private func notDelivered(_ record: UnsentWalkthrough) {
+        unsent.removeAll { $0.id == record.id }
+        unsent.insert(record, at: 0)
+        UnsentWalkthroughs.save(unsent)
+        NSLog("[scout-safe-send] %@ not delivered, kept in the menu to send again: %@", record.id, record.reason)
+    }
+
+    func resend(_ record: UnsentWalkthrough) {
+        guard !isScouting else { return }
+        guard let finished = UnsentWalkthroughs.finished(record) else {
+            NSSound.beep()
+            unsent.removeAll { $0.id == record.id }
+            UnsentWalkthroughs.save(unsent)
+            return
+        }
+        openPicker(for: finished, expecting: finished.walkthrough.id, pressedAt: .now)
+    }
+
+    func dismissUnsent(_ record: UnsentWalkthrough) {
+        unsent.removeAll { $0.id == record.id }
+        UnsentWalkthroughs.save(unsent)
+    }
+
+    func revealUnsent(_ record: UnsentWalkthrough) {
+        NSWorkspace.shared.activateFileViewerSelecting([record.directory])
+    }
+
     private func dismissPicker() {
         guard !picker.model.delivering else { return }
+        if let id = pickerWalkthroughID, let send = queuedSends[id] {
+            picker.model.confirm("Sends to \(send.target.title) when the recording is ready")
+            picker.compact()
+            picker.close(after: .milliseconds(1200))
+            return
+        }
         chosen = nil
         picker.model.confirm("On the clipboard")
         picker.compact()
@@ -905,6 +994,13 @@ final class AppModel {
 enum SessionResult {
     case walkthrough
     case tasks
+}
+
+struct QueuedSend {
+    var target: ApiaryTarget
+    var mode: DeliveryMode
+    var viaApiary: Bool
+    var bound: Bool
 }
 
 struct FinishedWalkthrough {

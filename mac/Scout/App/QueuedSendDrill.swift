@@ -59,7 +59,38 @@ enum QueuedSendDrill {
         }
         try? await Task.sleep(for: .seconds(1))
         let drill = Drill(model: model, audio: fixture.audio, output: output)
+        func unsentReport() -> [[String: Any]] {
+            model.unsent.map { ["walkthrough": $0.id, "reason": $0.reason, "folderExists": FileManager.default.fileExists(atPath: $0.directory.path)] }
+        }
         switch scenario {
+        case "relaunch":
+            report["unsentAtLaunch"] = unsentReport()
+            report["unsentFile"] = FileManager.default.fileExists(atPath: UnsentWalkthroughs.file.path)
+            drill.menu("1-relaunch")
+        case "fail":
+            guard let first = await drill.recordAndDismiss() else { break }
+            report["first"] = first
+            let queued = await drill.recordAndQueue(queuedTarget)
+            report["queued"] = queued
+            drill.reopenLast()
+            await waitFor(3) { model.picker.model.source != .loading }
+            await drill.send(otherTarget)
+            await waitFor(30) { !model.unsent.isEmpty }
+            try? await Task.sleep(for: .seconds(3))
+            report["unsentAfterFailure"] = unsentReport()
+            drill.menu("3-not-delivered")
+            guard let item = model.unsent.first else { break }
+            note("send again from the menu", ["walkthrough": item.id])
+            model.resend(item)
+            await waitFor(3) { model.picker.model.source != .loading }
+            drill.shot("4-send-again")
+            await drill.send(argument("queued-send-retry") ?? "apiary")
+            await waitFor(10) { model.picker.model.confirmation != nil || model.picker.model.problem != nil }
+            drill.shot("5-sent-again")
+            try? await Task.sleep(for: .seconds(2))
+            report["unsentAfterRetry"] = unsentReport()
+            drill.menu("6-after-retry")
+            report["newLines"] = Array(delivered().dropFirst((report["deliveriesAtStart"] as? [String])?.count ?? 0))
         case "quit":
             guard let first = await drill.recordAndDismiss() else { break }
             report["first"] = first

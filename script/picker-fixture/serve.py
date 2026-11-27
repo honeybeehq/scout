@@ -91,6 +91,11 @@ def apiary(conn):
             params = request.get("params", {})
             target = params.get("target", {})
             title = next((row["title"] for row in targets if row["kind"] == target.get("kind") and row["id"] == target.get("id")), "")
+            if f"{target.get('kind')}:{target.get('id')}" in fixture.get("failDeliver", []):
+                log.write(f"apiary deliver {target.get('kind')}:{target.get('id')} {params.get('mode')} refused\n")
+                deliveries.write(f"{round(time.time() * 1000)} REFUSED {target.get('kind')}:{target.get('id')} {params.get('mode')} {title}\n")
+                send(conn, {"id": request["id"], "ok": False, "error": {"code": "deliveryFailed", "message": f"Apiary couldn't deliver to {title} right now."}})
+                continue
             log.write(f"apiary deliver {target.get('kind')}:{target.get('id')} {params.get('mode')} {title}\n")
             deliveries.write(f"{round(time.time() * 1000)} {target.get('kind')}:{target.get('id')} {params.get('mode')} {title}\n")
             result = {"target": {"title": title}} if title else {}

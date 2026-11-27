@@ -1,0 +1,131 @@
+{
+  "focused": null,
+  "targets": [
+    {
+      "kind": "champion",
+      "id": "scout",
+      "title": "Scout",
+      "championName": "Scout",
+      "championId": "scout",
+      "sessionId": "c1a0a1f2-0000-4000-8000-000000000001",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "subtitle": "Owns the Scout capture app",
+      "open": true,
+      "look": {
+        "key": "fixture-scout",
+        "tint": "#F0482A",
+        "tintDark": "#FF7A5E",
+        "glyph": "S"
+      }
+    },
+    {
+      "kind": "champion",
+      "id": "apiary",
+      "title": "Apiary",
+      "championName": "Apiary",
+      "championId": "apiary",
+      "sessionId": "c1a0a1f2-0000-4000-8000-000000000002",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "subtitle": "Owns the Apiary desktop app",
+      "open": true,
+      "look": {
+        "key": "fixture-apiary",
+        "tint": "#2F6FEB",
+        "tintDark": "#7AA7FF",
+        "glyph": "A"
+      }
+    },
+    {
+      "kind": "champion",
+      "id": "pollinate",
+      "title": "Pollinate",
+      "championName": "Pollinate",
+      "championId": "pollinate",
+      "sessionId": "c1a0a1f2-0000-4000-8000-000000000003",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "subtitle": "Triggers and schedules",
+      "open": false,
+      "look": {
+        "key": "fixture-pollinate",
+        "tint": "#0E8A6A",
+        "tintDark": "#3DDCB0",
+        "glyph": "P"
+      }
+    },
+    {
+      "kind": "champion",
+      "id": "polytext",
+      "title": "Polytext",
+      "championName": "Polytext",
+      "championId": "polytext",
+      "sessionId": "c1a0a1f2-0000-4000-8000-000000000004",
+      "workspaceId": "ws-polytext",
+      "workspaceName": "Polytext",
+      "subtitle": "Polytext site and billing",
+      "open": true,
+      "look": {
+        "key": "fixture-polytext",
+        "tint": "#8A3FFC",
+        "tintDark": "#B98CFF",
+        "glyph": "T"
+      }
+    },
+    {
+      "kind": "project",
+      "id": "project-safe-send",
+      "title": "Smart target suggestion + safe send",
+      "sessionId": "c1a0a1f2-0000-4000-8000-000000000005",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "open": true,
+      "look": {
+        "key": "fixture-project-a",
+        "tint": "#B7791F",
+        "tintDark": "#FFB224",
+        "glyph": "S"
+      }
+    },
+    {
+      "kind": "project",
+      "id": "project-hive-v3",
+      "title": "Hive v3 rollout",
+      "sessionId": "c1a0a1f2-0000-4000-8000-000000000006",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "open": false,
+      "look": {
+        "key": "fixture-project-b",
+        "tint": "#4B5563",
+        "tintDark": "#A1A1AA",
+        "glyph": "H"
+      }
+    },
+    {
+      "kind": "session",
+      "id": "c1a0a1f2-0000-4000-8000-000000000007",
+      "title": "Picker keyboard polish",
+      "handle": "CL.07a1",
+      "workspaceId": "ws-honeybee",
+      "workspaceName": "Honeybee",
+      "state": "working",
+      "open": true
+    },
+    {
+      "kind": "session",
+      "id": "c1a0a1f2-0000-4000-8000-000000000008",
+      "title": "Landing page copy",
+      "handle": "CL.08b2",
+      "workspaceId": "ws-polytext",
+      "workspaceName": "Polytext",
+      "state": "idle",
+      "open": true
+    }
+  ],
+  "hive": [],
+  "failDeliver": [
+    "champion:pollinate"
+  ]
+}
