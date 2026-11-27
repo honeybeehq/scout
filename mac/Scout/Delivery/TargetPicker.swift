@@ -400,6 +400,10 @@ final class TargetPickerController {
         if takingKeys {
             panel.makeKey()
             listen()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.panel?.isKeyWindow == true else { return }
+                self.model.focusToken += 1
+            }
         } else {
             panel.resignKey()
             stopListening()
