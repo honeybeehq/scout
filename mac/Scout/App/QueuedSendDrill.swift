@@ -19,6 +19,11 @@ enum QueuedSendDrill {
     private static var deliveryLog: URL? { argument("queued-send-log").map { URL(fileURLWithPath: $0) } }
 
     private static var events: [[String: Any]] = []
+    private static var activations: [[String: Any]] = []
+
+    private static func stamp(_ what: String, _ detail: String) {
+        activations.append(["what": what, "detail": detail, "epochMs": Int(Date().timeIntervalSince1970 * 1000), "appActive": NSApp.isActive])
+    }
     private static let began = Date()
 
     private static func note(_ text: String, _ extra: [String: Any] = [:]) {
@@ -81,13 +86,36 @@ enum QueuedSendDrill {
                 try? await Task.sleep(for: .milliseconds(600))
                 opens.append(["deactivated": true, "appActive": NSApp.isActive])
             }
-            var finished = false
-            model.startScouting(inputFile: fixture.audio, result: .walkthrough) { finished = true }
-            await waitFor(120) { finished }
-            try? await Task.sleep(for: .milliseconds(800))
-            await deactivate()
-            model.stopScouting()
-            await traceOpen("stop")
+            let stamp = { (what: String, detail: String) in QueuedSendDrill.stamp(what, detail) }
+            let workspace = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                let detail = "\(app?.bundleIdentifier ?? "") pid \(app?.processIdentifier ?? 0)"
+                MainActor.assumeIsolated { QueuedSendDrill.stamp("workspace activated", detail) }
+            }
+            let center = NotificationCenter.default
+            let names: [(Notification.Name, String)] = [
+                (NSApplication.didBecomeActiveNotification, "scout became active"),
+                (NSApplication.didResignActiveNotification, "scout resigned active"),
+                (NSWindow.didBecomeKeyNotification, "window became key"),
+                (NSWindow.didResignKeyNotification, "window resigned key"),
+            ]
+            let observers = names.map { name, what in
+                center.addObserver(forName: name, object: nil, queue: .main) { note in
+                    let detail = (note.object as? NSWindow).map { "\(type(of: $0)) #\($0.windowNumber)" } ?? ""
+                    MainActor.assumeIsolated { QueuedSendDrill.stamp(what, detail) }
+                }
+            }
+            func recordAndStop(_ name: String) async {
+                var finished = false
+                model.startScouting(inputFile: fixture.audio, result: .walkthrough) { finished = true }
+                await waitFor(120) { finished }
+                try? await Task.sleep(for: .milliseconds(800))
+                await deactivate()
+                stamp("open \(name)", "")
+                model.stopScouting()
+                await traceOpen(name)
+            }
+            await recordAndStop("stop")
             await waitFor(3) { model.picker.model.source != .loading }
             for method in methods { rows += await drill.matrix(method, picker: "stop") }
             drill.press("postevent", .escape)
@@ -95,6 +123,7 @@ enum QueuedSendDrill {
             try? await Task.sleep(for: .seconds(2))
             for method in methods {
                 await deactivate()
+                stamp("open send-menu-\(method)", "")
                 model.sendLastWalkthrough()
                 await traceOpen("send-menu-\(method)")
                 await waitFor(3) { model.picker.model.source != .loading }
@@ -102,8 +131,25 @@ enum QueuedSendDrill {
                 drill.press("postevent", .escape)
                 try? await Task.sleep(for: .seconds(1))
             }
+            model.sendLastWalkthrough()
+            await waitFor(3) { model.picker.model.source != .loading }
+            await drill.type("cgevent", "poly")
+            drill.press("cgevent", .enter)
+            await waitFor(2) { model.picker.model.pending != nil }
+            model.picker.model.release()
+            await waitFor(15) { model.picker.model.confirmation != nil || model.picker.model.problem != nil }
+            report["sentBeforeSecondStop"] = ["confirmation": model.picker.model.confirmation ?? "", "problem": model.picker.model.problem ?? ""]
+            drill.shot("confirmed-before-second-stop")
+            try? await Task.sleep(for: .seconds(4))
+            await recordAndStop("stop-after-send")
+            await waitFor(3) { model.picker.model.source != .loading }
+            for method in methods { rows += await drill.matrix(method, picker: "stop-after-send") }
+            drill.press("postevent", .escape)
+            NSWorkspace.shared.notificationCenter.removeObserver(workspace)
+            observers.forEach { center.removeObserver($0) }
             report["matrix"] = rows
             report["opens"] = opens
+            report["activations"] = QueuedSendDrill.activations
             report["suggestState"] = model.suggestions.state
             report["passed"] = rows.allSatisfy { $0["pass"] as? Bool == true }
         case "typing":
