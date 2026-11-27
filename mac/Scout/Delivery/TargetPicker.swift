@@ -931,9 +931,12 @@ struct TargetPickerView: View {
                     .font(Typography.caption)
                     .foregroundStyle(Palette.textSecondary)
             } else if let debug = model.debugDirectory {
-                Button("Debug data") { model.onRevealDebug?(debug) }
-                    .buttonStyle(QuietButtonStyle())
-                    .help("Open this walkthrough's debug folder in Finder")
+                Button { model.onRevealDebug?(debug) } label: {
+                    Image(systemName: "ladybug")
+                }
+                .buttonStyle(QuietButtonStyle())
+                .help("Debug data: open this walkthrough's debug folder in Finder")
+                .accessibilityLabel("Debug data")
             }
             Button { model.choose(.paste) } label: {
                 HStack(spacing: 6) {
@@ -942,6 +945,8 @@ struct TargetPickerView: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle(large: false))
+            .fixedSize()
+            .layoutPriority(1)
             .disabled(model.selected == nil || model.delivering || model.queued != nil)
         }
         .padding(.horizontal, 14)
