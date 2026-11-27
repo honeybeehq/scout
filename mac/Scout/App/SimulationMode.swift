@@ -600,6 +600,7 @@ enum SimulationMode {
         var report: [String: Any] = [
             "setting": suggestions.state,
             "requests": suggestions.requests,
+            "warmUps": suggestions.warmUps,
             "offer": String(describing: picker.offer),
             "shownAs": picker.suggestion.rawValue,
             "suggestedKey": picker.suggestedKey ?? "",

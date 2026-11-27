@@ -50,6 +50,7 @@ final class TargetSuggestions {
     @ObservationIgnored private var launched = false
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private(set) var lastBody: Data?
+    @ObservationIgnored private(set) var warmUps = 0
     @ObservationIgnored var onResult: ((SuggestionOutcome) -> Void)?
 
     init() {
@@ -159,6 +160,18 @@ final class TargetSuggestions {
     func cancel() {
         task?.cancel()
         task = nil
+    }
+
+    func warmUp() {
+        guard isOn else { return }
+        warmUps += 1
+        var request = URLRequest(url: Self.endpoint, timeoutInterval: 5)
+        request.httpMethod = "HEAD"
+        let started = ContinuousClock.now
+        Task {
+            let status = ((try? await Self.session.data(for: request))?.1 as? HTTPURLResponse)?.statusCode ?? 0
+            NSLog("[scout-suggest] connection warmed in %.0f ms (HTTP %d, no key, no data)", (ContinuousClock.now - started).seconds * 1000, status)
+        }
     }
 
     func launch() {

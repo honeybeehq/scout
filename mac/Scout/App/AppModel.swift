@@ -289,6 +289,7 @@ final class AppModel {
         discardHotkeys.discard.register(discardShortcut)
         session.begin()
         if result == .walkthrough, boundTarget == nil {
+            suggestions.warmUp()
             Task { await prefetchTargets() }
         }
     }
