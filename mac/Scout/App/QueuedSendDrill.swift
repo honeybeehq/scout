@@ -63,6 +63,23 @@ enum QueuedSendDrill {
             model.unsent.map { ["walkthrough": $0.id, "reason": $0.reason, "folderExists": FileManager.default.fileExists(atPath: $0.directory.path)] }
         }
         switch scenario {
+        case "typing":
+            var probes: [[String: Any]] = []
+            guard await drill.record() else { break }
+            await waitFor(3) { model.picker.model.source != .loading }
+            try? await Task.sleep(for: .milliseconds(700))
+            probes.append(await drill.typeProbe("finishing-1s"))
+            try? await Task.sleep(for: .seconds(2))
+            probes.append(await drill.typeProbe("finishing-3s"))
+            model.picker.post(.escape)
+            await waitFor(30) { model.lastWalkthrough != nil }
+            try? await Task.sleep(for: .seconds(2))
+            model.sendLastWalkthrough()
+            await waitFor(3) { model.picker.model.source != .loading }
+            try? await Task.sleep(for: .milliseconds(700))
+            probes.append(await drill.typeProbe("send-menu"))
+            model.picker.post(.escape)
+            report["probes"] = probes
         case "relaunch":
             report["unsentAtLaunch"] = unsentReport()
             report["unsentFile"] = FileManager.default.fileExists(atPath: UnsentWalkthroughs.file.path)
@@ -210,6 +227,29 @@ enum QueuedSendDrill {
             }
             try? await Task.sleep(for: .milliseconds(150))
             note("picked \(name)", ["via": via, "selected": picker.model.selected?.title ?? ""])
+        }
+
+        func typeProbe(_ name: String) async -> [String: Any] {
+            let codes: [Character: CGKeyCode] = ["a": 0, "p": 35, "i": 34, "r": 15, "y": 16]
+            var row: [String: Any] = ["probe": name, "before": picker.windowState, "appActive": NSApp.isActive, "frontmost": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "", "queryBefore": picker.model.query]
+            let pid = ProcessInfo.processInfo.processIdentifier
+            for character in "apiary" {
+                guard let code = codes[character] else { continue }
+                for down in [true, false] {
+                    let event = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down)
+                    event?.postToPid(pid)
+                    try? await Task.sleep(for: .milliseconds(25))
+                }
+            }
+            try? await Task.sleep(for: .milliseconds(400))
+            row["queryAfter"] = picker.model.query
+            row["rowsAfter"] = picker.model.matchCount
+            row["after"] = picker.windowState
+            shot("typing-\(name)")
+            note("typing probe \(name)", ["query": picker.model.query, "key": picker.windowState["key"] ?? ""])
+            picker.model.query = ""
+            try? await Task.sleep(for: .milliseconds(200))
+            return row
         }
 
         func shot(_ name: String) {

@@ -444,6 +444,8 @@ final class TargetPickerController {
             "onScreen": panel.isOnActiveSpace,
             "occlusionVisible": panel.occlusionState.contains(.visible),
             "level": panel.level.rawValue,
+            "key": panel.isKeyWindow,
+            "firstResponder": panel.firstResponder.map { String(describing: type(of: $0)) } ?? "",
         ]
     }
 
