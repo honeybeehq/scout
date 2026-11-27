@@ -164,8 +164,7 @@ enum QueuedSendDrill {
             let before = model.lastWalkthrough?.walkthrough.id
             guard await record() else { return [:] }
             await QueuedSendDrill.waitFor(3) { picker.model.source != .loading }
-            type(name)
-            try? await Task.sleep(for: .milliseconds(200))
+            await pick(name)
             picker.post(.enter)
             await QueuedSendDrill.waitFor(1) { picker.model.pending != nil }
             shot("1-held")
@@ -185,8 +184,7 @@ enum QueuedSendDrill {
         }
 
         func send(_ name: String) async {
-            type(name)
-            try? await Task.sleep(for: .milliseconds(200))
+            await pick(name)
             picker.post(.enter)
             await QueuedSendDrill.waitFor(1) { picker.model.pending != nil }
             try? await Task.sleep(for: .milliseconds(300))
@@ -194,8 +192,24 @@ enum QueuedSendDrill {
             note("sent the other recording", ["target": name])
         }
 
-        func type(_ text: String) {
-            for character in text { picker.post(.character(character)) }
+        func pick(_ name: String) async {
+            guard let index = picker.model.filtered.firstIndex(where: { $0.title.lowercased().contains(name) }) else {
+                note("pick \(name): not in the list")
+                return
+            }
+            var presses = 0
+            while picker.model.selection != index, presses < 20 {
+                picker.post(.down)
+                presses += 1
+                try? await Task.sleep(for: .milliseconds(60))
+            }
+            var via = "↓ × \(presses)"
+            if picker.model.selection != index {
+                via = "direct"
+                picker.model.select(index)
+            }
+            try? await Task.sleep(for: .milliseconds(150))
+            note("picked \(name)", ["via": via, "selected": picker.model.selected?.title ?? ""])
         }
 
         func shot(_ name: String) {
