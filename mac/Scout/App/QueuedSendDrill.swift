@@ -147,6 +147,20 @@ enum QueuedSendDrill {
                 drill.press("postevent", .escape)
                 try? await Task.sleep(for: .seconds(1.5))
             }
+            if argument("typing-forced-loss") != nil {
+                stamp("open forced-loss", "")
+                model.sendLastWalkthrough()
+                await waitFor(3) { model.picker.model.source != .loading }
+                try? await Task.sleep(for: .milliseconds(150))
+                stamp("deactivate scout", "")
+                NSApp.deactivate()
+                try? await Task.sleep(for: .seconds(1))
+                await drill.type("cgevent", "poly")
+                report["forcedLoss"] = ["panelKey": model.picker.windowState["key"] ?? "", "appActive": NSApp.isActive, "keyWindow": NSApp.keyWindow.map { "\(type(of: $0))" } ?? "nil", "query": model.picker.model.query, "frontmost": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
+                drill.shot("forced-loss")
+                drill.press("postevent", .escape)
+                try? await Task.sleep(for: .seconds(1.5))
+            }
             model.sendLastWalkthrough()
             await waitFor(3) { model.picker.model.source != .loading }
             await drill.type("cgevent", "poly")
